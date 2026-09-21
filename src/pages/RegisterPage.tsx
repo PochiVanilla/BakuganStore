@@ -1,233 +1,233 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Link, useNavigate } from 'react-router-dom';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, ShieldCheck, Sparkles } from 'lucide-react';
-import { registerSchema, passwordStrengthCheck, type RegisterFormValues } from '@/features/auth/schemas';
+import { Mail, Phone, ShieldCheck, Sparkles, User } from 'lucide-react';
+import { ROUTES } from '@/constants/routes';
+import { registerSchema, type RegisterFormValues } from '@/features/auth/schemas';
+import { register as registerAccount } from '@/services/api/authService';
+import { getApiErrorMessage } from '@/services/api/client';
+import { toast } from '@/store/uiStore';
+import { Button, Checkbox, Input, Modal, PasswordInput, Seo } from '@/components/ui';
+import { AuthLayout } from '@/features/auth/AuthLayout';
+import { PasswordStrengthMeter } from '@/features/auth/PasswordStrengthMeter';
+import { TermsContent, PrivacyContent } from '@/features/auth/legalContent';
 
-const defaultValues: RegisterFormValues = {
-  fullName: '',
-  email: '',
-  phone: '',
-  password: '',
-  confirmPassword: '',
-  agreeToTerms: false,
-};
+const PERKS = [
+  'Đặt giá ở mọi phiên đấu giá của shop',
+  'Theo dõi đơn hàng và lịch sử đấu giá',
+  'Nhận thông báo sớm khi hàng hiếm về kho',
+  'Lưu danh sách yêu thích trên mọi thiết bị',
+];
 
 export default function RegisterPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const [openModal, setOpenModal] = useState<'terms' | 'privacy' | null>(null);
 
   const {
     register,
     handleSubmit,
-    watch,
-    formState: { errors, isValid },
+    control,
+    setError,
+    formState: { errors, isValid, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     mode: 'onChange',
-    defaultValues,
+    defaultValues: {
+      fullName: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      agreeToTerms: false,
+    },
   });
 
-  const passwordValue = watch('password');
-  const passwordStrength = passwordStrengthCheck(passwordValue || '');
+  const password = useWatch({ control, name: 'password' });
 
-  const onSubmit = async (values: RegisterFormValues) => {
-    setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    console.log('Register payload', values);
-    setIsSubmitting(false);
+  const onSubmit = async (values: RegisterFormValues): Promise<void> => {
+    try {
+      await registerAccount(values);
+      toast.success(
+        'Đăng ký thành công!',
+        'Bạn có thể đăng nhập ngay để bắt đầu sưu tầm và đấu giá.',
+      );
+      navigate(ROUTES.login, { state: { email: values.email }, replace: true });
+    } catch (error) {
+      const fieldErrors =
+        typeof error === 'object' && error !== null && 'fieldErrors' in error
+          ? (error as { fieldErrors?: Record<string, string> }).fieldErrors
+          : undefined;
+
+      if (fieldErrors) {
+        Object.entries(fieldErrors).forEach(([field, message]) => {
+          if (field in values) {
+            setError(field as keyof RegisterFormValues, { type: 'server', message });
+          }
+        });
+      }
+      toast.error('Đăng ký thất bại', getApiErrorMessage(error));
+    }
   };
 
-  const isSubmitDisabled = !isValid || isSubmitting;
-
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-      <div className="grid overflow-hidden rounded-[32px] border border-white/10 bg-surface shadow-[0_0_35px_rgba(123,75,232,0.24)] lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="relative hidden overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(123,75,232,0.35),_transparent_35%),linear-gradient(135deg,#0f0f17,#14141f)] p-10 lg:block">
-          <div className="absolute right-8 top-8 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-gold">
-            NEW
-          </div>
-          <div className="relative mt-12 flex h-full flex-col justify-between">
-            <div>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-accent-cyan/30 bg-accent-cyan/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-accent-cyan">
-                <Sparkles size={14} />
-                Thành viên TD Bakugan
-              </div>
-              <h1 className="text-4xl font-black leading-tight text-text">
-                Tạo tài khoản <span className="text-primary">để săn ưu đãi</span>
-              </h1>
-              <p className="mt-4 max-w-md text-base leading-7 text-text-muted">
-                Theo dõi đơn hàng, tham gia đấu giá, lưu sản phẩm yêu thích và nhận ưu đãi cho khách sưu tầm mới.
+    <>
+      <Seo
+        title="Đăng ký thành viên"
+        description="Tạo tài khoản TD Bakugan để tham gia đấu giá, theo dõi đơn hàng và nhận thông báo khi hàng hiếm về kho."
+        path={ROUTES.register}
+      />
+
+      <AuthLayout
+        title="Đăng ký thành viên"
+        subtitle="Tạo tài khoản để đấu giá, lưu yêu thích và theo dõi đơn hàng của bạn."
+        aside={
+          <div className="mt-8">
+            <h2 className="font-display text-xl font-bold text-text">
+              Gia nhập cộng đồng người chơi
+            </h2>
+            <p className="mt-2.5 text-sm leading-relaxed text-text-muted">
+              Hơn 2.400 đơn hàng đã được giao và hàng chục phiên đấu giá mỗi tháng. Tài khoản TD
+              Bakugan mở khoá toàn bộ tính năng của shop.
+            </p>
+            <ul className="mt-6 space-y-3">
+              {PERKS.map((perk) => (
+                <li key={perk} className="flex items-start gap-2.5 text-sm text-text-muted">
+                  <Sparkles size={15} className="mt-0.5 shrink-0 text-gold" aria-hidden="true" />
+                  {perk}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8 flex items-center gap-2.5 rounded-xl border border-accent-cyan/25 bg-accent-cyan/8 p-4">
+              <ShieldCheck size={18} className="shrink-0 text-accent-cyan" aria-hidden="true" />
+              <p className="text-xs leading-relaxed text-text-muted">
+                Thông tin của bạn được mã hoá và không bao giờ chia sẻ cho bên thứ ba.
               </p>
             </div>
-
-            <div className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-cyan/10 text-accent-cyan">
-                  <ShieldCheck size={18} />
-                </div>
-                <div>
-                  <div className="font-bold text-text">Bảo mật cao</div>
-                  <div className="text-sm text-text-muted">Mật khẩu và thông tin tài khoản được bảo vệ.</div>
-                </div>
-              </div>
-            </div>
           </div>
-        </div>
-
-        <div className="p-6 sm:p-8 lg:p-10">
-          <div className="mb-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-cyan">Đăng ký</p>
-            <h2 className="mt-2 text-3xl font-black text-text">Tạo tài khoản mới</h2>
-          </div>
-
-          <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
-            <div>
-              <label htmlFor="fullName" className="mb-2 block text-sm font-medium text-text">
-                Họ và tên
-              </label>
-              <input
-                id="fullName"
-                {...register('fullName')}
-                className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-text placeholder:text-text-muted focus:border-accent-cyan focus:outline-none"
-                placeholder="Nguyễn Văn A"
-              />
-              {errors.fullName && <p className="mt-2 text-sm text-pink-400">{errors.fullName.message}</p>}
-            </div>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <label htmlFor="email" className="mb-2 block text-sm font-medium text-text">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  {...register('email')}
-                  className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-text placeholder:text-text-muted focus:border-accent-cyan focus:outline-none"
-                  placeholder="you@example.com"
-                />
-                {errors.email && <p className="mt-2 text-sm text-pink-400">{errors.email.message}</p>}
-              </div>
-
-              <div>
-                <label htmlFor="phone" className="mb-2 block text-sm font-medium text-text">
-                  Số điện thoại
-                </label>
-                <input
-                  id="phone"
-                  {...register('phone')}
-                  className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-text placeholder:text-text-muted focus:border-accent-cyan focus:outline-none"
-                  placeholder="0901234567"
-                />
-                {errors.phone && <p className="mt-2 text-sm text-pink-400">{errors.phone.message}</p>}
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="password" className="mb-2 block text-sm font-medium text-text">
-                Mật khẩu
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  {...register('password')}
-                  className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 pr-12 text-text placeholder:text-text-muted focus:border-accent-cyan focus:outline-none"
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  aria-label="Hiện mật khẩu"
-                  className="absolute inset-y-0 right-3 flex items-center text-text-muted"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-
-              {passwordValue ? (
-                <div className="mt-3">
-                  <div className="mb-2 flex items-center justify-between text-xs text-text-muted">
-                    <span>Độ mạnh mật khẩu</span>
-                    <span className="font-bold text-accent-cyan">{passwordStrength}</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        passwordStrength === 'Yếu'
-                          ? 'w-1/3 bg-red-400'
-                          : passwordStrength === 'Trung bình'
-                            ? 'w-2/3 bg-yellow-400'
-                            : 'w-full bg-green-400'
-                      }`}
-                    />
-                  </div>
-                </div>
-              ) : null}
-
-              {errors.password && <p className="mt-2 text-sm text-pink-400">{errors.password.message}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-text">
-                Nhập lại mật khẩu
-              </label>
-              <div className="relative">
-                <input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  {...register('confirmPassword')}
-                  className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 pr-12 text-text placeholder:text-text-muted focus:border-accent-cyan focus:outline-none"
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  aria-label="Hiện lại mật khẩu"
-                  className="absolute inset-y-0 right-3 flex items-center text-text-muted"
-                  onClick={() => setShowConfirmPassword((prev) => !prev)}
-                >
-                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              {errors.confirmPassword && <p className="mt-2 text-sm text-pink-400">{errors.confirmPassword.message}</p>}
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-              <label className="flex items-start gap-3 text-sm text-text-muted">
-                <input type="checkbox" {...register('agreeToTerms')} className="mt-1 h-4 w-4 accent-primary" />
-                <span>
-                  Tôi đồng ý với{' '}
-                  <a href="#" className="font-semibold text-accent-cyan underline-offset-2 hover:underline">
-                    Điều khoản sử dụng
-                  </a>{' '}
-                  và{' '}
-                  <a href="#" className="font-semibold text-accent-cyan underline-offset-2 hover:underline">
-                    Chính sách bảo mật
-                  </a>
-                </span>
-              </label>
-              {errors.agreeToTerms && <p className="mt-2 text-sm text-pink-400">{errors.agreeToTerms.message}</p>}
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitDisabled}
-              className="w-full rounded-full bg-gradient-to-r from-primary to-accent-pink px-4 py-3 font-bold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+        }
+        footer={
+          <>
+            Đã có tài khoản?{' '}
+            <Link
+              to={ROUTES.login}
+              className="font-semibold text-accent-cyan hover:text-accent-pink"
             >
-              {isSubmitting ? 'Đang đăng ký...' : 'Đăng ký'}
-            </button>
+              Đăng nhập
+            </Link>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+          <Input
+            label="Họ và tên"
+            placeholder="Nguyễn Văn An"
+            autoComplete="name"
+            required
+            leftIcon={<User size={17} />}
+            error={errors.fullName?.message}
+            {...register('fullName')}
+          />
 
-            <div className="text-center text-sm text-text-muted">
-              Đã có tài khoản?{' '}
-              <a href="#" className="font-semibold text-accent-cyan hover:underline">
-                Đăng nhập
-              </a>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+          <Input
+            label="Email"
+            type="email"
+            placeholder="ban@email.com"
+            autoComplete="email"
+            required
+            leftIcon={<Mail size={17} />}
+            error={errors.email?.message}
+            {...register('email')}
+          />
+
+          <Input
+            label="Số điện thoại"
+            type="tel"
+            inputMode="numeric"
+            placeholder="0912345678"
+            autoComplete="tel"
+            required
+            leftIcon={<Phone size={17} />}
+            hint="Số di động Việt Nam 10 số, dùng để liên hệ giao hàng."
+            error={errors.phone?.message}
+            {...register('phone')}
+          />
+
+          <PasswordInput
+            label="Mật khẩu"
+            placeholder="Tối thiểu 8 ký tự"
+            autoComplete="new-password"
+            required
+            error={errors.password?.message}
+            footer={<PasswordStrengthMeter password={password ?? ''} />}
+            {...register('password')}
+          />
+
+          <PasswordInput
+            label="Nhập lại mật khẩu"
+            placeholder="Nhập lại mật khẩu ở trên"
+            autoComplete="new-password"
+            required
+            error={errors.confirmPassword?.message}
+            {...register('confirmPassword')}
+          />
+
+          <Checkbox
+            error={errors.agreeToTerms?.message}
+            label={
+              <>
+                Tôi đồng ý với{' '}
+                <button
+                  type="button"
+                  onClick={() => setOpenModal('terms')}
+                  className="font-semibold text-accent-cyan underline-offset-2 hover:underline"
+                >
+                  Điều khoản sử dụng
+                </button>{' '}
+                và{' '}
+                <button
+                  type="button"
+                  onClick={() => setOpenModal('privacy')}
+                  className="font-semibold text-accent-cyan underline-offset-2 hover:underline"
+                >
+                  Chính sách bảo mật
+                </button>{' '}
+                của TD Bakugan.
+              </>
+            }
+            {...register('agreeToTerms')}
+          />
+
+          <Button
+            type="submit"
+            size="lg"
+            fullWidth
+            disabled={!isValid}
+            isLoading={isSubmitting}
+            className="mt-1"
+          >
+            {isSubmitting ? 'Đang tạo tài khoản…' : 'Đăng ký'}
+          </Button>
+        </form>
+      </AuthLayout>
+
+      <Modal
+        isOpen={openModal === 'terms'}
+        onClose={() => setOpenModal(null)}
+        title="Điều khoản sử dụng"
+        description="Cập nhật lần cuối: tháng 9/2026"
+      >
+        <TermsContent />
+      </Modal>
+
+      <Modal
+        isOpen={openModal === 'privacy'}
+        onClose={() => setOpenModal(null)}
+        title="Chính sách bảo mật"
+        description="Cập nhật lần cuối: tháng 9/2026"
+      >
+        <PrivacyContent />
+      </Modal>
+    </>
   );
 }

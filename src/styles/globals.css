@@ -1,75 +1,251 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-  --background: #0a0a12;
-  --surface: #14141f;
-  --surface-2: #1e1e2e;
-  --primary: #7b4be8;
-  --accent-pink: #e940d2;
-  --accent-cyan: #3fe3f5;
-  --gold: #f5c542;
-  --text: #f5f5fa;
-  --text-muted: #a0a0b8;
+/* ============================================================
+   TD BAKUGAN — Design tokens (Tailwind CSS v4 CSS-first config)
+   Tailwind v4 không dùng tailwind.config.ts nữa: theme được khai
+   báo trực tiếp bằng @theme, mọi token bên dưới tự sinh ra utility
+   (bg-background, text-accent-cyan, font-display, shadow-glow-cyan…)
+   ============================================================ */
+@theme {
+  /* Nền & bề mặt */
+  --color-background: #0a0a12;
+  --color-surface: #14141f;
+  --color-surface-2: #1e1e2e;
+  --color-surface-3: #2a2a3f;
+
+  /* Thương hiệu */
+  --color-primary: #7b4be8;
+  --color-primary-soft: #9a74ef;
+  --color-primary-deep: #5a32b5;
+  --color-accent-pink: #e940d2;
+  --color-accent-cyan: #3fe3f5;
+  --color-gold: #f5c542;
+
+  /* Chữ */
+  --color-text: #f5f5fa;
+  --color-text-muted: #a0a0b8;
+
+  /* Trạng thái */
+  --color-success: #3ddc97;
+  --color-danger: #ff5c7a;
+  --color-warning: #f5c542;
+
+  /* Hệ Bakugan (attribute) */
+  --color-pyrus: #ff4d3d;
+  --color-aquos: #3fa9f5;
+  --color-subterra: #c8853a;
+  --color-haos: #f2f2e8;
+  --color-darkus: #8b5cf6;
+  --color-ventus: #4ade80;
+
+  /* Font */
+  --font-sans: 'Be Vietnam Pro', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Orbitron', 'Russo One', 'Be Vietnam Pro', system-ui, sans-serif;
+
+  /* Glow */
+  --shadow-glow-cyan: 0 0 18px rgba(63, 227, 245, 0.45);
+  --shadow-glow-pink: 0 0 18px rgba(233, 64, 210, 0.45);
+  --shadow-glow-purple: 0 0 22px rgba(123, 75, 232, 0.45);
+  --shadow-glow-gold: 0 0 18px rgba(245, 197, 66, 0.45);
+
+  /* Animation */
+  --animate-twinkle: twinkle 3.2s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-glow: pulse-glow 2.4s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-marquee: marquee 26s linear infinite;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
-  --color-primary: var(--primary);
-  --color-accent-pink: var(--accent-pink);
-  --color-accent-cyan: var(--accent-cyan);
-  --color-gold: var(--gold);
-  --color-text: var(--text);
-  --color-text-muted: var(--text-muted);
-  --font-sans: "Be Vietnam Pro", "Segoe UI", sans-serif;
-  --font-display: "Orbitron", "Segoe UI", sans-serif;
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 
-html {
-  scroll-behavior: smooth;
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(123, 75, 232, 0.14), transparent 32%),
-    radial-gradient(circle at bottom right, rgba(63, 227, 245, 0.12), transparent 20%),
-    var(--background);
-  color: var(--text);
-  font-family: "Be Vietnam Pro", "Segoe UI", sans-serif;
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(63, 227, 245, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 26px rgba(233, 64, 210, 0.55);
+  }
 }
 
-* {
-  box-sizing: border-box;
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
-img {
-  max-width: 100%;
-  display: block;
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+/* ============================================================
+   Base
+   ============================================================ */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--color-background);
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(123, 75, 232, 0.22), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 100% 20%, rgba(63, 227, 245, 0.1), transparent 60%),
+      radial-gradient(ellipse 50% 40% at 0% 60%, rgba(233, 64, 210, 0.08), transparent 60%);
+    background-attachment: fixed;
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: 0.01em;
+  }
+
+  img {
+    max-width: 100%;
+    display: block;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* Focus nhìn rõ trên nền tối — yêu cầu accessibility */
+  :focus-visible {
+    outline: 2px solid var(--color-accent-cyan);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: rgba(233, 64, 210, 0.4);
+    color: #fff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-surface);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(var(--color-primary), var(--color-accent-pink));
+    border-radius: 999px;
+  }
 }
 
-.neon-text {
-  text-shadow: 0 0 12px rgba(63, 227, 245, 0.8), 0 0 24px rgba(233, 64, 210, 0.45);
+/* ============================================================
+   Tiện ích riêng của thương hiệu
+   ============================================================ */
+@utility neon-text {
+  text-shadow:
+    0 0 10px rgba(63, 227, 245, 0.75),
+    0 0 26px rgba(233, 64, 210, 0.4);
 }
 
-.glow-card {
-  box-shadow: 0 0 0 1px rgba(63, 227, 245, 0.2), 0 0 18px rgba(123, 75, 232, 0.25);
+@utility neon-text-pink {
+  text-shadow:
+    0 0 10px rgba(233, 64, 210, 0.8),
+    0 0 26px rgba(123, 75, 232, 0.45);
 }
 
-.gradient-btn {
-  background: linear-gradient(135deg, var(--primary), var(--accent-pink));
-  box-shadow: 0 0 20px rgba(233, 64, 210, 0.35);
+@utility neon-text-gold {
+  text-shadow: 0 0 12px rgba(245, 197, 66, 0.6);
 }
 
-.bg-moon {
-  background: radial-gradient(circle at 50% 50%, rgba(245, 197, 66, 0.35), rgba(0, 0, 0, 0) 42%);
+@utility glow-card {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(63, 227, 245, 0.14),
+    0 10px 34px -16px rgba(123, 75, 232, 0.65);
+}
+
+@utility gradient-cta {
+  background-image: linear-gradient(120deg, var(--color-primary), var(--color-accent-pink));
+}
+
+@utility text-gradient-neon {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-accent-cyan),
+    var(--color-primary-soft),
+    var(--color-accent-pink)
+  );
+  background-clip: text;
+  color: transparent;
+}
+
+@utility skeleton-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-surface-2) 20%,
+    var(--color-surface-3) 40%,
+    var(--color-surface-2) 60%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Tôn trọng người dùng tắt hiệu ứng chuyển động */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
