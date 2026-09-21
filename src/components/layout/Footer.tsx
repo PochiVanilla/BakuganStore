@@ -1,4 +1,4 @@
-import { Mail, MapPin, Phone, Sparkles } from 'lucide-react';
+import { Mail, MapPin, Phone } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -42,15 +42,11 @@ export default function Footer() {
         <div>
           <h3 className="mb-4 text-lg font-bold text-text">Liên hệ</h3>
           <ul className="space-y-3 text-sm text-text-muted">
-            <li className="flex items-center gap-2"><MapPin size={14} className="text-accent-cyan" /> Hà Nội, Việt Nam</li>
-            <li className="flex items-center gap-2"><Phone size={14} className="text-accent-cyan" /> 0900 123 456</li>
-            <li className="flex items-center gap-2"><Mail size={14} className="text-accent-cyan" /> hello@tdbakugan.vn</li>
+            <li className="flex items-center gap-2"><MapPin size={14} className="text-accent-cyan" /> Hồ Chí Minh, Việt Nam</li>
+            <li className="flex items-center gap-2"><Phone size={14} className="text-accent-cyan" /> 0934973962</li>
+            <li className="flex items-center gap-2"><Mail size={14} className="text-accent-cyan" /> chauvuongphat123@gmail.com</li>
           </ul>
         </div>
-      </div>
-
-      <div className="mx-auto mt-10 max-w-7xl border-t border-white/10 px-4 pt-6 text-center text-sm text-text-muted sm:px-6 lg:px-8">
-        © 2026 TD Bakugan. Tất cả quyền được bảo lưu.
       </div>
     </footer>
   );
