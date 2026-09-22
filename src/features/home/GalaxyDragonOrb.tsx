@@ -171,29 +171,11 @@ export function GalaxyDragonOrb({ className }: { className?: string }) {
 
         <circle cx="210" cy="210" r="132" fill={`url(#${id('shade')})`} />
 
-        {/* Vành đai xích đạo của quả cầu */}
-        <g>
-          <rect
-            x="78"
-            y="200"
-            width="264"
-            height="20"
-            rx="10"
-            fill={`url(#${id('belt')})`}
-            opacity="0.5"
-          />
-          <rect x="78" y="200" width="264" height="6" rx="3" fill="#FFFFFF" opacity="0.18" />
-          {/* Khe mở của cơ cấu bung nở */}
-          <rect x="78" y="206" width="264" height="3" fill="#05010F" opacity="0.6" />
-        </g>
-
-        {/* ---------- Huy hiệu rồng nằm giữa quả cầu ---------- */}
-        <g filter={`url(#${id('dragonGlow')})`} transform="translate(80 80) scale(1.3)">
-          {/* Lớp tối phía sau tạo viền, giúp rồng tách hẳn khỏi tinh vân */}
-          <g opacity="0.5" transform="translate(0 1.5)">
-            <BrandDragon fill="#05010F" />
-          </g>
-          <BrandDragon fill={`url(#${id('dragon')})`} />
+        {/* ---------- Huy hiệu rồng nằm giữa quả cầu ----------
+            BrandDragon đã tự lo đổ bóng và lớp bóng loáng nên không bọc
+            thêm filter ở đây, tránh nhoè mất chi tiết của ảnh. */}
+        <g transform="translate(72 72) scale(1.38)">
+          <BrandDragon fallbackFill={`url(#${id('dragon')})`} />
         </g>
 
         {/* Vệt sáng bóng trên mặt cầu */}

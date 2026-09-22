@@ -64,7 +64,7 @@ export function DragonMark({
       )}
 
       <g filter={`url(#${glowId})`}>
-        <BrandDragon fill={`url(#${gradientId})`} />
+        <BrandDragon fallbackFill={`url(#${gradientId})`} />
       </g>
 
       {framed && (

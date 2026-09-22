@@ -239,6 +239,23 @@
 }
 
 /* Tôn trọng người dùng tắt hiệu ứng chuyển động */
+@keyframes brandDragonSweep {
+  0%,
+  62% {
+    transform: translateX(0) rotate(18deg);
+  }
+  100% {
+    transform: translateX(340px) rotate(18deg);
+  }
+}
+
+/* Dải sáng chạy ngang mặt huy hiệu rồng */
+.brand-dragon-sweep {
+  transform-box: view-box;
+  transform-origin: 100px 100px;
+  animation: brandDragonSweep 5.5s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
