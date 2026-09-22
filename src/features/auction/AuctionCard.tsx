@@ -7,6 +7,7 @@ import { AUCTION_STATUS_LABELS, CONDITION_LABELS } from '@/constants/catalog';
 import { formatCurrency, formatDateTime, formatNumber } from '@/utils/format';
 import { cn } from '@/utils/cn';
 import { AttributeBadge, Countdown } from '@/components/ui';
+import { HiddenPrice, SealedBadge } from './AuctionRules';
 
 const STATUS_STYLES = {
   live: 'border-danger/50 bg-danger/15 text-danger',
@@ -17,6 +18,7 @@ const STATUS_STYLES = {
 export function AuctionCard({ auction }: { auction: Auction }) {
   const isLive = auction.status === 'live';
   const isUpcoming = auction.status === 'upcoming';
+  const isSealed = auction.priceVisibility === 'sealed';
 
   return (
     <motion.article
@@ -61,6 +63,8 @@ export function AuctionCard({ auction }: { auction: Auction }) {
           <Eye size={12} aria-hidden="true" />
           {formatNumber(auction.watcherCount)}
         </span>
+
+        {isSealed && <SealedBadge className="absolute bottom-3 left-3 backdrop-blur" />}
       </div>
 
       <div className="flex flex-1 flex-col p-4">
@@ -83,18 +87,30 @@ export function AuctionCard({ auction }: { auction: Auction }) {
         <div className="mt-3.5 rounded-xl border border-white/8 bg-surface-2/70 p-3">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-xs text-text-muted">
-              {auction.status === 'ended' ? 'Giá chốt' : 'Giá hiện tại'}
+              {auction.status === 'ended'
+                ? 'Giá chốt'
+                : isSealed
+                  ? 'Giá được giấu'
+                  : 'Giá hiện tại'}
             </span>
-            <span className="font-display text-lg font-extrabold text-gold neon-text-gold">
-              {formatCurrency(auction.currentPrice)}
-            </span>
+            {isSealed && auction.status !== 'ended' ? (
+              <HiddenPrice className="text-lg font-extrabold" />
+            ) : (
+              <span className="font-display text-lg font-extrabold text-gold neon-text-gold">
+                {formatCurrency(auction.currentPrice)}
+              </span>
+            )}
           </div>
           <div className="mt-1.5 flex items-center justify-between text-[11px] text-text-muted">
             <span className="inline-flex items-center gap-1">
               <Gavel size={11} aria-hidden="true" />
               {auction.bidCount} lượt đặt
             </span>
-            <span>Bước giá {formatCurrency(auction.bidStep)}</span>
+            <span>
+              {auction.extensionCount > 0
+                ? `Đã gia hạn ${auction.extensionCount} lần`
+                : `Bước giá ${formatCurrency(auction.bidStep)}`}
+            </span>
           </div>
         </div>
 

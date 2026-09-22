@@ -92,7 +92,18 @@ export interface Bid {
   bidderId: string;
   amount: number;
   createdAt: string;
+  /** Lượt đặt này có kích hoạt gia hạn chống bắn tỉa hay không */
+  triggeredExtension?: boolean;
 }
+
+/**
+ * Cách công khai giá của một phiên.
+ * - `open`  : đấu giá mở, ai cũng thấy giá hiện tại và toàn bộ lịch sử.
+ * - `sealed`: đấu giá kín, giấu giá hiện tại và số tiền trong lịch sử.
+ *             Người tham gia chỉ biết mình đang dẫn đầu hay đã bị vượt,
+ *             nên không thể canh đúng một bước giá để vượt phút chót.
+ */
+export type AuctionPriceVisibility = 'open' | 'sealed';
 
 export interface Auction {
   id: string;
@@ -107,8 +118,20 @@ export interface Auction {
   /** Mua ngay, bỏ qua đấu giá (tuỳ chọn) */
   buyNowPrice?: number;
   startAt: string;
+  /** Thời điểm kết thúc hiện tại — có thể bị đẩy ra sau bởi luật chống bắn tỉa */
   endAt: string;
+  /** Thời điểm kết thúc ban đầu, giữ lại để hiển thị "đã gia hạn" */
+  originalEndAt: string;
   status: AuctionStatus;
+  /** Giấu giá hay không */
+  priceVisibility: AuctionPriceVisibility;
+  /**
+   * Chống bắn tỉa: lượt đặt trong ngần này phút cuối sẽ đẩy giờ kết thúc
+   * ra thêm đúng ngần đó phút. 0 nghĩa là tắt luật này.
+   */
+  antiSnipeMinutes: number;
+  /** Số lần phiên đã được gia hạn */
+  extensionCount: number;
   bidCount: number;
   watcherCount: number;
   attribute: BakuganAttribute;

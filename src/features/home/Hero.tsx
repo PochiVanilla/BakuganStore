@@ -3,6 +3,7 @@ import { ArrowRight, Gavel, Sparkles, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ROUTES } from '@/constants/routes';
 import { Container } from '@/components/ui';
+import { GalaxyDragonOrb } from './GalaxyDragonOrb';
 import { formatNumber } from '@/utils/format';
 
 const STATS = [
@@ -90,22 +91,16 @@ export function Hero({
             </dl>
           </motion.div>
 
-          {/* Quả cầu neon trang trí */}
+          {/* Quả cầu Bakugan galaxy có rồng neon */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.15, ease: 'easeOut' }}
-            className="relative mx-auto hidden aspect-square w-full max-w-md lg:block"
-            aria-hidden="true"
+            className="relative mx-auto aspect-square w-full max-w-sm lg:max-w-md"
           >
-            <div className="absolute inset-0 animate-float">
-              <div className="absolute inset-[12%] rounded-full bg-gradient-to-br from-accent-cyan via-primary to-accent-pink opacity-90 blur-[2px]" />
-              <div className="absolute inset-[12%] rounded-full bg-gradient-to-tl from-background/80 via-transparent to-transparent" />
-              <div className="absolute top-1/2 right-[12%] left-[12%] h-6 -translate-y-1/2 rounded-full bg-background/60 blur-[1px]" />
-              <div className="absolute inset-[38%] rounded-full border-4 border-text/25 bg-background/70" />
-              <div className="absolute inset-[43%] rounded-full bg-gold/90 shadow-[0_0_50px_rgba(245,197,66,0.9)]" />
+            <div className="h-full w-full animate-float">
+              <GalaxyDragonOrb />
             </div>
-            <div className="absolute inset-0 rounded-full bg-primary/20 blur-3xl" />
           </motion.div>
         </div>
       </Container>

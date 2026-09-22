@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Gavel, Info } from 'lucide-react';
+import { Gavel } from 'lucide-react';
 import type { AuctionStatus } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { AUCTION_STATUS_LABELS } from '@/constants/catalog';
@@ -8,6 +8,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { cn } from '@/utils/cn';
 import { AuctionCardSkeleton, ButtonLink, Container, EmptyState, Seo } from '@/components/ui';
 import { AuctionCard } from '@/features/auction/AuctionCard';
+import { AuctionRulesPanel } from '@/features/auction/AuctionRules';
 
 type TabKey = AuctionStatus | 'all';
 
@@ -16,13 +17,6 @@ const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: 'upcoming', label: AUCTION_STATUS_LABELS.upcoming },
   { key: 'ended', label: AUCTION_STATUS_LABELS.ended },
   { key: 'all', label: 'Tất cả' },
-];
-
-const RULES = [
-  'Chỉ tài khoản đã đăng nhập mới được đặt giá.',
-  'Mỗi lượt đặt phải cao hơn giá hiện tại ít nhất một bước giá.',
-  'Lượt đặt giá là cam kết mua, không thể huỷ sau khi xác nhận.',
-  'Người thắng cần hoàn tất thanh toán trong 48 giờ.',
 ];
 
 export default function AuctionsPage() {
@@ -121,24 +115,7 @@ export default function AuctionsPage() {
           </div>
         )}
 
-        {/* Thể lệ */}
-        <section className="mt-12 rounded-2xl border border-white/8 bg-surface/60 p-6">
-          <h2 className="mb-3.5 inline-flex items-center gap-2 font-display text-base font-bold text-text">
-            <Info size={17} className="text-accent-cyan" aria-hidden="true" />
-            Thể lệ đấu giá
-          </h2>
-          <ul className="grid gap-2.5 sm:grid-cols-2">
-            {RULES.map((rule) => (
-              <li key={rule} className="flex items-start gap-2.5 text-sm text-text-muted">
-                <span
-                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold"
-                  aria-hidden="true"
-                />
-                {rule}
-              </li>
-            ))}
-          </ul>
-        </section>
+        <AuctionRulesPanel className="mt-12" />
       </Container>
     </>
   );

@@ -3,7 +3,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { BAKUGAN_ATTRIBUTES, BAKUGAN_SERIES } from '@/types';
 import { ATTRIBUTE_META, SERIES_META } from '@/constants/catalog';
 import { ROUTES } from '@/constants/routes';
-import { Container, SectionHeading } from '@/components/ui';
+import { AttributeIcon, Container, SectionHeading } from '@/components/ui';
 
 export function AttributeGrid() {
   return (
@@ -38,13 +38,11 @@ export function AttributeGrid() {
                       borderColor: `${meta.color}88`,
                       backgroundColor: `${meta.color}1F`,
                       boxShadow: `0 0 18px -4px ${meta.color}`,
+                      color: meta.color,
                     }}
                     aria-hidden="true"
                   >
-                    <span
-                      className="h-6 w-6 rounded-full"
-                      style={{ backgroundColor: meta.color, boxShadow: `0 0 12px ${meta.color}` }}
-                    />
+                    <AttributeIcon attribute={attribute} size={30} glow />
                   </span>
                   <span className="relative">
                     <span className="block font-display text-sm font-bold text-text">

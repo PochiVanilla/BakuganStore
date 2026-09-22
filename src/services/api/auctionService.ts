@@ -67,12 +67,29 @@ export async function placeBid(payload: PlaceBidPayload): Promise<Auction> {
     throw new MockApiError('Phiên đấu giá đã kết thúc.', 409);
   }
 
-  const minimum = auction.currentPrice + auction.bidStep;
+  const minimum = getMinimumBid(auction, payload.bidderId);
   if (payload.amount < minimum) {
     throw new MockApiError(`Giá đặt phải từ ${minimum.toLocaleString('vi-VN')}₫ trở lên.`, 422, {
       amount: `Giá đặt tối thiểu là ${minimum.toLocaleString('vi-VN')}₫.`,
     });
   }
+
+  // Phiên kín: không lộ giá dẫn đầu, nhưng lượt thấp hơn vẫn bị loại.
+  if (auction.priceVisibility === 'sealed' && payload.amount <= auction.currentPrice) {
+    throw new MockApiError(
+      'Lượt đặt chưa vượt được người đang dẫn đầu. Hãy thử một mức cao hơn.',
+      422,
+      { amount: 'Mức này chưa đủ để vượt lên dẫn đầu.' },
+    );
+  }
+
+  /* ---- Luật chống bắn tỉa ----
+     Lượt đặt rơi vào những phút cuối sẽ đẩy giờ kết thúc ra thêm đúng ngần
+     đó phút, nên không ai giành được phiên bằng cách bấm ở giây chót. */
+  const now = Date.now();
+  const endAtMs = new Date(auction.endAt).getTime();
+  const windowMs = auction.antiSnipeMinutes * 60_000;
+  const withinSnipeWindow = auction.antiSnipeMinutes > 0 && endAtMs - now <= windowMs;
 
   const bid: Bid = {
     id: `bid-${auction.id}-${Date.now()}`,
@@ -81,6 +98,7 @@ export async function placeBid(payload: PlaceBidPayload): Promise<Auction> {
     bidderMaskedName: maskName(payload.bidderName),
     amount: payload.amount,
     createdAt: new Date().toISOString(),
+    triggeredExtension: withinSnipeWindow,
   };
 
   const updated: Auction = {
@@ -88,10 +106,39 @@ export async function placeBid(payload: PlaceBidPayload): Promise<Auction> {
     currentPrice: payload.amount,
     bidCount: auction.bidCount + 1,
     bids: [bid, ...auction.bids],
+    endAt: withinSnipeWindow ? new Date(now + windowMs).toISOString() : auction.endAt,
+    extensionCount: auction.extensionCount + (withinSnipeWindow ? 1 : 0),
   };
   auctionStore[index] = updated;
 
   return mockDelay(updated, 420);
+}
+
+/**
+ * Mức giá tối thiểu cho lượt đặt kế tiếp.
+ *
+ * - Phiên mở: giá hiện tại cộng bước giá, ai cũng tính được.
+ * - Phiên kín: người đặt không được biết giá hiện tại, nên mốc tối thiểu chỉ
+ *   dựa trên giá khởi điểm và lượt cao nhất của chính người đó. Hệ thống vẫn
+ *   âm thầm loại lượt nào chưa vượt người dẫn đầu.
+ */
+export function getMinimumBid(auction: Auction, bidderId?: string): number {
+  if (auction.priceVisibility === 'open') {
+    return auction.currentPrice + auction.bidStep;
+  }
+  const myHighest = bidderId
+    ? Math.max(
+        0,
+        ...auction.bids.filter((bid) => bid.bidderId === bidderId).map((bid) => bid.amount),
+      )
+    : 0;
+  return Math.max(auction.startPrice, myHighest + auction.bidStep);
+}
+
+/** Phiên có đang nằm trong khung giờ chống bắn tỉa không. */
+export function isInAntiSnipeWindow(auction: Auction, now: number = Date.now()): boolean {
+  if (auction.antiSnipeMinutes <= 0 || auction.status !== 'live') return false;
+  return new Date(auction.endAt).getTime() - now <= auction.antiSnipeMinutes * 60_000;
 }
 
 /** Lịch sử đấu giá của một người dùng (tab "Lịch sử đấu giá"). */

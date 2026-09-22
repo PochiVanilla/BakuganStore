@@ -22,6 +22,13 @@ import {
 import { ProductGallery } from '@/features/products/ProductGallery';
 import { BidForm } from '@/features/auction/BidForm';
 import { useAuctionSocket, type AuctionSocketEvent } from '@/features/auction/useAuctionSocket';
+import {
+  AntiSnipeBanner,
+  AuctionRulesPanel,
+  HiddenPrice,
+  SealedBadge,
+} from '@/features/auction/AuctionRules';
+import { isInAntiSnipeWindow } from '@/services/api/auctionService';
 
 function DetailSkeleton() {
   return (
@@ -124,6 +131,10 @@ export default function AuctionDetailPage() {
 
   const seriesMeta = SERIES_META[auction.series];
   const isLive = auction.status === 'live';
+  const isSealed = auction.priceVisibility === 'sealed';
+  const isEnded = auction.status === 'ended';
+  /** Phiên kín chỉ lộ giá sau khi đã kết thúc. */
+  const showPrice = !isSealed || isEnded;
   const myHighestBid = user
     ? Math.max(
         0,
@@ -210,6 +221,7 @@ export default function AuctionDetailPage() {
                 {AUCTION_STATUS_LABELS[auction.status].toUpperCase()}
               </span>
               <AttributeBadge attribute={auction.attribute} />
+              {isSealed && <SealedBadge />}
               {isLive && socketStatus !== 'closed' && (
                 <span className="inline-flex items-center gap-1.5 rounded-lg border border-success/35 bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success">
                   <Radio size={11} aria-hidden="true" />
@@ -240,11 +252,15 @@ export default function AuctionDetailPage() {
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <p className="text-xs tracking-wider text-text-muted uppercase">
-                    {auction.status === 'ended' ? 'Giá chốt' : 'Giá hiện tại'}
+                    {isEnded ? 'Giá chốt' : isSealed ? 'Giá được giấu' : 'Giá hiện tại'}
                   </p>
-                  <p className="mt-1 font-display text-3xl font-black text-gold neon-text-gold">
-                    {formatCurrency(auction.currentPrice)}
-                  </p>
+                  {showPrice ? (
+                    <p className="mt-1 font-display text-3xl font-black text-gold neon-text-gold">
+                      {formatCurrency(auction.currentPrice)}
+                    </p>
+                  ) : (
+                    <HiddenPrice className="mt-1 block text-3xl font-black" />
+                  )}
                   <p className="mt-1 text-xs text-text-muted">
                     Giá khởi điểm {formatCurrency(auction.startPrice)} · Bước giá{' '}
                     {formatCurrency(auction.bidStep)}
@@ -299,6 +315,12 @@ export default function AuctionDetailPage() {
                     ? `Bạn đang dẫn đầu với ${formatCurrency(myHighestBid)}.`
                     : `Lượt đặt cao nhất của bạn là ${formatCurrency(myHighestBid)} — hiện đã bị vượt.`}
                 </span>
+              </div>
+            )}
+
+            {isInAntiSnipeWindow(auction) && (
+              <div className="mt-4">
+                <AntiSnipeBanner auction={auction} />
               </div>
             )}
 
@@ -358,14 +380,18 @@ export default function AuctionDetailPage() {
                           <span className="text-[11px] text-text-muted">
                             {formatRelativeTime(bid.createdAt)}
                           </span>
-                          <span
-                            className={cn(
-                              'font-display text-sm tabular-nums',
-                              index === 0 ? 'text-gold' : 'text-text',
-                            )}
-                          >
-                            {formatCurrency(bid.amount)}
-                          </span>
+                          {showPrice || isMine ? (
+                            <span
+                              className={cn(
+                                'font-display text-sm tabular-nums',
+                                index === 0 ? 'text-gold' : 'text-text',
+                              )}
+                            >
+                              {formatCurrency(bid.amount)}
+                            </span>
+                          ) : (
+                            <HiddenPrice className="text-sm" />
+                          )}
                         </span>
                       </li>
                     );
@@ -376,8 +402,12 @@ export default function AuctionDetailPage() {
               <p className="mt-4 border-t border-white/6 pt-3 text-[11px] leading-relaxed text-text-muted">
                 Tên người đặt giá được ẩn một phần để bảo vệ quyền riêng tư. Toàn bộ lượt đặt đều
                 được ghi nhận và không thể chỉnh sửa.
+                {isSealed &&
+                  ' Đây là phiên kín nên số tiền của người khác được giấu cho tới khi phiên kết thúc — bạn vẫn thấy lượt đặt của chính mình.'}
               </p>
             </section>
+
+            <AuctionRulesPanel auction={auction} className="mt-6" />
           </div>
         </div>
       </Container>

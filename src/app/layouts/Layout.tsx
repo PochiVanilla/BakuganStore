@@ -4,6 +4,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { MobileMenu } from '@/components/layout/MobileMenu';
 import { StarField } from '@/components/layout/StarField';
+import { BrandIntro } from '@/components/layout/BrandIntro';
 import { MiniCart } from '@/features/cart/MiniCart';
 import { ToastViewport } from '@/components/ui';
 import { RouteFallback } from '../RouteFallback';
@@ -22,6 +23,7 @@ export default function Layout() {
       <MobileMenu />
       <MiniCart />
       <ToastViewport />
+      <BrandIntro />
     </div>
   );
 }

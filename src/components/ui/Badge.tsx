@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@/utils/cn';
 import type { BakuganAttribute, ProductBadge } from '@/types';
 import { ATTRIBUTE_META } from '@/constants/catalog';
+import { AttributeIcon } from './AttributeIcon';
 
 const STATUS_STYLES: Record<ProductBadge, string> = {
   NEW: 'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/50 shadow-glow-cyan',
@@ -57,11 +58,7 @@ export function AttributeBadge({
       }}
       title={meta.description}
     >
-      <span
-        className="h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: meta.color, boxShadow: `0 0 6px ${meta.color}` }}
-        aria-hidden="true"
-      />
+      <AttributeIcon attribute={attribute} size={size === 'sm' ? 13 : 15} glow />
       {meta.label}
     </span>
   );

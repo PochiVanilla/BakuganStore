@@ -42,12 +42,12 @@ export const SHOP_INFO = {
   tagline: 'Chiến binh Bakugan chính hãng — Sưu tầm & Đấu giá',
   hotline: '0912 345 678',
   email: 'hello@tdbakugan.vn',
-  address: '82 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
+  address: '633/12/19 Hồng Bàng, Phường 6, Quận 6, TP. Hồ Chí Minh',
   workingHours: '09:00 – 21:00, tất cả các ngày trong tuần',
   zaloUrl: 'https://zalo.me/0912345678',
   messengerUrl: 'https://m.me/tdbakugan',
   mapEmbedUrl:
-    'https://www.google.com/maps?q=82%20Nguy%E1%BB%85n%20Hu%E1%BB%87,%20Qu%E1%BA%ADn%201,%20H%E1%BB%93%20Ch%C3%AD%20Minh&output=embed',
+    'https://www.google.com/maps?q=633/12/19%20H%E1%BB%93ng%20B%C3%A0ng%2C%20Ph%C6%B0%E1%BB%9Dng%206%2C%20Qu%E1%BA%ADn%206%2C%20Th%C3%A0nh%20ph%E1%BB%91%20H%E1%BB%93%20Ch%C3%AD%20Minh&output=embed',
 } as const;
 
 /** Phí vận chuyển mock — backend sẽ tính lại theo địa chỉ. */

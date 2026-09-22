@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 import { Gavel, LockKeyhole, TriangleAlert } from 'lucide-react';
 import type { Auction } from '@/types';
 import { ROUTES } from '@/constants/routes';
-import { placeBid } from '@/services/api/auctionService';
+import { getMinimumBid, isInAntiSnipeWindow, placeBid } from '@/services/api/auctionService';
 import { getApiErrorMessage } from '@/services/api/client';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/uiStore';
 import { formatCurrency } from '@/utils/format';
 import { Button } from '@/components/ui';
+import { AntiSnipeBanner } from './AuctionRules';
+import { minimumBidHint } from './auctionRuleText';
 
 interface BidFormProps {
   auction: Auction;
@@ -21,7 +23,7 @@ export function BidForm({ auction, onBidPlaced, isOutbid }: BidFormProps) {
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  const minimumBid = auction.currentPrice + auction.bidStep;
+  const minimumBid = getMinimumBid(auction, user?.id);
   const [amount, setAmount] = useState<number>(minimumBid);
   const [trackedMinimum, setTrackedMinimum] = useState(minimumBid);
   const [error, setError] = useState<string | null>(null);
@@ -133,13 +135,16 @@ export function BidForm({ auction, onBidPlaced, isOutbid }: BidFormProps) {
         </p>
       )}
 
+      {isInAntiSnipeWindow(auction) && (
+        <div className="mb-4">
+          <AntiSnipeBanner auction={auction} />
+        </div>
+      )}
+
       <label htmlFor="bid-amount" className="block font-display text-sm font-bold text-text">
         Mức giá bạn muốn đặt
       </label>
-      <p className="mt-1 text-xs text-text-muted">
-        Tối thiểu {formatCurrency(minimumBid)} (giá hiện tại + bước giá{' '}
-        {formatCurrency(auction.bidStep)}).
-      </p>
+      <p className="mt-1 text-xs text-text-muted">{minimumBidHint(auction, minimumBid)}</p>
 
       <div className="mt-3 flex items-center gap-2 rounded-xl border border-white/10 bg-background/60 px-4 focus-within:border-accent-cyan focus-within:shadow-[0_0_0_3px_rgba(63,227,245,0.14)]">
         <input
@@ -169,21 +174,23 @@ export function BidForm({ auction, onBidPlaced, isOutbid }: BidFormProps) {
         </p>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {quickAmounts.map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => {
-              setAmount(value);
-              setError(null);
-            }}
-            className="rounded-lg border border-white/10 bg-surface px-3 py-1.5 text-xs font-semibold text-text-muted transition hover:border-accent-cyan/50 hover:text-accent-cyan"
-          >
-            {formatCurrency(value)}
-          </button>
-        ))}
-      </div>
+      {auction.priceVisibility === 'open' && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {quickAmounts.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => {
+                setAmount(value);
+                setError(null);
+              }}
+              className="rounded-lg border border-white/10 bg-surface px-3 py-1.5 text-xs font-semibold text-text-muted transition hover:border-accent-cyan/50 hover:text-accent-cyan"
+            >
+              {formatCurrency(value)}
+            </button>
+          ))}
+        </div>
+      )}
 
       <Button
         type="submit"
@@ -198,6 +205,8 @@ export function BidForm({ auction, onBidPlaced, isOutbid }: BidFormProps) {
 
       <p className="mt-3 text-center text-[11px] leading-relaxed text-text-muted">
         Bằng việc đặt giá, bạn cam kết mua sản phẩm nếu thắng phiên và thanh toán trong 48 giờ.
+        {auction.antiSnipeMinutes > 0 &&
+          ` Đặt trong ${auction.antiSnipeMinutes} phút cuối sẽ gia hạn phiên thêm ${auction.antiSnipeMinutes} phút.`}
       </p>
     </form>
   );

@@ -9,6 +9,7 @@ import {
   SERIES_META,
 } from '@/constants/catalog';
 import { cn } from '@/utils/cn';
+import { AttributeIcon } from '@/components/ui';
 import type { ProductFilterActions, ProductFilterState } from './useProductFilters';
 
 type FiltersProps = ProductFilterState & ProductFilterActions;
@@ -52,12 +53,14 @@ function CheckOption({
   label,
   hint,
   accentColor,
+  icon,
 }: {
   checked: boolean;
   onChange: () => void;
   label: string;
   hint?: string;
   accentColor?: string;
+  icon?: React.ReactNode;
 }) {
   return (
     <label
@@ -72,12 +75,10 @@ function CheckOption({
         onChange={onChange}
         className="h-4 w-4 shrink-0 cursor-pointer rounded border-2 border-white/25 bg-surface-2 accent-[#7B4BE8]"
       />
-      {accentColor && (
-        <span
-          className="h-2.5 w-2.5 shrink-0 rounded-full"
-          style={{ backgroundColor: accentColor, boxShadow: `0 0 8px ${accentColor}` }}
-          aria-hidden="true"
-        />
+      {icon && (
+        <span className="shrink-0" style={accentColor ? { color: accentColor } : undefined}>
+          {icon}
+        </span>
       )}
       <span className="min-w-0 flex-1">
         {label}
@@ -174,6 +175,7 @@ export function ProductFilters(props: FiltersProps) {
                 label={meta.label}
                 hint={meta.element}
                 accentColor={meta.color}
+                icon={<AttributeIcon attribute={attribute} size={16} glow />}
               />
             );
           })}

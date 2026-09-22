@@ -42,6 +42,12 @@ interface AuctionSeed {
   endsInHours: number;
   bidCount: number;
   watcherCount: number;
+  /** Giấu giá hiện tại (đấu giá kín) hay không */
+  sealed?: boolean;
+  /** Số phút chống bắn tỉa; bỏ trống dùng mặc định 5 phút */
+  antiSnipeMinutes?: number;
+  /** Phiên đã được gia hạn mấy lần */
+  extensionCount?: number;
   extras: string[];
   blurb: string;
 }
@@ -60,6 +66,7 @@ const SEEDS: AuctionSeed[] = [
     endsInHours: 9,
     bidCount: 18,
     watcherCount: 214,
+    extensionCount: 2,
     extras: ['Mechtogan', 'Thẻ bài kim loại', 'Hộp trưng bày nguyên seal'],
     blurb:
       'Bản mạ nhũ vàng số lượng giới hạn, chưa từng bóc seal. Đây là món có G-Power cao nhất từng lên sàn đấu giá của TD Bakugan.',
@@ -76,6 +83,7 @@ const SEEDS: AuctionSeed[] = [
     endsInHours: 31,
     bidCount: 12,
     watcherCount: 168,
+    sealed: true,
     extras: ['Thẻ bài kim loại', 'Thẻ năng lực', 'Hộp gốc 2008'],
     blurb:
       'Hàng tồn kho cửa hàng từ đời Battle Brawlers, hộp giấy còn nguyên tem, góc hộp chỉ móp nhẹ do thời gian.',
@@ -93,6 +101,8 @@ const SEEDS: AuctionSeed[] = [
     endsInHours: 2,
     bidCount: 23,
     watcherCount: 296,
+    antiSnipeMinutes: 10,
+    extensionCount: 4,
     extras: ['Trọn bộ 3 BakuNano', 'Thẻ bài kim loại'],
     blurb:
       'Phiên đấu giá nóng nhất tuần: đi kèm trọn bộ ba BakuNano, rất khó gom đủ trên thị trường Việt Nam.',
@@ -109,6 +119,7 @@ const SEEDS: AuctionSeed[] = [
     endsInHours: 86,
     bidCount: 0,
     watcherCount: 87,
+    sealed: true,
     extras: ['Geogan', 'Thẻ bài kim loại'],
     blurb:
       'Mở phiên vào tối mai. Đăng ký theo dõi để nhận thông báo ngay khi phiên bắt đầu nhận giá.',
@@ -203,7 +214,13 @@ export const MOCK_AUCTIONS: Auction[] = SEEDS.map((seed, index) => {
     buyNowPrice: seed.buyNowPrice,
     startAt: new Date(startAt).toISOString(),
     endAt: new Date(endAt).toISOString(),
+    originalEndAt: new Date(
+      endAt - (seed.extensionCount ?? 0) * (seed.antiSnipeMinutes ?? 5) * MINUTE,
+    ).toISOString(),
     status,
+    priceVisibility: seed.sealed ? 'sealed' : 'open',
+    antiSnipeMinutes: seed.antiSnipeMinutes ?? 5,
+    extensionCount: seed.extensionCount ?? 0,
     bidCount: bids.length,
     watcherCount: seed.watcherCount,
     attribute: seed.attribute,
