@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { DragonEmblem } from '@/features/home/DragonEmblem';
+import { BrandDragon } from '@/features/home/BrandDragon';
 import { cn } from '@/utils/cn';
 
 /**
@@ -64,7 +64,7 @@ export function DragonMark({
       )}
 
       <g filter={`url(#${glowId})`}>
-        <DragonEmblem fill={`url(#${gradientId})`} eyeFill="#0A0A12" />
+        <BrandDragon fill={`url(#${gradientId})`} />
       </g>
 
       {framed && (

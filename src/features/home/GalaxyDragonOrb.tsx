@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { cn } from '@/utils/cn';
-import { DragonEmblem } from './DragonEmblem';
+import { BrandDragon } from './BrandDragon';
 
 /**
  * Quả cầu Bakugan với tinh vân galaxy bên trong và một con rồng neon cuộn quanh.
@@ -190,10 +190,10 @@ export function GalaxyDragonOrb({ className }: { className?: string }) {
         {/* ---------- Huy hiệu rồng nằm giữa quả cầu ---------- */}
         <g filter={`url(#${id('dragonGlow')})`} transform="translate(80 80) scale(1.3)">
           {/* Lớp tối phía sau tạo viền, giúp rồng tách hẳn khỏi tinh vân */}
-          <g opacity="0.55" transform="translate(0 1)">
-            <DragonEmblem fill="#05010F" eyeFill="#05010F" />
+          <g opacity="0.5" transform="translate(0 1.5)">
+            <BrandDragon fill="#05010F" />
           </g>
-          <DragonEmblem fill={`url(#${id('dragon')})`} />
+          <BrandDragon fill={`url(#${id('dragon')})`} />
         </g>
 
         {/* Vệt sáng bóng trên mặt cầu */}
