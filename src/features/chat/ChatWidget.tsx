@@ -26,6 +26,7 @@ const MAX_LENGTH = 1_000;
 
 const QUICK_QUESTIONS = [
   'Đơn hàng của mình tới đâu rồi?',
+  'Mẫu nào đang bán chạy?',
   'Phí ship bao nhiêu?',
   'Luật chống bắn tỉa là gì?',
   'Đổi trả thế nào?',
@@ -175,7 +176,15 @@ export function ChatWidget() {
 
   const status = current?.status ?? (config.data?.botEnabled === false ? 'waiting' : 'bot');
   const lastSender = messages[messages.length - 1]?.sender;
-  const showQuickQuestions = status === 'bot' && lastSender !== 'customer' && !isBotTyping;
+  const botAnswering =
+    config.data?.botEnabled !== false &&
+    current?.botEnabled !== false &&
+    (status === 'bot' || status === 'waiting');
+  const idle = lastSender !== 'customer' && !isBotTyping && !isSending;
+  // Bot đang chờ khách xác nhận huỷ đơn -> hiện nút trả lời nhanh.
+  // (Hết hạn thì phía xử lý tự hỏi lại, nên không cần kiểm tra giờ ở đây.)
+  const pendingCancel = current?.pendingAction;
+  const showQuickQuestions = botAnswering && idle && !pendingCancel;
 
   return (
     <>
@@ -226,6 +235,25 @@ export function ChatWidget() {
               isTyping={isBotTyping}
               className="flex-1"
             />
+
+            {pendingCancel && idle && (
+              <div className="flex gap-2 px-3 pb-2">
+                <button
+                  type="button"
+                  onClick={() => void send(`Đồng ý huỷ đơn #${pendingCancel.orderCode}`)}
+                  className="rounded-full border border-danger/40 bg-danger/10 px-3 py-1 text-xs font-semibold text-danger transition hover:bg-danger/20"
+                >
+                  Đồng ý huỷ đơn #{pendingCancel.orderCode}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void send('Không huỷ nữa')}
+                  className="rounded-full border border-white/15 px-3 py-1 text-xs text-text-muted transition hover:border-white/30 hover:text-text"
+                >
+                  Không huỷ nữa
+                </button>
+              </div>
+            )}
 
             {showQuickQuestions && (
               <div className="scrollbar-none flex gap-1.5 overflow-x-auto px-3 pb-2">

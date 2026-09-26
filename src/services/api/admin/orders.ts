@@ -15,16 +15,15 @@ import {
   createId,
   hydrateOrder,
   listAllProducts,
-  patchProduct,
   readDb,
   updateDb,
-  type MockDatabase,
   type StoredOrder,
   type StoredOrderItem,
 } from '@/mocks/db';
 import { listAuctionsSnapshot } from '../auctionService';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from '../client';
 import { requireAdmin } from '../mockSession';
+import { applyStock, recordStatus, releaseCancelledOrder } from '../orderMutations';
 import { generateOrderCode, withinDays } from './shared';
 import { normalizeSearch } from '@/utils/slugify';
 
@@ -119,24 +118,6 @@ export async function getOrder(orderId: string): Promise<Order> {
   return mockDelay(hydrateOrder(order), 220);
 }
 
-/* ---------------- Kho: trừ / hoàn khi đơn thay đổi ---------------- */
-
-function isCatalogItem(item: StoredOrderItem): boolean {
-  return !item.productId.startsWith('auction:');
-}
-
-function applyStock(db: MockDatabase, items: StoredOrderItem[], direction: 1 | -1): void {
-  const products = listAllProducts(db);
-  items.filter(isCatalogItem).forEach((item) => {
-    const product = products.find((entry) => entry.id === item.productId);
-    if (!product) return;
-    patchProduct(db, product.id, {
-      stock: Math.max(0, product.stock + direction * item.quantity),
-      soldCount: Math.max(0, product.soldCount - direction * item.quantity),
-    });
-  });
-}
-
 /* ---------------- Đổi trạng thái ---------------- */
 
 export interface UpdateOrderStatusInput {
@@ -177,33 +158,12 @@ export async function updateOrderStatus(
 
     if (input.status === 'cancelled') {
       // Hàng chưa rời kho nên trả lại tồn kho ngay.
-      applyStock(db, order.items, 1);
-      order.cancelReason = input.cancelReason;
-      order.cancelNote = note;
-      if (order.auctionId) {
-        const fulfillment = db.auctionFulfillments.find(
-          (item) => item.auctionId === order.auctionId,
-        );
-        if (fulfillment) {
-          fulfillment.status = 'forfeited';
-          fulfillment.note = 'Đơn đấu giá đã bị huỷ.';
-          fulfillment.updatedAt = now;
-        }
-      }
+      releaseCancelledOrder(db, order, input.cancelReason!, note, now);
     }
     if (input.status === 'returned' && input.restock) applyStock(db, order.items, 1);
     if (input.status === 'completed' && order.paymentMethod === 'cod') order.paymentStatus = 'paid';
 
-    const event: OrderEvent = {
-      id: createId('ev'),
-      status: input.status,
-      at: now,
-      actor: admin.fullName,
-      note,
-    };
-    order.status = input.status;
-    order.updatedAt = now;
-    order.timeline = [...order.timeline, event];
+    recordStatus(order, input.status, admin.fullName, now, note);
     return order;
   });
 

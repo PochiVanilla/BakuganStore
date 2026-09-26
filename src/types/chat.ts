@@ -15,11 +15,22 @@ export interface ChatMessage {
 
 /**
  * - `bot`      : trợ lý AI đang tự trả lời
- * - `waiting`  : bot đã chuyển, đang chờ nhân viên nhận
+ * - `waiting`  : đang chờ nhân viên nhận; trong lúc chờ bot vẫn trả lời câu đơn giản
  * - `admin`    : nhân viên đang trò chuyện trực tiếp
  * - `resolved` : đã xong; khách nhắn tiếp thì mở lại
  */
 export type ConversationStatus = 'bot' | 'waiting' | 'admin' | 'resolved';
+
+/**
+ * Việc bot đang chờ khách xác nhận (VD: "Bạn chắc chắn huỷ đơn #X?").
+ * Hết hạn sau vài phút để một chữ "ok" vu vơ về sau không huỷ nhầm đơn.
+ */
+export interface PendingBotAction {
+  type: 'cancel-order';
+  orderId: string;
+  orderCode: string;
+  expiresAt: string;
+}
 
 export interface ChatConversation {
   id: string;
@@ -36,6 +47,7 @@ export interface ChatConversation {
   unreadByAdmin: number;
   unreadByCustomer: number;
   messages: ChatMessage[];
+  pendingAction?: PendingBotAction;
 }
 
 /* ---------- Trợ lý AI ---------- */
@@ -43,11 +55,13 @@ export interface ChatConversation {
 /** Những việc admin cho phép bot tự giải quyết. Mọi việc khác bot chuyển nhân viên. */
 export const BOT_TOPIC_IDS = [
   'order-status',
+  'order-cancel',
   'shipping',
   'payment',
   'returns',
   'auction-rules',
   'product-info',
+  'bakugan-knowledge',
   'store-info',
   'promotions',
 ] as const;
@@ -72,10 +86,28 @@ export interface BotRequest {
   facts: string[];
 }
 
+/** Vì sao không dùng được Gemini (hiện cho admin ở trang cài đặt, khách không thấy). */
+export type BotFallbackReason =
+  | 'not-configured'
+  | 'invalid-key'
+  | 'key-forbidden'
+  | 'model-not-found'
+  | 'quota-exceeded'
+  | 'rate-limited'
+  | 'upstream-down'
+  | 'timeout'
+  | 'empty-reply'
+  | 'bad-request'
+  | 'unreachable';
+
 export interface BotReply {
   reply: string;
   /** Bot tự thấy cần chuyển cho nhân viên */
   handoff: boolean;
-  /** Nguồn câu trả lời: AI thật hay bộ trả lời dự phòng theo từ khoá */
-  source: 'gemini' | 'rules';
+  /** Nguồn câu trả lời: AI thật, bộ trả lời dự phòng, hay thao tác tự động (huỷ đơn…) */
+  source: 'gemini' | 'rules' | 'action';
+  /** Model Gemini đã trả lời */
+  model?: string;
+  /** Có khi source là 'rules': lý do không gọi được Gemini */
+  fallbackReason?: BotFallbackReason;
 }

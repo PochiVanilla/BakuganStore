@@ -533,6 +533,31 @@ function finalizeOrder(draft: OrderDraft, now: number, rand: () => number): Stor
   };
 }
 
+/**
+ * Đơn "Chờ xác nhận", chưa thanh toán của tài khoản demo — để thử tính năng
+ * trợ lý tự huỷ đơn. Dùng cả khi seed mới lẫn khi nâng cấp dữ liệu cũ.
+ */
+export function createDemoPendingOrder(demo: UserRecord, now: number): StoredOrder {
+  const createdAt = now - 3 * HOUR;
+  const address =
+    demo.addresses.find((item) => item.isDefault) ?? demo.addresses[0] ?? MOCK_USER.addresses[0]!;
+  return finalizeOrder(
+    {
+      id: 'ord-demo-pending',
+      code: orderCode(createdAt, 81),
+      customer: demo,
+      address,
+      items: itemsFrom([MOCK_PRODUCTS[9]!], [1]),
+      createdAt,
+      status: 'pending',
+      method: 'cod',
+      source: 'web',
+    },
+    now,
+    createRandom(81),
+  );
+}
+
 function buildOrders(users: UserRecord[], now: number, rand: () => number): StoredOrder[] {
   const byId = new Map(users.map((user) => [user.id, user]));
   const demo = byId.get('usr-001')!;
@@ -697,9 +722,10 @@ function buildOrders(users: UserRecord[], now: number, rand: () => number): Stor
     });
   }
 
-  return drafts
-    .map((draft) => finalizeOrder(draft, now, rand))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return [
+    ...drafts.map((draft) => finalizeOrder(draft, now, rand)),
+    createDemoPendingOrder(demo, now),
+  ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 /* ---------------- Phiếu nhập ---------------- */
@@ -850,16 +876,18 @@ function buildIssues(orders: StoredOrder[], users: UserRecord[], now: number): O
 export const DEFAULT_BOT_SETTINGS: Omit<BotSettings, 'updatedAt'> = {
   enabled: true,
   greeting:
-    'Chào bạn! Mình là trợ lý AI của TD Bakugan. Mình tra được đơn hàng, phí ship, luật đấu giá, thông tin sản phẩm… Việc nào cần nhân viên, mình chuyển ngay nhé.',
+    'Chào bạn! Mình là trợ lý AI của TD Bakugan. Mình tra được đơn hàng, huỷ đơn chưa xác nhận, báo phí ship, tư vấn mẫu và luật đấu giá… Việc nào cần nhân viên, mình chuyển ngay nhé.',
   topics: {
     'order-status': true,
+    'order-cancel': true,
     shipping: true,
     payment: true,
     returns: true,
     'auction-rules': true,
     'product-info': true,
+    'bakugan-knowledge': true,
     'store-info': true,
-    promotions: false,
+    promotions: true,
   },
   extraKnowledge:
     'Tuần này shop đang có phiên đấu giá Titanium Dragonoid mạ vàng. Hàng hiếm không nhận giữ quá 24 giờ.',

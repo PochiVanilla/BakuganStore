@@ -10,6 +10,12 @@ export const BOT_TOPIC_META: Record<
     description: 'Bot đọc đơn của chính khách đang chat (khách phải đăng nhập) và báo trạng thái.',
     example: '“Đơn TD2609A17 của mình tới đâu rồi?”',
   },
+  'order-cancel': {
+    label: 'Tự huỷ đơn chưa xác nhận',
+    description:
+      'Khách đã đăng nhập nhắn "huỷ đơn" → bot hỏi lại rồi tự huỷ, trả hàng về kho. Chỉ áp dụng đơn "Chờ xác nhận" chưa thanh toán; đơn khác vẫn chuyển nhân viên.',
+    example: '“Mình muốn huỷ đơn TD2609A17”',
+  },
   shipping: {
     label: 'Phí & thời gian giao hàng',
     description: 'Phí ship 30.000₫, miễn phí từ 800.000₫, thời gian giao theo khu vực.',
@@ -36,9 +42,15 @@ export const BOT_TOPIC_META: Record<
     description: 'Giá, còn hàng hay không, hệ, dòng, tình trạng, G-Power của hàng đang bán.',
     example: '“Còn Dragonoid hệ Pyrus không?”',
   },
+  'bakugan-knowledge': {
+    label: 'Kiến thức Bakugan',
+    description: 'Giải thích Bakugan là gì, 6 hệ, các dòng, G-Power, cách chơi cơ bản.',
+    example: '“G-Power là gì?”, “Chơi Bakugan thế nào?”',
+  },
   'store-info': {
-    label: 'Địa chỉ & giờ mở cửa',
-    description: 'Địa chỉ shop, giờ làm việc, hotline, Zalo.',
+    label: 'Thông tin shop',
+    description:
+      'Địa chỉ, giờ làm việc, hotline, Zalo, cam kết hàng chính hãng, cách đăng ký tài khoản.',
     example: '“Shop ở đâu, mấy giờ đóng cửa?”',
   },
   promotions: {

@@ -14,7 +14,7 @@ import type {
 import { productPlaceholder } from '@/utils/placeholder';
 import { MOCK_PRODUCTS } from './products';
 import { MOCK_AUCTIONS } from './auctions';
-import { createSeedDatabase } from './seed';
+import { createDemoPendingOrder, createSeedDatabase } from './seed';
 
 /* ============================================================
    "Cơ sở dữ liệu" của chế độ mock
@@ -61,8 +61,8 @@ export interface MockDatabase {
 }
 
 const STORAGE_KEY = 'td-bakugan:mock-db';
-/** Tăng số này khi đổi cấu trúc dữ liệu để trình duyệt tự seed lại. */
-export const DB_VERSION = 1;
+/** Tăng số này khi đổi cấu trúc dữ liệu; bản cũ được nâng cấp trong `migrate`. */
+export const DB_VERSION = 2;
 
 let cache: MockDatabase | null = null;
 let revision = 0;
@@ -76,12 +76,46 @@ function persist(db: MockDatabase): void {
   }
 }
 
+/**
+ * Nâng cấp dữ liệu đã lưu ở phiên bản trước, giữ nguyên đơn, khách, tin nhắn.
+ * Trả về undefined nếu không nâng cấp được (khi đó seed lại từ đầu).
+ */
+function migrate(data: Partial<MockDatabase>): MockDatabase | undefined {
+  if (data.version === DB_VERSION) return data as MockDatabase;
+  if (data.version !== 1 || !data.botSettings || !data.orders || !data.users) return undefined;
+
+  // v1 -> v2: thêm việc "tự huỷ đơn" và "kiến thức Bakugan" cho trợ lý.
+  const db = data as MockDatabase;
+  const topics = db.botSettings.topics as Partial<MockDatabase['botSettings']['topics']>;
+  db.botSettings.topics = {
+    ...db.botSettings.topics,
+    'order-cancel': topics['order-cancel'] ?? true,
+    'bakugan-knowledge': topics['bakugan-knowledge'] ?? true,
+    // Mã giảm giá từng tắt mặc định; admin chưa từng lưu cài đặt thì bật lên.
+    promotions: db.botSettings.updatedAt === db.seededAt ? true : db.botSettings.topics.promotions,
+  };
+  const demo = db.users.find((user) => user.id === 'usr-001');
+  const demoHasPending = db.orders.some(
+    (order) => order.userId === 'usr-001' && order.status === 'pending',
+  );
+  if (demo && !demoHasPending && !db.orders.some((order) => order.id === 'ord-demo-pending')) {
+    db.orders.unshift(createDemoPendingOrder(demo, Date.now()));
+  }
+  db.version = DB_VERSION;
+  return db;
+}
+
 function load(): MockDatabase {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<MockDatabase>;
-      if (parsed.version === DB_VERSION) return parsed as MockDatabase;
+      const storedVersion = parsed.version;
+      const migrated = migrate(parsed);
+      if (migrated) {
+        if (storedVersion !== DB_VERSION) persist(migrated);
+        return migrated;
+      }
     }
   } catch {
     // Dữ liệu hỏng thì seed lại từ đầu.

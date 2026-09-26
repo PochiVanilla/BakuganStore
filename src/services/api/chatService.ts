@@ -2,17 +2,22 @@ import type {
   ApiResponse,
   BotReply,
   BotSettings,
+  BotTopicId,
   ChatConversation,
   ChatMessage,
   ConversationStatus,
+  PendingBotAction,
 } from '@/types';
 import { BOT_TOPIC_IDS } from '@/types';
 import { MOCK_COUPONS } from '@/mocks';
 import { createId, hydrateOrder, listAllProducts, readDb, updateDb } from '@/mocks/db';
+import { DEFAULT_BOT_SETTINGS } from '@/mocks/seed';
 import { buildKnowledge } from '@/features/chat/botKnowledge';
+import { decideBotAction, isCancellable } from '@/features/chat/botActions';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from './client';
 import { requireAdmin } from './mockSession';
 import { askBot } from './botService';
+import { recordStatus, releaseCancelledOrder } from './orderMutations';
 
 /* ============================================================
    Chat khách ↔ shop.
@@ -45,6 +50,18 @@ function cleanText(text: string): string {
 
 function botIsActive(settings: BotSettings, conversation: ChatConversation): boolean {
   return settings.enabled && conversation.botEnabled;
+}
+
+/** Bot trả lời khi đang tự hỗ trợ, và cả lúc khách đang chờ nhân viên (câu đơn giản). */
+function botMayReply(conversation: ChatConversation): boolean {
+  return conversation.status === 'bot' || conversation.status === 'waiting';
+}
+
+/** Việc admin cho phép; cài đặt lưu từ bản cũ thiếu việc mới thì lấy mặc định. */
+function enabledTopics(settings: BotSettings): BotTopicId[] {
+  return BOT_TOPIC_IDS.filter(
+    (topic) => settings.topics[topic] ?? DEFAULT_BOT_SETTINGS.topics[topic],
+  );
 }
 
 /* ---------------- Phía khách ---------------- */
@@ -168,13 +185,20 @@ export async function sendCustomerMessage(
   return mockDelay(
     {
       conversation,
-      awaitingBot: conversation.status === 'bot' && botIsActive(settings, conversation),
+      awaitingBot: botMayReply(conversation) && botIsActive(settings, conversation),
     },
     120,
   );
 }
 
-/** Lượt trả lời của bot cho tin nhắn mới nhất của khách. */
+/**
+ * Lượt trả lời của bot cho tin nhắn mới nhất của khách:
+ * 1. Việc bot được tự làm (huỷ đơn, xác nhận huỷ) — xử lý bằng luật cố định.
+ * 2. Còn lại hỏi Gemini; không được thì bộ trả lời theo từ khoá.
+ *
+ * Khi có backend thật, backend chạy đúng các bước này và phải lấy danh tính
+ * khách từ token đăng nhập — không tin `customerId` do trình duyệt gửi lên.
+ */
 export async function requestBotReply(
   conversationId: string,
 ): Promise<{ conversation: ChatConversation; reply: BotReply | null }> {
@@ -189,56 +213,126 @@ export async function requestBotReply(
   const current = db.conversations.find((item) => item.id === conversationId);
   if (!current) throw new MockApiError('Cuộc trò chuyện không còn tồn tại.', 404);
   const settings = db.botSettings;
-  if (current.status !== 'bot' || !botIsActive(settings, current)) {
+  const lastCustomerMessage = [...current.messages]
+    .reverse()
+    .find((item) => item.sender === 'customer');
+  if (!botMayReply(current) || !botIsActive(settings, current) || !lastCustomerMessage) {
     return { conversation: current, reply: null };
   }
 
-  const customer = current.customerId
-    ? db.users.find((user) => user.id === current.customerId)
-    : undefined;
+  const topics = enabledTopics(settings);
   const products = listAllProducts(db);
-  const knowledge = buildKnowledge({
-    customerName: customer?.fullName ?? current.customerName,
-    products,
-    orders: current.customerId
-      ? db.orders
-          .filter((order) => order.userId === current.customerId)
-          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-          .map((order) => hydrateOrder(order, products))
-      : [],
-    coupons: MOCK_COUPONS,
+  const customerOrders = current.customerId
+    ? db.orders
+        .filter((order) => order.userId === current.customerId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    : [];
+
+  const decision = decideBotAction({
+    message: lastCustomerMessage.text,
+    pendingAction: current.pendingAction,
+    isSignedIn: Boolean(current.customerId),
+    cancelEnabled: topics.includes('order-cancel'),
+    orders: customerOrders.map((order) => ({
+      id: order.id,
+      code: order.code,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      total: order.total,
+      itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+    })),
   });
 
-  const topics = BOT_TOPIC_IDS.filter((topic) => settings.topics[topic]);
-  const botReply = await askBot({
-    messages: current.messages
-      .filter((item) => item.sender !== 'system')
-      .map((item) => ({
-        role: item.sender === 'customer' ? ('customer' as const) : ('assistant' as const),
-        text: item.text,
-      })),
-    topics,
-    extraKnowledge: settings.extraKnowledge,
-    knowledge,
-  });
+  let botReply: BotReply | null = null;
+  /** undefined = giữ nguyên, null = xoá, còn lại = đặt mới */
+  let nextPending: PendingBotAction | null | undefined;
+  if (decision.kind === 'reply') {
+    botReply = { reply: decision.reply, handoff: decision.handoff, source: 'action' };
+    nextPending = decision.pendingAction;
+  } else if (decision.kind === 'none') {
+    nextPending = decision.clearPending ? null : undefined;
+    botReply = await askBot({
+      messages: current.messages
+        .filter((item) => item.sender !== 'system')
+        .map((item) => ({
+          role: item.sender === 'customer' ? ('customer' as const) : ('assistant' as const),
+          text: item.text,
+        })),
+      topics,
+      extraKnowledge: settings.extraKnowledge,
+      knowledge: buildKnowledge({
+        customerName: current.customerName,
+        isSignedIn: Boolean(current.customerId),
+        products,
+        orders: customerOrders.map((order) => hydrateOrder(order, products)),
+        coupons: MOCK_COUPONS,
+      }),
+    });
+  } else {
+    nextPending = null;
+  }
 
+  let finalReply: BotReply | null = botReply;
   const conversation = updateDb((draft) => {
     const target = draft.conversations.find((item) => item.id === conversationId);
     if (!target) throw new MockApiError('Cuộc trò chuyện không còn tồn tại.', 404);
-    // Trong lúc chờ AI, nhân viên có thể đã nhận cuộc trò chuyện -> bỏ câu của bot.
-    if (target.status !== 'bot') return target;
-    target.messages.push(message('bot', botReply.reply));
-    if (botReply.handoff) {
+    // Trong lúc bot xử lý, nhân viên có thể đã nhận cuộc trò chuyện -> bot nhường lời.
+    if (!botMayReply(target)) {
+      finalReply = null;
+      return target;
+    }
+    const now = new Date().toISOString();
+
+    if (decision.kind === 'execute-cancel') {
+      // Kiểm tra lại ngay lúc huỷ: lời xác nhận vẫn còn, đúng chủ đơn, đơn vẫn chờ
+      // xác nhận và chưa trả tiền.
+      const order = draft.orders.find((item) => item.id === decision.orderId);
+      if (
+        order &&
+        target.pendingAction?.orderId === order.id &&
+        target.customerId &&
+        order.userId === target.customerId &&
+        isCancellable(order)
+      ) {
+        releaseCancelledOrder(draft, order, 'customer-request', 'Khách tự huỷ qua chat.', now);
+        recordStatus(
+          order,
+          'cancelled',
+          'Trợ lý AI (khách yêu cầu)',
+          now,
+          'Khách tự huỷ qua chat.',
+        );
+        finalReply = {
+          reply: `Mình đã huỷ đơn #${order.code} theo yêu cầu của bạn. Hàng đã được trả lại kho; nếu muốn đặt lại, bạn cứ nhắn mình nhé!`,
+          handoff: false,
+          source: 'action',
+        };
+      } else {
+        finalReply = {
+          reply: `Đơn #${decision.orderCode} vừa được shop xử lý nên mình không huỷ được nữa. Mình chuyển nhân viên hỗ trợ bạn nhé.`,
+          handoff: true,
+          source: 'action',
+        };
+      }
+    }
+
+    if (nextPending === null) delete target.pendingAction;
+    else if (nextPending) target.pendingAction = nextPending;
+
+    if (!finalReply) return target;
+    target.messages.push(message('bot', finalReply.reply));
+    // Chỉ báo "đã chuyển nhân viên" một lần; đang chờ sẵn thì không nhắc lại.
+    if (finalReply.handoff && target.status === 'bot') {
       target.status = 'waiting';
       target.unreadByAdmin += 1;
       target.messages.push(message('system', draft.botSettings.handoffMessage));
     }
     target.unreadByCustomer += 1;
-    target.updatedAt = new Date().toISOString();
+    target.updatedAt = now;
     return target;
   });
 
-  return { conversation, reply: botReply };
+  return { conversation, reply: finalReply };
 }
 
 /** Khách bấm "Gặp nhân viên". */

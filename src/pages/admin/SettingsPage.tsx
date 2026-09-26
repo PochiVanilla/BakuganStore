@@ -20,7 +20,12 @@ import {
   updateBotSettings,
   updateShopSettings,
 } from '@/services/api/admin';
-import { askBot, checkBotEndpoint } from '@/services/api/botService';
+import {
+  askBot,
+  checkBotEndpoint,
+  FALLBACK_REASON_TEXT,
+  testBotConnection,
+} from '@/services/api/botService';
 import { getApiErrorMessage, USE_MOCK } from '@/services/api/client';
 import { useAsync } from '@/hooks/useAsync';
 import { useLiveRevision } from '@/hooks/useLiveRevision';
@@ -36,39 +41,76 @@ type EditableBotSettings = Omit<BotSettings, 'updatedAt'>;
 
 function ConnectionStatus() {
   const { data, isLoading } = useAsync(() => checkBotEndpoint(), []);
+  const [isTesting, setIsTesting] = useState(false);
+  const [test, setTest] = useState<Awaited<ReturnType<typeof testBotConnection>> | null>(null);
+
+  const runTest = async (): Promise<void> => {
+    setIsTesting(true);
+    try {
+      setTest(await testBotConnection());
+    } finally {
+      setIsTesting(false);
+    }
+  };
 
   if (isLoading) {
     return <Skeleton className="h-16 w-full" />;
   }
-  const states = {
-    ready: {
-      icon: CircleCheck,
-      tone: 'border-success/30 bg-success/8 text-success',
-      title: 'Đã kết nối Gemini',
-      text: 'Bot trả lời bằng AI thật. Khi hết hạn mức miễn phí, bot tự chuyển sang bộ trả lời theo từ khoá.',
-    },
-    'not-configured': {
-      icon: CircleDashed,
-      tone: 'border-warning/30 bg-warning/8 text-warning',
-      title: 'Chưa có GEMINI_API_KEY',
-      text: 'Bot đang dùng bộ trả lời theo từ khoá. Tạo khoá miễn phí tại Google AI Studio rồi thêm biến môi trường GEMINI_API_KEY trên Vercel (Settings → Environment Variables) và deploy lại.',
-    },
-    unreachable: {
-      icon: CircleX,
-      tone: 'border-white/15 bg-white/4 text-text-muted',
-      title: 'Không gọi được endpoint /api/chat-bot',
-      text: 'Thường gặp khi chạy "vite preview". Chạy "npm run dev" (có GEMINI_API_KEY trong .env.local) hoặc xem trên bản deploy Vercel. Bot vẫn trả lời bằng từ khoá.',
-    },
-  } as const;
-  const state = states[data ?? 'unreachable'];
+
+  const status = data?.status ?? 'unreachable';
+  const failed = test && !test.ok ? FALLBACK_REASON_TEXT[test.reason] : null;
+  const view =
+    test?.ok === true
+      ? {
+          icon: CircleCheck,
+          tone: 'border-success/30 bg-success/8 text-success',
+          title: `Gemini đang trả lời bình thường${test.model ? ` (${test.model})` : ''}`,
+          text: 'Khách được AI trả lời. Khi hết hạn mức miễn phí, bot tự chuyển sang bộ trả lời theo từ khoá rồi quay lại AI khi có hạn mức.',
+        }
+      : failed
+        ? {
+            icon: CircleX,
+            tone: 'border-danger/30 bg-danger/8 text-danger',
+            title: failed.title,
+            text: failed.fix,
+          }
+        : status === 'ready'
+          ? {
+              icon: CircleDashed,
+              tone: 'border-accent-cyan/30 bg-accent-cyan/8 text-accent-cyan',
+              title: 'Đã có GEMINI_API_KEY trên server',
+              text: 'Bấm "Kiểm tra kết nối" để gửi thử một câu và chắc chắn khoá dùng được.',
+            }
+          : status === 'not-configured'
+            ? {
+                icon: CircleDashed,
+                tone: 'border-warning/30 bg-warning/8 text-warning',
+                title: 'Chưa có GEMINI_API_KEY — bot đang trả lời theo từ khoá',
+                text: FALLBACK_REASON_TEXT['not-configured'].fix,
+              }
+            : {
+                icon: CircleX,
+                tone: 'border-white/15 bg-white/4 text-text-muted',
+                title: FALLBACK_REASON_TEXT.unreachable.title,
+                text: FALLBACK_REASON_TEXT.unreachable.fix,
+              };
 
   return (
-    <div className={cn('flex gap-3 rounded-xl border p-3.5', state.tone)}>
-      <state.icon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
-      <div>
-        <p className="text-sm font-semibold">{state.title}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-text-muted">{state.text}</p>
+    <div className={cn('flex flex-col gap-3 rounded-xl border p-3.5 sm:flex-row', view.tone)}>
+      <view.icon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+      <div className="min-w-0 flex-1" aria-live="polite">
+        <p className="text-sm font-semibold">{view.title}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-text-muted">{view.text}</p>
       </div>
+      <Button
+        size="sm"
+        variant="secondary"
+        className="shrink-0 self-start"
+        isLoading={isTesting}
+        onClick={() => void runTest()}
+      >
+        Kiểm tra kết nối
+      </Button>
     </div>
   );
 }
@@ -90,6 +132,7 @@ function BotPlayground({ settings }: { settings: EditableBotSettings }) {
         extraKnowledge: settings.extraKnowledge,
         knowledge: buildKnowledge({
           customerName: 'Khách thử nghiệm',
+          isSignedIn: false,
           products: products.data ?? [],
           orders: [],
           coupons: MOCK_COUPONS,
@@ -129,12 +172,20 @@ function BotPlayground({ settings }: { settings: EditableBotSettings }) {
           <p className="text-sm whitespace-pre-line text-text">{answer.reply}</p>
           <p className="mt-2 flex flex-wrap gap-x-3 text-[11px] text-text-muted">
             <span>
-              Nguồn: {answer.source === 'gemini' ? 'Gemini AI' : 'bộ trả lời theo từ khoá'}
+              Nguồn:{' '}
+              {answer.source === 'gemini'
+                ? `Gemini AI${answer.model ? ` (${answer.model})` : ''}`
+                : 'bộ trả lời theo từ khoá'}
             </span>
             <span className={answer.handoff ? 'text-accent-pink' : 'text-success'}>
               {answer.handoff ? 'Sẽ chuyển cho nhân viên' : 'Bot tự giải quyết'}
             </span>
           </p>
+          {answer.fallbackReason && (
+            <p className="mt-1.5 text-[11px] text-warning">
+              Chưa dùng được Gemini: {FALLBACK_REASON_TEXT[answer.fallbackReason].title}.
+            </p>
+          )}
         </div>
       )}
     </form>

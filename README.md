@@ -94,12 +94,20 @@ Xem mẫu trong `.env.example`.
 1. Vào [Google AI Studio](https://aistudio.google.com/apikey) → **Create API key** (gói miễn phí).
 2. Trên Vercel: **Settings → Environment Variables** → thêm `GEMINI_API_KEY` (không có tiền tố
    `VITE_`, để khoá chỉ nằm ở server) → **Redeploy**.
-3. Vào `/admin/cai-dat`: ô trạng thái chuyển sang "Đã kết nối Gemini"; dùng ô **Thử bot** để xem
-   bot trả lời thế nào trước khi mở cho khách.
+3. Vào `/admin/cai-dat` → bấm **Kiểm tra kết nối**: thấy "Gemini đang trả lời bình thường" là xong.
+   Nếu lỗi, ô này ghi rõ lý do (chưa có khoá, khoá sai, Google chặn khoá, hết hạn mức, không có
+   model…) và cách sửa. Dùng ô **Thử bot** để xem bot trả lời thế nào trước khi mở cho khách.
 
-Chưa có khoá, hết hạn mức miễn phí hoặc Gemini lỗi → bot tự lùi về bộ trả lời theo từ khoá, khách
-vẫn được trả lời các câu cơ bản. Chạy thử ở máy: tạo `.env.local` có `GEMINI_API_KEY=...` rồi
-`npm run dev` (dev server tự chạy luôn `api/chat-bot.ts`).
+Endpoint tự thử lần lượt `GEMINI_MODEL` (nếu có) → `gemini-flash-latest` → `gemini-2.5-flash` →
+`gemini-2.0-flash`, nên không cần đặt `GEMINI_MODEL` trừ khi muốn ghim một model.
+
+Chưa có khoá, hết hạn mức miễn phí hoặc Gemini lỗi → bot tự lùi về bộ trả lời theo từ khoá
+(`src/features/chat/ruleBot.ts`). Bộ này hiểu câu có dấu / không dấu và kiểu viết tắt khi chat
+("ko", "dc", "sp", "bh"…), trả lời được: tra đơn, gợi ý mẫu theo hệ / dòng / tầm giá / rẻ nhất /
+mạnh nhất / hàng mới, phí và thời gian ship, thanh toán, đổi trả, luật đấu giá, mã giảm giá, địa
+chỉ, kiến thức Bakugan. Câu chưa hiểu thì bot hỏi lại kèm gợi ý; hỏi lại vẫn không hiểu mới chuyển
+nhân viên. Chạy thử ở máy: tạo `.env.local` có `GEMINI_API_KEY=...` rồi `npm run dev` (dev server
+tự chạy luôn `api/chat-bot.ts`).
 
 ---
 
@@ -193,9 +201,18 @@ vào đây; menu tài khoản ở cửa hàng cũng có mục "Trang quản tr�
 
 **Trợ lý AI trong chat:** khách chat ở nút tròn góc phải (cả khách chưa đăng nhập). Bot chỉ được
 biết dữ liệu của những chủ đề admin đang bật (đơn của chính khách đó, phí ship, đổi trả, luật đấu
-giá, hàng còn…). Huỷ/sửa đơn, hoàn tiền, khiếu nại, giữ hàng, trả giá, thu mua hàng cũ luôn được
+giá, hàng còn…). Sửa đơn, hoàn tiền, khiếu nại, giữ hàng, trả giá, thu mua hàng cũ luôn được
 chuyển nhân viên. Khoá Gemini nằm trong Vercel Function `api/chat-bot.ts`, có kiểm tra nguồn gọi,
 giới hạn độ dài dữ liệu và giới hạn 8 lượt/phút mỗi IP để giữ hạn mức miễn phí.
+
+- **Bot tự huỷ đơn** (chủ đề "Tự huỷ đơn chưa xác nhận"): khách đã đăng nhập nhắn "huỷ đơn" → bot
+  hỏi lại "Bạn muốn huỷ đơn #… đúng không?" kèm nút **Đồng ý / Không**. Chỉ huỷ đơn của chính
+  khách, còn "Chờ xác nhận" và chưa thanh toán; lời xác nhận hết hạn sau 10 phút. Việc huỷ viết
+  bằng luật cố định (`src/features/chat/botActions.ts`), không để AI tự quyết. Đơn đã xác nhận,
+  đang giao hoặc đã trả tiền → bot giải thích và chuyển nhân viên. Tài khoản demo có sẵn một đơn
+  "Chờ xác nhận" để thử.
+- **Đang chờ nhân viên**, bot vẫn trả lời các câu đơn giản để khách không phải đợi; khi nhân viên
+  nhận cuộc chat thì bot dừng.
 
 **Dữ liệu demo:** ở chế độ mock, đơn, khách, phiếu nhập, tin nhắn… lưu trong `localStorage` của
 trình duyệt (`src/mocks/db.ts`), nên thao tác của admin còn nguyên sau khi tải lại trang và hiện
