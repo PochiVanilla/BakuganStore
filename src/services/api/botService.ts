@@ -205,6 +205,6 @@ export const FALLBACK_REASON_TEXT: Record<BotFallbackReason, { title: string; fi
   },
   unreachable: {
     title: 'Không gọi được /api/chat-bot',
-    fix: 'Bản "vite preview" không chạy được endpoint này. Xem trên bản deploy Vercel, hoặc chạy "npm run dev" với GEMINI_API_KEY trong .env.local.',
+    fix: 'Trên Vercel: mở Deployments → bản mới nhất → Logs, lọc "chat-bot" để xem lỗi. Ở máy: "vite preview" không chạy endpoint này, hãy dùng "npm run dev" với GEMINI_API_KEY trong .env.local.',
   },
 };

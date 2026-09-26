@@ -348,9 +348,10 @@ export async function POST(request: Request): Promise<Response> {
   const payload = JSON.stringify({
     systemInstruction: { parts: [{ text: buildSystemPrompt(body) }] },
     contents,
+    // Để nhiệt độ mặc định: Google khuyên không hạ temperature với các model Gemini 3 trở đi.
     generationConfig: {
-      temperature: 0.3,
-      maxOutputTokens: 2_048,
+      // Model có "suy nghĩ" tính cả phần suy nghĩ vào giới hạn này — để rộng cho khỏi bị cắt cụt.
+      maxOutputTokens: 8_192,
       responseMimeType: 'application/json',
       responseSchema: {
         type: 'OBJECT',
