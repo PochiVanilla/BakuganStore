@@ -1,4 +1,10 @@
-import type { BakuganAttribute, BakuganSeries, ProductCondition, ProductSort } from '@/types';
+import type {
+  BakuganAttribute,
+  BakuganSeries,
+  OrderStatus,
+  ProductCondition,
+  ProductSort,
+} from '@/types';
 
 export interface AttributeMeta {
   value: BakuganAttribute;
@@ -129,10 +135,12 @@ export const AUCTION_STATUS_LABELS = {
 export const ORDER_STATUS_LABELS = {
   pending: 'Chờ xác nhận',
   confirmed: 'Đã xác nhận',
+  packing: 'Đang đóng gói',
   shipping: 'Đang giao',
   completed: 'Hoàn tất',
   cancelled: 'Đã huỷ',
-} as const;
+  returned: 'Hoàn trả',
+} as const satisfies Record<OrderStatus, string>;
 
 /** Khoảng giá gợi ý cho sidebar lọc. */
 export const PRICE_RANGES = [

@@ -1,5 +1,4 @@
-import type { Coupon, Order, User } from '@/types';
-import { MOCK_PRODUCTS } from './products';
+import type { Coupon, User } from '@/types';
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = Date.now();
@@ -11,12 +10,29 @@ export const DEMO_ACCOUNT = {
   password: 'Bakugan123',
 } as const;
 
+/**
+ * Tài khoản quản trị của bản demo. Khác tài khoản khách, tài khoản này bắt
+ * buộc đúng mật khẩu. Khi có backend thật, xoá hằng số này.
+ */
+export const ADMIN_ACCOUNT = {
+  email: 'admin@tdbakugan.vn',
+  password: 'TdAdmin@2026',
+} as const;
+
 export const MOCK_USER: User = {
   id: 'usr-001',
   fullName: 'Nguyễn Minh Khôi',
   email: DEMO_ACCOUNT.email,
   phone: '0912345678',
   createdAt: daysAgo(420),
+  role: 'customer',
+  gender: 'male',
+  birthday: '1998-03-14',
+  bankAccount: {
+    bankName: 'Vietcombank',
+    accountNumber: '0071000123456',
+    accountHolder: 'NGUYEN MINH KHOI',
+  },
   addresses: [
     {
       id: 'adr-001',
@@ -42,93 +58,6 @@ export const MOCK_USER: User = {
     },
   ],
 };
-
-export const MOCK_ORDERS: Order[] = [
-  {
-    id: 'ord-001',
-    code: 'TD2609A17',
-    items: MOCK_PRODUCTS.slice(0, 2).map((product) => ({
-      productId: product.id,
-      name: product.name,
-      image: product.images[0]!,
-      price: product.price,
-      quantity: 1,
-    })),
-    subtotal: MOCK_PRODUCTS[0]!.price + MOCK_PRODUCTS[1]!.price,
-    shippingFee: 0,
-    discount: 100_000,
-    total: MOCK_PRODUCTS[0]!.price + MOCK_PRODUCTS[1]!.price - 100_000,
-    status: 'shipping',
-    createdAt: daysAgo(2),
-    receiverName: 'Nguyễn Minh Khôi',
-    phone: '0912345678',
-    addressLine: '128 Lê Lợi, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
-    paymentMethod: 'cod',
-  },
-  {
-    id: 'ord-002',
-    code: 'TD2508B04',
-    items: MOCK_PRODUCTS.slice(5, 7).map((product) => ({
-      productId: product.id,
-      name: product.name,
-      image: product.images[0]!,
-      price: product.price,
-      quantity: 1,
-    })),
-    subtotal: MOCK_PRODUCTS[5]!.price + MOCK_PRODUCTS[6]!.price,
-    shippingFee: 30_000,
-    discount: 0,
-    total: MOCK_PRODUCTS[5]!.price + MOCK_PRODUCTS[6]!.price + 30_000,
-    status: 'completed',
-    createdAt: daysAgo(28),
-    receiverName: 'Nguyễn Minh Khôi',
-    phone: '0912345678',
-    addressLine: '128 Lê Lợi, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
-    paymentMethod: 'bank-transfer',
-  },
-  {
-    id: 'ord-003',
-    code: 'TD2507C22',
-    items: MOCK_PRODUCTS.slice(20, 22).map((product) => ({
-      productId: product.id,
-      name: product.name,
-      image: product.images[0]!,
-      price: product.price,
-      quantity: 2,
-    })),
-    subtotal: (MOCK_PRODUCTS[20]!.price + MOCK_PRODUCTS[21]!.price) * 2,
-    shippingFee: 0,
-    discount: 0,
-    total: (MOCK_PRODUCTS[20]!.price + MOCK_PRODUCTS[21]!.price) * 2,
-    status: 'completed',
-    createdAt: daysAgo(63),
-    receiverName: 'Nguyễn Minh Khôi',
-    phone: '0987654321',
-    addressLine: 'Tầng 7, 45 Nguyễn Đình Chiểu, Phường Võ Thị Sáu, Quận 3, TP. Hồ Chí Minh',
-    paymentMethod: 'momo',
-  },
-  {
-    id: 'ord-004',
-    code: 'TD2506D09',
-    items: MOCK_PRODUCTS.slice(12, 13).map((product) => ({
-      productId: product.id,
-      name: product.name,
-      image: product.images[0]!,
-      price: product.price,
-      quantity: 1,
-    })),
-    subtotal: MOCK_PRODUCTS[12]!.price,
-    shippingFee: 30_000,
-    discount: 0,
-    total: MOCK_PRODUCTS[12]!.price + 30_000,
-    status: 'cancelled',
-    createdAt: daysAgo(94),
-    receiverName: 'Nguyễn Minh Khôi',
-    phone: '0912345678',
-    addressLine: '128 Lê Lợi, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
-    paymentMethod: 'cod',
-  },
-];
 
 export const MOCK_COUPONS: Coupon[] = [
   {

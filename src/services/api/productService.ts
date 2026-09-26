@@ -1,10 +1,14 @@
 import type { ApiResponse, Paginated, Product, ProductQuery, Review } from '@/types';
-import { MOCK_PRODUCTS, MOCK_REVIEWS } from '@/mocks';
+import { MOCK_REVIEWS } from '@/mocks';
+import { listVisibleProducts } from '@/mocks/db';
 import { normalizeSearch } from '@/utils/slugify';
 import { PRODUCT_PAGE_SIZE } from '@/constants/catalog';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from './client';
 
 const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+/** Hàng đang bày bán: dữ liệu gốc cộng chỉnh sửa của admin, bỏ các mẫu bị ẩn. */
+const catalog = (): Product[] => listVisibleProducts();
 
 export function isNewArrival(product: Product, now: number = Date.now()): boolean {
   return now - new Date(product.createdAt).getTime() <= THIRTY_DAYS;
@@ -73,7 +77,7 @@ export async function fetchProducts(query: ProductQuery = {}): Promise<Paginated
   const page = Math.max(1, query.page ?? 1);
   const pageSize = query.pageSize ?? PRODUCT_PAGE_SIZE;
   const filtered = sortProducts(
-    MOCK_PRODUCTS.filter((product) => matchesQuery(product, query)),
+    catalog().filter((product) => matchesQuery(product, query)),
     query.sort,
   );
   const total = filtered.length;
@@ -92,7 +96,7 @@ export async function fetchProductBySlug(slug: string): Promise<Product> {
     const { data } = await apiClient.get<ApiResponse<Product>>(`/products/${slug}`);
     return data.data;
   }
-  const product = MOCK_PRODUCTS.find((item) => item.slug === slug);
+  const product = catalog().find((item) => item.slug === slug);
   if (!product) throw new MockApiError('Không tìm thấy sản phẩm này.', 404);
   return mockDelay(product);
 }
@@ -104,7 +108,12 @@ export async function fetchFeaturedProducts(limit = 8): Promise<Product[]> {
     });
     return data.data;
   }
-  return mockDelay(MOCK_PRODUCTS.filter((product) => product.isFeatured).slice(0, limit), 260);
+  return mockDelay(
+    catalog()
+      .filter((product) => product.isFeatured)
+      .slice(0, limit),
+    260,
+  );
 }
 
 export async function fetchBestSellers(limit = 8): Promise<Product[]> {
@@ -114,10 +123,7 @@ export async function fetchBestSellers(limit = 8): Promise<Product[]> {
     });
     return data.data;
   }
-  return mockDelay(
-    [...MOCK_PRODUCTS].sort((a, b) => b.soldCount - a.soldCount).slice(0, limit),
-    260,
-  );
+  return mockDelay([...catalog()].sort((a, b) => b.soldCount - a.soldCount).slice(0, limit), 260);
 }
 
 export async function fetchNewArrivals(limit = 12): Promise<Product[]> {
@@ -129,7 +135,8 @@ export async function fetchNewArrivals(limit = 12): Promise<Product[]> {
   }
   const now = Date.now();
   return mockDelay(
-    MOCK_PRODUCTS.filter((product) => isNewArrival(product, now))
+    catalog()
+      .filter((product) => isNewArrival(product, now))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, limit),
     260,
@@ -143,9 +150,10 @@ export async function fetchRelatedProducts(slug: string, limit = 4): Promise<Pro
     });
     return data.data;
   }
-  const current = MOCK_PRODUCTS.find((item) => item.slug === slug);
+  const current = catalog().find((item) => item.slug === slug);
   if (!current) return mockDelay([], 200);
-  const scored = MOCK_PRODUCTS.filter((item) => item.id !== current.id)
+  const scored = catalog()
+    .filter((item) => item.id !== current.id)
     .map((item) => ({
       item,
       score:
@@ -179,9 +187,11 @@ export async function searchSuggestions(keyword: string, limit = 6): Promise<Pro
   const needle = normalizeSearch(keyword);
   if (needle.length < 2) return mockDelay([], 80);
   return mockDelay(
-    MOCK_PRODUCTS.filter((product) =>
-      normalizeSearch(`${product.name} ${product.tags.join(' ')}`).includes(needle),
-    ).slice(0, limit),
+    catalog()
+      .filter((product) =>
+        normalizeSearch(`${product.name} ${product.tags.join(' ')}`).includes(needle),
+      )
+      .slice(0, limit),
     140,
   );
 }
@@ -194,13 +204,13 @@ export async function fetchProductsByIds(ids: string[]): Promise<Product[]> {
     return data.data;
   }
   return mockDelay(
-    MOCK_PRODUCTS.filter((product) => ids.includes(product.id)),
+    catalog().filter((product) => ids.includes(product.id)),
     200,
   );
 }
 
 /** Khoảng giá thực tế của kho hàng — dùng cho thanh lọc giá. */
 export function getPriceBounds(): { min: number; max: number } {
-  const prices = MOCK_PRODUCTS.map((product) => product.price);
+  const prices = catalog().map((product) => product.price);
   return { min: Math.min(...prices), max: Math.max(...prices) };
 }

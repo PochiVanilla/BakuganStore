@@ -79,6 +79,8 @@ export interface Product {
   isFeatured: boolean;
   isBestSeller: boolean;
   isRare: boolean;
+  /** Admin tạm ẩn khỏi cửa hàng (vẫn giữ trong kho và báo cáo) */
+  isHidden?: boolean;
 }
 
 /* ---------- Đấu giá ---------- */
@@ -156,6 +158,21 @@ export interface Address {
   isDefault: boolean;
 }
 
+export const USER_ROLES = ['customer', 'admin'] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+
+export type Gender = 'male' | 'female' | 'other';
+
+/**
+ * Tài khoản nhận hoàn tiền của khách. Chỉ chính chủ nhìn thấy số tài khoản;
+ * API quản trị không bao giờ trả trường `accountNumber` ra ngoài.
+ */
+export interface BankAccount {
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+}
+
 export interface User {
   id: string;
   fullName: string;
@@ -164,6 +181,11 @@ export interface User {
   avatarUrl?: string;
   createdAt: string;
   addresses: Address[];
+  /** Phiên đăng nhập cũ (trước khi có phân quyền) có thể thiếu — coi như khách hàng */
+  role: UserRole;
+  birthday?: string;
+  gender?: Gender;
+  bankAccount?: BankAccount;
 }
 
 export interface AuthSession {
@@ -187,14 +209,54 @@ export interface CartItem {
   maxQuantity: number;
 }
 
-export type OrderStatus = 'pending' | 'confirmed' | 'shipping' | 'completed' | 'cancelled';
+export const ORDER_STATUSES = [
+  'pending',
+  'confirmed',
+  'packing',
+  'shipping',
+  'completed',
+  'cancelled',
+  'returned',
+] as const;
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+
+export const PAYMENT_METHODS = ['cod', 'bank-transfer', 'momo'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export const PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded'] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+/** Đơn đến từ đâu: khách tự đặt trên web, thắng đấu giá, hay admin tạo tay */
+export const ORDER_SOURCES = ['web', 'auction', 'manual'] as const;
+export type OrderSource = (typeof ORDER_SOURCES)[number];
+
+export const CANCEL_REASONS = [
+  'customer-request',
+  'out-of-stock',
+  'payment-timeout',
+  'unreachable',
+  'duplicate',
+  'fraud-suspected',
+  'other',
+] as const;
+export type CancelReason = (typeof CANCEL_REASONS)[number];
 
 export interface OrderItem {
+  /** Id sản phẩm, hoặc `auction:<id>` với món thắng đấu giá */
   productId: string;
   name: string;
   image: string;
   price: number;
   quantity: number;
+}
+
+/** Một mốc trong lịch sử đơn — ai đổi trạng thái, lúc nào, ghi chú gì */
+export interface OrderEvent {
+  id: string;
+  status: OrderStatus;
+  at: string;
+  actor: string;
+  note?: string;
 }
 
 export interface Order {
@@ -207,10 +269,21 @@ export interface Order {
   total: number;
   status: OrderStatus;
   createdAt: string;
+  updatedAt: string;
   receiverName: string;
   phone: string;
   addressLine: string;
-  paymentMethod: 'cod' | 'bank-transfer' | 'momo';
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
+  source: OrderSource;
+  /** Khách lẻ (admin tạo tay) không có tài khoản thì để trống */
+  userId?: string;
+  customerEmail?: string;
+  auctionId?: string;
+  note?: string;
+  cancelReason?: CancelReason;
+  cancelNote?: string;
+  timeline: OrderEvent[];
 }
 
 export interface Coupon {
@@ -294,3 +367,6 @@ export interface ContactMessage {
   subject: string;
   message: string;
 }
+
+export * from './admin';
+export * from './chat';

@@ -28,6 +28,17 @@ const BIDDER_POOL = [
   'Ngô Thanh Tùng',
 ];
 
+/**
+ * Người đặt giá trong dữ liệu mẫu, khớp id với danh sách khách hàng ở trang
+ * quản trị. Người đầu tiên chính là tài khoản demo.
+ */
+export const AUCTION_BIDDERS: ReadonlyArray<{ id: string; fullName: string }> = BIDDER_POOL.map(
+  (fullName, index) => ({
+    id: index === 0 ? 'usr-001' : `usr-0${10 + index}`,
+    fullName,
+  }),
+);
+
 interface AuctionSeed {
   name: string;
   attribute: BakuganAttribute;
@@ -156,6 +167,22 @@ const SEEDS: AuctionSeed[] = [
     blurb:
       'Phiên đã kết thúc. Mức chốt cuối cùng cho thấy sức hút của dòng Mechtanium Surge vẫn rất mạnh.',
   },
+  {
+    name: 'Preyas Song Sinh Đổi Màu Bản Nhật',
+    attribute: 'aquos',
+    series: 'battle-brawlers',
+    gPower: 610,
+    condition: 'like-new',
+    startPrice: 900_000,
+    bidStep: 30_000,
+    startsInHours: -240,
+    endsInHours: -72,
+    bidCount: 14,
+    watcherCount: 188,
+    extras: ['Thẻ bài kim loại', 'Hộp gốc'],
+    blurb:
+      'Phiên đã kết thúc. Bản Preyas đổi màu nội địa Nhật, cơ cấu xoay mặt còn nhạy, sơn gần như nguyên vẹn.',
+  },
 ];
 
 function resolveStatus(startAt: number, endAt: number): AuctionStatus {
@@ -178,7 +205,7 @@ function buildBids(auctionId: string, seed: AuctionSeed, endAt: number): Bid[] {
     bids.push({
       id: `bid-${auctionId}-${i + 1}`,
       auctionId,
-      bidderId: `usr-${bidderIndex + 10}`,
+      bidderId: AUCTION_BIDDERS[bidderIndex]!.id,
       bidderMaskedName: maskName(fullName),
       amount,
       createdAt: new Date(lastBidAt - (seed.bidCount - 1 - i) * spacing).toISOString(),

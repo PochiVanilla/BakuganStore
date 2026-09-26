@@ -1,30 +1,23 @@
 import { Link } from 'react-router-dom';
 import { Package } from 'lucide-react';
-import type { OrderStatus } from '@/types';
 import { ROUTES } from '@/constants/routes';
-import { ORDER_STATUS_LABELS } from '@/constants/catalog';
+import {
+  ORDER_STATUS_LABELS,
+  ORDER_STATUS_STYLES,
+  PAYMENT_METHOD_LABELS,
+} from '@/constants/orders';
 import { fetchMyOrders } from '@/services/api/authService';
 import { useAsync } from '@/hooks/useAsync';
+import { useAuthStore } from '@/store/authStore';
 import { formatCurrency, formatDateTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
 import { ButtonLink, EmptyState, Skeleton } from '@/components/ui';
 
-const STATUS_STYLES: Record<OrderStatus, string> = {
-  pending: 'border-warning/45 bg-warning/12 text-warning',
-  confirmed: 'border-accent-cyan/45 bg-accent-cyan/12 text-accent-cyan',
-  shipping: 'border-primary/50 bg-primary/15 text-primary-soft',
-  completed: 'border-success/45 bg-success/12 text-success',
-  cancelled: 'border-white/15 bg-white/5 text-text-muted',
-};
-
-const PAYMENT_LABELS = {
-  cod: 'Thanh toán khi nhận hàng',
-  'bank-transfer': 'Chuyển khoản ngân hàng',
-  momo: 'Ví MoMo',
-} as const;
-
 export function OrdersTab() {
-  const { data, isLoading } = useAsync(() => fetchMyOrders(), []);
+  const userId = useAuthStore((state) => state.user?.id);
+  const { data, isLoading } = useAsync(() => fetchMyOrders(userId ?? ''), [userId], {
+    enabled: Boolean(userId),
+  });
   const orders = data ?? [];
 
   if (isLoading) {
@@ -67,7 +60,7 @@ export function OrdersTab() {
                 <span
                   className={cn(
                     'rounded-lg border px-2.5 py-1 font-display text-[11px] font-bold tracking-wider',
-                    STATUS_STYLES[order.status],
+                    ORDER_STATUS_STYLES[order.status],
                   )}
                 >
                   {ORDER_STATUS_LABELS[order.status].toUpperCase()}
@@ -107,7 +100,7 @@ export function OrdersTab() {
                     {order.phone}
                   </p>
                   <p className="mt-0.5">{order.addressLine}</p>
-                  <p className="mt-0.5">{PAYMENT_LABELS[order.paymentMethod]}</p>
+                  <p className="mt-0.5">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</p>
                 </div>
                 <div className="text-right">
                   {order.discount > 0 && (

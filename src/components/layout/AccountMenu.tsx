@@ -1,8 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserCircle2, Settings, Package, LogOut, LogIn, UserPlus, Gavel } from 'lucide-react';
+import {
+  UserCircle2,
+  Settings,
+  Package,
+  LogOut,
+  LogIn,
+  UserPlus,
+  Gavel,
+  LayoutDashboard,
+} from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ROUTES } from '@/constants/routes';
+import { ADMIN_ROUTES, ROUTES } from '@/constants/routes';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/uiStore';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -61,6 +70,17 @@ export function AccountMenu() {
                   <p className="truncate text-xs text-text-muted">{user.email}</p>
                 </div>
                 <nav className="py-1.5">
+                  {user.role === 'admin' && (
+                    <Link
+                      to={ADMIN_ROUTES.dashboard}
+                      role="menuitem"
+                      onClick={() => setIsOpen(false)}
+                      className={`${itemClass} border-b border-white/8 font-semibold text-gold hover:text-gold`}
+                    >
+                      <LayoutDashboard size={16} aria-hidden="true" />
+                      Trang quản trị
+                    </Link>
+                  )}
                   <Link
                     to={`${ROUTES.account}?tab=profile`}
                     role="menuitem"

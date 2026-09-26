@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { MapPin, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import type { Address } from '@/types';
 import { addressSchema, type AddressFormValues } from '@/features/auth/schemas';
-import { deleteAddress, saveAddress } from '@/services/api/authService';
+import { deleteAddress, makeDefaultAddress, saveAddress } from '@/services/api/authService';
 import { getApiErrorMessage } from '@/services/api/client';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/uiStore';
@@ -66,7 +66,8 @@ export function AddressTab() {
 
   const onSubmit = async (values: AddressFormValues): Promise<void> => {
     try {
-      const result = await saveAddress(values, editing?.id);
+      if (!user) return;
+      const result = await saveAddress(values, editing?.id, user.id);
       upsertAddress({ id: result.id, ...values });
       toast.success(editing ? 'Đã cập nhật địa chỉ' : 'Đã thêm địa chỉ mới');
       setIsModalOpen(false);
@@ -77,7 +78,8 @@ export function AddressTab() {
 
   const handleDelete = async (address: Address): Promise<void> => {
     try {
-      await deleteAddress(address.id);
+      if (!user) return;
+      await deleteAddress(address.id, user.id);
       removeAddress(address.id);
       toast.info('Đã xoá địa chỉ', address.label);
     } catch (error) {
@@ -145,6 +147,11 @@ export function AddressTab() {
                     onClick={() => {
                       setDefaultAddress(address.id);
                       toast.success('Đã đặt làm địa chỉ mặc định');
+                      if (user) {
+                        makeDefaultAddress(address.id, user.id).catch((error: unknown) =>
+                          toast.error('Chưa lưu được lên máy chủ', getApiErrorMessage(error)),
+                        );
+                      }
                     }}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-text-muted transition hover:border-gold/45 hover:text-gold"
                   >

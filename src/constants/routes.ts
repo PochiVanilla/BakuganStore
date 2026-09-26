@@ -22,6 +22,22 @@ export const ROUTES = {
   returns: '/chinh-sach-doi-tra',
 } as const;
 
+/** Khu vực quản trị — chỉ tài khoản có quyền admin vào được. */
+export const ADMIN_ROUTES = {
+  dashboard: '/admin',
+  orders: '/admin/don-hang',
+  orderDetail: (id: string) => `/admin/don-hang/${id}`,
+  createOrder: '/admin/don-hang/tao-moi',
+  auctions: '/admin/dau-gia',
+  inventory: '/admin/kho-hang',
+  receipts: '/admin/nhap-hang',
+  problems: '/admin/huy-va-su-co',
+  customers: '/admin/khach-hang',
+  customerDetail: (id: string) => `/admin/khach-hang/${id}`,
+  chat: '/admin/tin-nhan',
+  settings: '/admin/cai-dat',
+} as const;
+
 export interface NavItem {
   label: string;
   to: string;

@@ -6,6 +6,7 @@ import { MobileMenu } from '@/components/layout/MobileMenu';
 import { StarField } from '@/components/layout/StarField';
 import { BrandIntro } from '@/components/layout/BrandIntro';
 import { MiniCart } from '@/features/cart/MiniCart';
+import { ChatWidget } from '@/features/chat/ChatWidget';
 import { ToastViewport } from '@/components/ui';
 import { RouteFallback } from '../RouteFallback';
 
@@ -22,6 +23,7 @@ export default function Layout() {
       <Footer />
       <MobileMenu />
       <MiniCart />
+      <ChatWidget />
       <ToastViewport />
       <BrandIntro />
     </div>

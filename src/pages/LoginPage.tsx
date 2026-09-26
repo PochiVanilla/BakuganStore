@@ -3,11 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, Gavel, Heart, Package } from 'lucide-react';
-import { ROUTES } from '@/constants/routes';
+import { ADMIN_ROUTES, ROUTES } from '@/constants/routes';
 import { loginSchema, type LoginFormValues } from '@/features/auth/schemas';
 import { login } from '@/services/api/authService';
-import { getApiErrorMessage } from '@/services/api/client';
-import { DEMO_ACCOUNT } from '@/mocks';
+import { getApiErrorMessage, USE_MOCK } from '@/services/api/client';
+import { ADMIN_ACCOUNT, DEMO_ACCOUNT } from '@/mocks';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/uiStore';
 import { Button, Input, PasswordInput, Seo } from '@/components/ui';
@@ -30,6 +30,7 @@ export default function LoginPage() {
   const state = location.state as LocationState | null;
   const signIn = useAuthStore((store) => store.signIn);
   const isAuthenticated = useAuthStore((store) => store.isAuthenticated);
+  const isAdmin = useAuthStore((store) => store.user?.role === 'admin');
 
   const {
     register,
@@ -43,15 +44,18 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    if (isAuthenticated) navigate(ROUTES.account, { replace: true });
-  }, [isAuthenticated, navigate]);
+    if (isAuthenticated) {
+      navigate(isAdmin ? ADMIN_ROUTES.dashboard : ROUTES.account, { replace: true });
+    }
+  }, [isAuthenticated, isAdmin, navigate]);
 
   const onSubmit = async (values: LoginFormValues): Promise<void> => {
     try {
       const session = await login(values);
       signIn(session);
       toast.success(`Chào mừng trở lại, ${session.user.fullName}!`);
-      navigate(state?.from?.pathname ?? ROUTES.account, { replace: true });
+      const fallback = session.user.role === 'admin' ? ADMIN_ROUTES.dashboard : ROUTES.account;
+      navigate(state?.from?.pathname ?? fallback, { replace: true });
     } catch (error) {
       const fieldErrors =
         typeof error === 'object' && error !== null && 'fieldErrors' in error
@@ -64,9 +68,9 @@ export default function LoginPage() {
     }
   };
 
-  const fillDemoAccount = (): void => {
-    setValue('email', DEMO_ACCOUNT.email, { shouldValidate: true });
-    setValue('password', DEMO_ACCOUNT.password, { shouldValidate: true });
+  const fillAccount = (account: { email: string; password: string }): void => {
+    setValue('email', account.email, { shouldValidate: true });
+    setValue('password', account.password, { shouldValidate: true });
   };
 
   return (
@@ -154,19 +158,31 @@ export default function LoginPage() {
             {isSubmitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
           </Button>
 
-          <div className="rounded-xl border border-dashed border-gold/30 bg-gold/5 p-3.5">
-            <p className="text-xs leading-relaxed text-text-muted">
-              <span className="font-semibold text-gold">Bản demo:</span> chưa có backend nên mọi
-              email hợp lệ kèm mật khẩu từ 8 ký tự đều đăng nhập được.
-            </p>
-            <button
-              type="button"
-              onClick={fillDemoAccount}
-              className="mt-2 text-xs font-semibold text-accent-cyan underline-offset-2 hover:underline"
-            >
-              Điền sẵn tài khoản demo
-            </button>
-          </div>
+          {USE_MOCK && (
+            <div className="rounded-xl border border-dashed border-gold/30 bg-gold/5 p-3.5">
+              <p className="text-xs leading-relaxed text-text-muted">
+                <span className="font-semibold text-gold">Bản demo:</span> chưa có backend nên mọi
+                email hợp lệ kèm mật khẩu từ 8 ký tự đều đăng nhập được. Riêng tài khoản quản trị
+                phải đúng mật khẩu.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                <button
+                  type="button"
+                  onClick={() => fillAccount(DEMO_ACCOUNT)}
+                  className="text-xs font-semibold text-accent-cyan underline-offset-2 hover:underline"
+                >
+                  Điền tài khoản khách demo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillAccount(ADMIN_ACCOUNT)}
+                  className="text-xs font-semibold text-gold underline-offset-2 hover:underline"
+                >
+                  Điền tài khoản quản trị demo
+                </button>
+              </div>
+            </div>
+          )}
         </form>
       </AuthLayout>
     </>

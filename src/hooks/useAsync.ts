@@ -26,9 +26,13 @@ interface InternalState<T> {
 export function useAsync<T>(
   factory: () => Promise<T>,
   deps: readonly AsyncDep[],
-  options: { enabled?: boolean } = {},
+  options: {
+    enabled?: boolean;
+    /** Giữ dữ liệu cũ trong lúc tải lại (tránh nháy skeleton khi làm mới ngầm) */
+    keepPreviousData?: boolean;
+  } = {},
 ): AsyncState<T> {
-  const { enabled = true } = options;
+  const { enabled = true, keepPreviousData = false } = options;
   const [nonce, setNonce] = useState(0);
   const depsKey = `${nonce}|${enabled}|${deps.map((dep) => String(dep)).join('\u0001')}`;
 
@@ -42,7 +46,12 @@ export function useAsync<T>(
   // Deps đổi -> reset về trạng thái loading ngay khi render, thay vì setState
   // trong effect (tránh cascading render).
   if (state.key !== depsKey) {
-    setState({ key: depsKey, data: undefined, error: null, isLoading: enabled });
+    setState({
+      key: depsKey,
+      data: keepPreviousData ? state.data : undefined,
+      error: null,
+      isLoading: enabled,
+    });
   }
 
   const factoryRef = useLatestRef(factory);
@@ -82,7 +91,7 @@ export function useAsync<T>(
   const isCurrent = state.key === depsKey;
 
   return {
-    data: isCurrent ? state.data : undefined,
+    data: isCurrent || keepPreviousData ? state.data : undefined,
     isLoading: isCurrent ? state.isLoading : enabled,
     error: isCurrent ? state.error : null,
     reload,

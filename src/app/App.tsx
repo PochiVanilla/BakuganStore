@@ -1,9 +1,11 @@
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import Layout from './layouts/Layout';
 import { ScrollToTop } from './ScrollToTop';
+import { RouteFallback } from './RouteFallback';
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute';
-import { ROUTES } from '@/constants/routes';
+import { AdminRoute } from '@/features/admin/AdminRoute';
+import { ADMIN_ROUTES, ROUTES } from '@/constants/routes';
 
 /* Code-splitting theo route — mỗi trang là một chunk riêng, tải khi cần. */
 const HomePage = lazy(() => import('@/pages/HomePage'));
@@ -25,11 +27,51 @@ const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
 const LegalPage = lazy(() => import('@/pages/LegalPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
+/* Khu vực quản trị — tách chunk riêng, khách thường không bao giờ tải về. */
+const AdminLayout = lazy(() => import('@/features/admin/AdminLayout'));
+const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage'));
+const OrdersPage = lazy(() => import('@/pages/admin/OrdersPage'));
+const OrderDetailPage = lazy(() => import('@/pages/admin/OrderDetailPage'));
+const CreateOrderPage = lazy(() => import('@/pages/admin/CreateOrderPage'));
+const AuctionsAdminPage = lazy(() => import('@/pages/admin/AuctionsAdminPage'));
+const InventoryPage = lazy(() => import('@/pages/admin/InventoryPage'));
+const ReceiptsPage = lazy(() => import('@/pages/admin/ReceiptsPage'));
+const ProblemsPage = lazy(() => import('@/pages/admin/ProblemsPage'));
+const CustomersPage = lazy(() => import('@/pages/admin/CustomersPage'));
+const CustomerDetailPage = lazy(() => import('@/pages/admin/CustomerDetailPage'));
+const ChatInboxPage = lazy(() => import('@/pages/admin/ChatInboxPage'));
+const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
+
 export default function App() {
   return (
     <>
       <ScrollToTop />
       <Routes>
+        {/* Quản trị: kiểm tra đăng nhập + quyền admin trước khi tải bất cứ trang nào */}
+        <Route element={<AdminRoute />}>
+          <Route
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <AdminLayout />
+              </Suspense>
+            }
+          >
+            <Route path={ADMIN_ROUTES.dashboard} element={<DashboardPage />} />
+            <Route path={ADMIN_ROUTES.orders} element={<OrdersPage />} />
+            <Route path={ADMIN_ROUTES.createOrder} element={<CreateOrderPage />} />
+            <Route path={`${ADMIN_ROUTES.orders}/:id`} element={<OrderDetailPage />} />
+            <Route path={ADMIN_ROUTES.auctions} element={<AuctionsAdminPage />} />
+            <Route path={ADMIN_ROUTES.inventory} element={<InventoryPage />} />
+            <Route path={ADMIN_ROUTES.receipts} element={<ReceiptsPage />} />
+            <Route path={ADMIN_ROUTES.problems} element={<ProblemsPage />} />
+            <Route path={ADMIN_ROUTES.customers} element={<CustomersPage />} />
+            <Route path={`${ADMIN_ROUTES.customers}/:id`} element={<CustomerDetailPage />} />
+            <Route path={ADMIN_ROUTES.chat} element={<ChatInboxPage />} />
+            <Route path={ADMIN_ROUTES.settings} element={<SettingsPage />} />
+            <Route path={`${ADMIN_ROUTES.dashboard}/*`} element={<NotFoundPage />} />
+          </Route>
+        </Route>
+
         <Route element={<Layout />}>
           <Route path={ROUTES.home} element={<HomePage />} />
           <Route path={ROUTES.products} element={<ProductsPage />} />

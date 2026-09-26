@@ -120,6 +120,51 @@ export const addressSchema = z.object({
 
 export type AddressFormValues = z.infer<typeof addressSchema>;
 
+/* ---------------- Tài khoản nhận hoàn tiền ---------------- */
+export const VN_BANKS = [
+  'Vietcombank',
+  'VietinBank',
+  'BIDV',
+  'Agribank',
+  'Techcombank',
+  'MB Bank',
+  'ACB',
+  'VPBank',
+  'Sacombank',
+  'TPBank',
+  'HDBank',
+  'VIB',
+  'SHB',
+  'OCB',
+] as const;
+
+/** "Nguyễn Minh Khôi" -> "NGUYEN MINH KHOI", đúng kiểu tên in trên thẻ. */
+export function toAccountHolderName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toUpperCase()
+    .replace(/\s+/g, ' ');
+}
+
+export const bankAccountSchema = z.object({
+  bankName: z.enum(VN_BANKS, 'Vui lòng chọn ngân hàng.'),
+  accountNumber: z
+    .string()
+    .trim()
+    .regex(/^\d{6,19}$/, 'Số tài khoản gồm 6 – 19 chữ số, không có khoảng trắng.'),
+  accountHolder: z
+    .string()
+    .trim()
+    .min(2, 'Vui lòng nhập tên chủ tài khoản.')
+    .max(50, 'Tên chủ tài khoản tối đa 50 ký tự.')
+    .regex(/^[A-Z ]+$/, 'Tên chủ tài khoản viết in hoa, không dấu, đúng như trên thẻ.'),
+});
+
+export type BankAccountFormValues = z.infer<typeof bankAccountSchema>;
+
 /* ---------------- Độ mạnh mật khẩu ---------------- */
 export type PasswordStrengthLevel = 'empty' | 'weak' | 'medium' | 'strong' | 'very-strong';
 

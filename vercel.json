@@ -6,7 +6,7 @@
   "installCommand": "npm install",
   "rewrites": [
     {
-      "source": "/((?!assets/|brand/|favicon).*)",
+      "source": "/((?!api/|assets/|brand/|favicon).*)",
       "destination": "/index.html"
     }
   ],

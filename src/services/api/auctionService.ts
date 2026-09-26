@@ -18,6 +18,11 @@ function refreshStatus(auction: Auction, now = Date.now()): Auction {
   return { ...auction, status };
 }
 
+/** Ảnh chụp tức thời các phiên (chỉ dùng trong tầng mock, VD: trang quản trị). */
+export function listAuctionsSnapshot(now: number = Date.now()): Auction[] {
+  return auctionStore.map((auction) => refreshStatus(auction, now));
+}
+
 export async function fetchAuctions(status?: AuctionStatus): Promise<Auction[]> {
   if (!USE_MOCK) {
     const { data } = await apiClient.get<ApiResponse<Auction[]>>('/auctions', {

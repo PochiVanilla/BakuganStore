@@ -37,6 +37,13 @@ export function formatDateTime(iso: string): string {
   }).format(new Date(iso));
 }
 
+/** "2026-09-01T10:00:00Z" -> "17:00" */
+export function formatTime(iso: string): string {
+  return new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(
+    new Date(iso),
+  );
+}
+
 /** "3 phút trước", "2 ngày trước" */
 export function formatRelativeTime(iso: string, now: number = Date.now()): string {
   const diffSeconds = Math.round((new Date(iso).getTime() - now) / 1000);

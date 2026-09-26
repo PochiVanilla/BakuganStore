@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/uiStore';
 import { formatDate } from '@/utils/format';
 import { Button, Input } from '@/components/ui';
+import { BankAccountSection } from './BankAccountSection';
 
 export function ProfileTab() {
   const user = useAuthStore((state) => state.user);
@@ -27,8 +28,9 @@ export function ProfileTab() {
   });
 
   const onSubmit = async (values: ProfileFormValues): Promise<void> => {
+    if (!user) return;
     try {
-      const updated = await updateProfile(values);
+      const updated = await updateProfile(values, user.id);
       updateUser({ fullName: updated.fullName, email: updated.email, phone: updated.phone });
       toast.success('Đã lưu thông tin cá nhân');
     } catch (error) {
@@ -78,6 +80,8 @@ export function ProfileTab() {
           Lưu thay đổi
         </Button>
       </form>
+
+      <BankAccountSection />
     </section>
   );
 }
