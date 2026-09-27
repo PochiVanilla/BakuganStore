@@ -348,8 +348,76 @@ export const ORDER_STATUSES = [
 ] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-export const PAYMENT_METHODS = ['cod', 'bank-transfer', 'momo'] as const;
+export const PAYMENT_METHODS = ['cod', 'bank-transfer', 'momo', 'card'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+/** Cách thanh toán admin chọn được khi tạo đơn tay — thẻ chỉ trả được qua cổng thanh toán */
+export const MANUAL_PAYMENT_METHODS = ['cod', 'bank-transfer', 'momo'] as const;
+export type ManualPaymentMethod = (typeof MANUAL_PAYMENT_METHODS)[number];
+
+/** Hãng thẻ nhận qua cổng thanh toán */
+export const CARD_BRANDS = ['visa', 'mastercard', 'jcb', 'amex'] as const;
+export type CardBrand = (typeof CARD_BRANDS)[number];
+
+/**
+ * Thanh toán thẻ của một đơn. Không bao giờ có số thẻ đầy đủ: khách nhập thẻ trên
+ * trang bảo mật của cổng thanh toán, shop chỉ nhận lại hãng thẻ, 4 số cuối và mã giao dịch.
+ */
+export interface CardPayment {
+  /** Hạn thanh toán — quá giờ này chưa trả thì đơn tự huỷ, các con Bakugan được mở bán lại */
+  expiresAt: string;
+  /** Số lần khách đã thử trả */
+  attempts: number;
+  brand?: CardBrand;
+  /** 4 số cuối của thẻ đã dùng */
+  last4?: string;
+  /** Mã giao dịch bên cổng thanh toán */
+  transactionId?: string;
+  paidAt?: string;
+  /** Lý do lần thử gần nhất không thành công */
+  lastError?: string;
+  refundedAt?: string;
+}
+
+/** Giao trong nước hay gửi ra nước ngoài */
+export type ShippingRegion = 'domestic' | 'international';
+
+/** Địa chỉ nhận hàng ở nước ngoài */
+export interface InternationalAddress {
+  /** Mã nước ISO 3166-1, VD "US" */
+  countryCode: string;
+  /** Số nhà, tên đường */
+  line1: string;
+  /** Căn hộ, toà nhà… */
+  line2?: string;
+  city: string;
+  /** Bang / tỉnh / vùng */
+  region?: string;
+  /** Mã bưu chính (ZIP / postcode); vài nước không dùng */
+  postalCode?: string;
+}
+
+/** Giao hàng quốc tế — admin đặt trong trang Cài đặt */
+export interface InternationalShippingSettings {
+  enabled: boolean;
+  /** Phí gửi một đơn tới các nước Đông Á & Đông Nam Á */
+  feeAsia: number;
+  /** Phí gửi tới các nước còn lại */
+  feeWorld: number;
+  /** Tỉ giá tham khảo 1 USD = ? đồng — chỉ để khách nước ngoài ước lượng, thẻ vẫn trừ tiền đồng */
+  usdRate: number;
+}
+
+/** Những gì trang thanh toán cần biết (công khai) */
+export interface CheckoutConfig {
+  domesticFee: number;
+  freeShippingThreshold: number;
+  /** Có nhận thẻ Visa / Mastercard / JCB không */
+  cardPayments: boolean;
+  international: InternationalShippingSettings;
+  /** Giữ hàng bao nhiêu phút chờ khách trả bằng thẻ */
+  cardHoldMinutes: number;
+}
 
 export const PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded'] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
@@ -413,6 +481,12 @@ export interface Order {
   cancelReason?: CancelReason;
   cancelNote?: string;
   timeline: OrderEvent[];
+  /** Thiếu = giao trong nước */
+  shippingRegion?: ShippingRegion;
+  /** Địa chỉ đầy đủ khi gửi ra nước ngoài (addressLine là bản ghép một dòng) */
+  intlAddress?: InternationalAddress;
+  /** Chỉ có ở đơn trả bằng thẻ */
+  cardPayment?: CardPayment;
 }
 
 export interface Coupon {

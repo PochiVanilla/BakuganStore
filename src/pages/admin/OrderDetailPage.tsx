@@ -4,7 +4,9 @@ import {
   ArrowLeft,
   CheckCircle2,
   CircleDollarSign,
+  CreditCard,
   Gavel,
+  Globe,
   RotateCcw,
   TriangleAlert,
   UserRound,
@@ -13,12 +15,14 @@ import {
 import type { CancelReason, IssueType, Order, OrderIssue, OrderStatus } from '@/types';
 import { CANCEL_REASONS, ISSUE_TYPES } from '@/types';
 import { ADMIN_ROUTES, ROUTES } from '@/constants/routes';
+import { countryName } from '@/constants/countries';
 import {
   CANCEL_REASON_LABELS,
   ISSUE_TYPE_LABELS,
   ORDER_SOURCE_LABELS,
   ORDER_STATUS_LABELS,
   ORDER_TRANSITIONS,
+  describeCard,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_STYLES,
@@ -181,7 +185,9 @@ function StatusActions({ order }: { order: Order }) {
         </fieldset>
         {order.paymentStatus === 'paid' && (
           <p className="mt-4 rounded-xl border border-warning/30 bg-warning/8 p-3 text-xs text-warning">
-            Khách đã thanh toán — sau khi huỷ, nhớ hoàn tiền và bấm “Đã hoàn tiền”.
+            {order.paymentMethod === 'card'
+              ? 'Khách đã trả bằng thẻ — huỷ xong, bấm “Hoàn tiền về thẻ” để trả lại qua cổng thanh toán.'
+              : 'Khách đã thanh toán — sau khi huỷ, nhớ hoàn tiền và bấm “Đã hoàn tiền”.'}
           </p>
         )}
       </Modal>
@@ -219,6 +225,10 @@ function StatusActions({ order }: { order: Order }) {
 
 function PaymentPanel({ order }: { order: Order }) {
   const [isSaving, setIsSaving] = useState(false);
+  const [confirmRefund, setConfirmRefund] = useState(false);
+  const byCard = order.paymentMethod === 'card';
+  const card = byCard ? order.cardPayment : undefined;
+  const awaitingCard = byCard && order.paymentStatus === 'unpaid' && order.status === 'pending';
   const needsRefund =
     order.paymentStatus === 'paid' && (order.status === 'cancelled' || order.status === 'returned');
 
@@ -227,6 +237,7 @@ function PaymentPanel({ order }: { order: Order }) {
     try {
       await updatePaymentStatus(order.id, value);
       toast.success(`Đã cập nhật: ${PAYMENT_STATUS_LABELS[value].toLowerCase()}`);
+      setConfirmRefund(false);
     } catch (error) {
       toast.error('Không cập nhật được thanh toán', getApiErrorMessage(error));
     } finally {
@@ -237,22 +248,46 @@ function PaymentPanel({ order }: { order: Order }) {
   return (
     <Panel title="Thanh toán">
       <dl>
-        <InfoRow label="Hình thức">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</InfoRow>
+        <InfoRow label="Hình thức">
+          {byCard ? describeCard(card) : PAYMENT_METHOD_LABELS[order.paymentMethod]}
+        </InfoRow>
         <InfoRow label="Tình trạng">
           <span className={cn('font-semibold', PAYMENT_STATUS_STYLES[order.paymentStatus])}>
             {PAYMENT_STATUS_LABELS[order.paymentStatus]}
           </span>
         </InfoRow>
+        {card?.transactionId && (
+          <InfoRow label="Mã giao dịch">
+            <span className="font-mono">{card.transactionId}</span>
+          </InfoRow>
+        )}
+        {card?.paidAt && <InfoRow label="Trả lúc">{formatDateTime(card.paidAt)}</InfoRow>}
+        {card?.refundedAt && <InfoRow label="Hoàn lúc">{formatDateTime(card.refundedAt)}</InfoRow>}
+        {awaitingCard && card && (
+          <InfoRow label="Giữ hàng tới">{formatDateTime(card.expiresAt)}</InfoRow>
+        )}
+        {card && card.attempts > 0 && <InfoRow label="Số lần thử">{card.attempts}</InfoRow>}
+        {awaitingCard && card?.lastError && (
+          <InfoRow label="Lần gần nhất">{card.lastError}</InfoRow>
+        )}
       </dl>
+      {awaitingCard && (
+        <p className="mt-3 flex gap-2 rounded-xl border border-accent-cyan/25 bg-accent-cyan/8 p-3 text-xs text-accent-cyan">
+          <CreditCard size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+          Khách đang trả bằng thẻ qua cổng thanh toán — cổng xác nhận thì đơn tự chuyển “Đã thanh
+          toán”. Quá hạn giữ hàng mà chưa trả thì đơn tự huỷ, hàng mở bán lại.
+        </p>
+      )}
       {needsRefund && (
         <p className="mt-3 flex gap-2 rounded-xl border border-warning/30 bg-warning/8 p-3 text-xs text-warning">
           <TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-          Đơn đã huỷ/hoàn nhưng khách đã trả tiền — cần hoàn tiền. Số tài khoản của khách được hệ
-          thống thanh toán giữ kín, nhân viên không xem được.
+          {byCard
+            ? 'Đơn đã huỷ/hoàn nhưng khách đã trả bằng thẻ — bấm hoàn tiền để trả về đúng thẻ đó qua cổng thanh toán.'
+            : 'Đơn đã huỷ/hoàn nhưng khách đã trả tiền — cần hoàn tiền. Số tài khoản của khách được hệ thống thanh toán giữ kín, nhân viên không xem được.'}
         </p>
       )}
       <div className="mt-4 flex flex-col gap-2">
-        {order.paymentStatus === 'unpaid' && order.status !== 'cancelled' && (
+        {order.paymentStatus === 'unpaid' && order.status !== 'cancelled' && !byCard && (
           <Button
             variant="outline"
             size="sm"
@@ -268,12 +303,36 @@ function PaymentPanel({ order }: { order: Order }) {
             variant="gold"
             size="sm"
             isLoading={isSaving}
-            onClick={() => void setPayment('refunded')}
+            onClick={() => (byCard ? setConfirmRefund(true) : void setPayment('refunded'))}
           >
-            Đã hoàn tiền cho khách
+            {byCard ? 'Hoàn tiền về thẻ' : 'Đã hoàn tiền cho khách'}
           </Button>
         )}
       </div>
+
+      {/* Hoàn tiền thẻ là lệnh gửi sang cổng thanh toán, không rút lại được — hỏi lại cho chắc. */}
+      <Modal
+        isOpen={confirmRefund}
+        onClose={() => setConfirmRefund(false)}
+        title={`Hoàn ${formatCurrency(order.total)} về thẻ?`}
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setConfirmRefund(false)}>
+              Để sau
+            </Button>
+            <Button variant="gold" isLoading={isSaving} onClick={() => void setPayment('refunded')}>
+              Hoàn tiền
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm leading-relaxed text-text-muted">
+          Cổng thanh toán trả lại toàn bộ tiền đơn #{order.code} về{' '}
+          <strong className="text-text">{describeCard(card)}</strong> của khách. Lệnh hoàn không huỷ
+          được; tiền về tài khoản khách sau vài ngày làm việc tuỳ ngân hàng.
+        </p>
+      </Modal>
     </Panel>
   );
 }
@@ -606,6 +665,14 @@ export default function OrderDetailPage() {
               </InfoRow>
               {order.customerEmail && <InfoRow label="Email">{order.customerEmail}</InfoRow>}
               <InfoRow label="Địa chỉ">{order.addressLine}</InfoRow>
+              {order.shippingRegion === 'international' && order.intlAddress && (
+                <InfoRow label="Gửi quốc tế">
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-accent-cyan">
+                    <Globe size={13} aria-hidden="true" />
+                    {countryName(order.intlAddress.countryCode)} ({order.intlAddress.countryCode})
+                  </span>
+                </InfoRow>
+              )}
             </dl>
             <div className="mt-3 flex flex-wrap gap-3 text-xs">
               {order.userId ? (

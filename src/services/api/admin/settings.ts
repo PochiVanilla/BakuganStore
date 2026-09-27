@@ -12,35 +12,66 @@ export async function getShopSettings(): Promise<ShopSettings> {
   return mockDelay(readDb().shopSettings, 160);
 }
 
-export async function updateShopSettings(settings: ShopSettings): Promise<void> {
+function invalidSetting(message: string, field: string): never {
+  throw new MockApiError(message, 422, { [field]: message });
+}
+
+/** Lưu một phần cài đặt cửa hàng (mỗi khung trong trang Cài đặt lưu phần của nó). */
+export async function updateShopSettings(patch: Partial<ShopSettings>): Promise<ShopSettings> {
   if (!USE_MOCK) {
-    await apiClient.put('/admin/settings/shop', settings);
-    return;
+    const { data } = await apiClient.patch<ApiResponse<ShopSettings>>(
+      '/admin/settings/shop',
+      patch,
+    );
+    return data.data;
   }
   requireAdmin();
-  const amount = settings.memberDepositAmount;
-  if (!Number.isInteger(amount) || amount < 0 || amount > 50_000_000) {
-    throw new MockApiError('Số tiền nạp lên Lv2 phải từ 0 đến 50.000.000₫.', 422, {
-      memberDepositAmount: 'Số tiền không hợp lệ.',
-    });
+  const next = structuredClone(readDb().shopSettings) as ShopSettings;
+
+  if (patch.memberDepositAmount !== undefined) {
+    const amount = patch.memberDepositAmount;
+    if (!Number.isInteger(amount) || amount < 0 || amount > 50_000_000) {
+      invalidSetting('Số tiền nạp lên Lv2 phải từ 0 đến 50.000.000₫.', 'memberDepositAmount');
+    }
+    next.memberDepositAmount = amount;
   }
-  const accountNumber = settings.bank.accountNumber.replace(/\s+/g, '');
-  if (accountNumber && !/^\d{6,20}$/.test(accountNumber)) {
-    throw new MockApiError('Số tài khoản chỉ gồm 6–20 chữ số.', 422, {
-      accountNumber: 'Số tài khoản chỉ gồm 6–20 chữ số.',
-    });
-  }
-  updateDb((db) => {
-    db.shopSettings = {
-      memberDepositAmount: amount,
-      bank: {
-        bankName: settings.bank.bankName.trim(),
-        accountNumber,
-        accountHolder: settings.bank.accountHolder.trim().toUpperCase(),
-      },
+  if (patch.bank) {
+    const accountNumber = patch.bank.accountNumber.replace(/\s+/g, '');
+    if (accountNumber && !/^\d{6,20}$/.test(accountNumber)) {
+      invalidSetting('Số tài khoản chỉ gồm 6–20 chữ số.', 'accountNumber');
+    }
+    next.bank = {
+      bankName: patch.bank.bankName.trim(),
+      accountNumber,
+      accountHolder: patch.bank.accountHolder.trim().toUpperCase(),
     };
+  }
+  if (patch.cardPayments !== undefined) next.cardPayments = patch.cardPayments;
+  if (patch.international) {
+    const { enabled, feeAsia, feeWorld, usdRate } = patch.international;
+    const fee = (value: number, field: string): number => {
+      if (!Number.isInteger(value) || value < 0 || value > 20_000_000) {
+        invalidSetting('Phí gửi phải từ 0 đến 20.000.000₫.', field);
+      }
+      return value;
+    };
+    if (!Number.isInteger(usdRate) || usdRate < 1_000 || usdRate > 100_000) {
+      invalidSetting('Tỉ giá phải từ 1.000 đến 100.000₫ cho 1 USD.', 'usdRate');
+    }
+    next.international = {
+      enabled,
+      feeAsia: fee(feeAsia, 'feeAsia'),
+      feeWorld: fee(feeWorld, 'feeWorld'),
+      usdRate,
+    };
+  }
+  // Đơn quốc tế chỉ trả bằng thẻ: tắt thẻ thì cũng tắt nhận đơn quốc tế.
+  if (!next.cardPayments) next.international = { ...next.international, enabled: false };
+
+  updateDb((db) => {
+    db.shopSettings = next;
   });
-  await mockDelay(null, 300);
+  return mockDelay(next, 300);
 }
 
 export async function getBotSettings(): Promise<BotSettings> {

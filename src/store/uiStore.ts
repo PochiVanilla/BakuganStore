@@ -42,7 +42,10 @@ export const useUIStore = create<UIState>()((set) => ({
 
   pushToast: (toast) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    set((state) => ({ toasts: [...state.toasts, { ...toast, id }] }));
+    // Bấm lại ra đúng thông báo cũ thì thay cái cũ (tính lại giờ) chứ không xếp chồng.
+    const same = (t: Toast): boolean =>
+      t.variant === toast.variant && t.title === toast.title && t.description === toast.description;
+    set((state) => ({ toasts: [...state.toasts.filter((t) => !same(t)), { ...toast, id }] }));
     return id;
   },
 

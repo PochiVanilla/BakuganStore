@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Download, PlusCircle, ShoppingBag } from 'lucide-react';
+import { Download, Globe, PlusCircle, ShoppingBag } from 'lucide-react';
 import type { OrderSource } from '@/types';
 import { ORDER_SOURCES, ORDER_STATUSES } from '@/types';
 import { ADMIN_ROUTES } from '@/constants/routes';
@@ -265,7 +265,16 @@ export default function OrdersPage() {
                     </Link>
                   </td>
                   <td className={td}>
-                    <p className="max-w-40 truncate whitespace-nowrap">{order.receiverName}</p>
+                    <p className="max-w-40 truncate whitespace-nowrap">
+                      {order.shippingRegion === 'international' && (
+                        <Globe
+                          size={12}
+                          className="mr-1 inline text-accent-cyan"
+                          aria-label="Gửi quốc tế"
+                        />
+                      )}
+                      {order.receiverName}
+                    </p>
                     <p className="text-xs text-text-muted">{order.phone}</p>
                   </td>
                   <td className={td}>

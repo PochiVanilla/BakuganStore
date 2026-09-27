@@ -1,5 +1,7 @@
 import type {
   CancelReason,
+  CardBrand,
+  CardPayment,
   IssueStatus,
   IssueType,
   OrderSource,
@@ -25,6 +27,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cod: 'Thanh toán khi nhận hàng',
   'bank-transfer': 'Chuyển khoản ngân hàng',
   momo: 'Ví MoMo',
+  card: 'Thẻ Visa / Mastercard / JCB',
 };
 
 /** Nhãn ngắn cho cột bảng chật chỗ */
@@ -32,7 +35,21 @@ export const PAYMENT_METHOD_SHORT_LABELS: Record<PaymentMethod, string> = {
   cod: 'COD',
   'bank-transfer': 'Chuyển khoản',
   momo: 'MoMo',
+  card: 'Thẻ',
 };
+
+export const CARD_BRAND_LABELS: Record<CardBrand, string> = {
+  visa: 'Visa',
+  mastercard: 'Mastercard',
+  jcb: 'JCB',
+  amex: 'American Express',
+};
+
+/** "Visa •••• 4242" — chưa trả xong thì chỉ ghi chung là thẻ */
+export function describeCard(payment: CardPayment | undefined): string {
+  if (!payment?.brand || !payment.last4) return 'Thẻ Visa / Mastercard / JCB';
+  return `${CARD_BRAND_LABELS[payment.brand]} •••• ${payment.last4}`;
+}
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   unpaid: 'Chưa thanh toán',

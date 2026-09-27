@@ -135,6 +135,8 @@ src/
 │   ├── feed/                # FeedCard, FeedGallery, ItemCard (SOLD, mã BK), FeedProgress
 │   ├── auction/             # AuctionCard, BidForm (chặn Lv1), useAuctionSocket
 │   ├── cart/                # MiniCart (drawer)
+│   ├── checkout/            # Trang thanh toán: địa chỉ quốc tế, cách trả tiền, tóm tắt đơn,
+│   │                        # biên nhận, chuyển sang cổng thanh toán
 │   ├── chat/                # ChatWidget, ruleBot, consultFlow (tư vấn chọn Bakugan), botActions
 │   ├── admin/               # AdminLayout, adminUi, schemas, ItemMediaEditor (3 ảnh + video),
 │   │                        # useUploader
@@ -167,7 +169,10 @@ src/
 | `/bakugan/:code` | **Trang riêng của một con** (VD `/bakugan/BK-0231`): 3 ảnh + **video giới thiệu ở cuối**. Máy tính rê chuột để phóng to tại chỗ; bấm ảnh (hoặc chạm trên điện thoại) mở khung xem toàn màn hình: chụm hai ngón / chạm đúp / lăn chuột để phóng to tới 4x, kéo để di chuyển, vuốt để đổi ảnh. Kèm giá, hệ, dòng, G-Power, tình trạng riêng, thêm vào giỏ / mua ngay / yêu thích, hỏi shop, đếm ngược khi feed chưa mở bán, SOLD khi đã bán, các con khác trong cùng feed. Ô tìm kiếm, giỏ hàng và trợ lý chat đều dẫn tới trang này |
 | `/dau-gia` | Danh sách phiên: đang diễn ra / sắp diễn ra / đã kết thúc + thể lệ |
 | `/dau-gia/:id` | Đếm ngược, giá cao nhất + **số người đã đặt** (không lộ tên ai), lượt đặt của chính mình, cảnh báo bị vượt giá; khách Lv1 thấy 3 cách lên Lv2 |
-| `/gio-hang` | Từng con một (không có số lượng), tự loại con vừa có người mua, mã giảm giá, **chốt đơn trên web** (COD / chuyển khoản / MoMo) |
+| `/gio-hang` | Từng con một (không có số lượng), tự loại con vừa có người mua, mã giảm giá, tóm tắt tiền → **Tiến hành thanh toán** |
+| `/thanh-toan` | **Trang thanh toán** (cần đăng nhập): giao **trong Việt Nam** (sổ địa chỉ / địa chỉ mới) hoặc **ra nước ngoài** (nước, địa chỉ, thành phố, bang, mã bưu chính, SĐT kèm mã nước — nhãn song ngữ Việt/Anh, trình duyệt tự điền được), cách giao + phí theo vùng, chọn **COD / chuyển khoản / MoMo / thẻ Visa · Mastercard · JCB** (đơn quốc tế chỉ trả thẻ), tóm tắt đơn kèm **≈ USD** cho khách nước ngoài |
+| `/thanh-toan/ket-qua/:orderId` | Kết quả: đặt thành công / trả thẻ thành công (hãng thẻ, 4 số cuối, mã giao dịch), hoặc **chưa trả xong** (đếm ngược thời gian giữ hàng, trả lại bằng thẻ khác, đổi sang COD / chuyển khoản / MoMo với đơn trong nước, huỷ đơn), hoặc **đã huỷ** (thêm lại vào giỏ những con còn bán) |
+| `/thanh-toan/cong-the/:orderId` | **Cổng thanh toán thẻ giả lập** — chỉ có ở bản chạy thử (xem mục Thanh toán thẻ bên dưới) |
 | `/yeu-thich` | Những con đã thích, còn bán hay đã SOLD |
 | `/blog`, `/blog/:slug` | Tìm kiếm, lọc theo danh mục & thẻ, bài nổi bật, bài liên quan |
 | `/lien-he` | Form có validate, Zalo/Messenger, bản đồ nhúng |
@@ -196,6 +201,36 @@ trang chủ.
   IndexedDB của trình duyệt. Khi có backend, `src/services/api/imageStore.ts` gửi file lên
   `POST /admin/uploads` (kèm `kind: image | video`) và lưu URL trả về; ảnh / video bị thay hoặc
   con bị xoá thì file cũ được dọn khỏi kho.
+
+### Thanh toán thẻ & khách quốc tế
+
+- **Giỏ hàng → Thanh toán → Hoàn tất.** Khách trong nước chọn COD, chuyển khoản, MoMo hoặc thẻ;
+  khách ở nước ngoài chọn "Nước ngoài · International" và **chỉ trả bằng thẻ** Visa / Mastercard /
+  JCB (thẻ phát hành ở nước nào cũng được). Khách đăng ký tài khoản bằng số điện thoại có mã nước
+  (VD `+1 415 555 0123`).
+- **Web shop không bao giờ thấy số thẻ.** Chọn thẻ rồi bấm "Thanh toán" (nút có ổ khoá) → đơn
+  được tạo, **giữ hàng 15 phút** → chuyển sang trang bảo mật của cổng thanh toán (nhập thẻ + xác thực 3-D Secure) →
+  quay về `/thanh-toan/ket-qua/:orderId`. Quá 15 phút chưa trả thì đơn tự huỷ, các con Bakugan mở
+  bán lại. Thẻ bị trừ **tiền đồng**; khách nước ngoài thấy thêm số ≈ USD theo tỉ giá tham khảo.
+- **Phí gửi quốc tế theo vùng** (Đông Á & Đông Nam Á / các nước khác, admin đặt), thời gian 7 – 15
+  ngày làm việc, thuế nhập khẩu do người nhận trả. Mã miễn phí vận chuyển chỉ dùng trong nước.
+- **Admin:** đơn trả thẻ hiện hãng thẻ + 4 số cuối, mã giao dịch, số lần thử, lý do thất bại, hạn
+  giữ hàng; không đánh dấu "đã nhận tiền" tay được (cổng xác nhận); đơn huỷ/hoàn thì bấm **hoàn
+  tiền về thẻ** (hỏi lại trước khi gửi lệnh vì lệnh hoàn không rút lại được). Đơn quốc tế có biểu
+  tượng quả địa cầu và tên nước. Tắt nhận thẻ ở `/admin/cai-dat` chỉ áp dụng cho đơn mới.
+- **Bản chạy thử:** `/thanh-toan/cong-the/:orderId` là cổng giả lập, **chỉ nhận thẻ thử** (số khác
+  đều bị từ chối để không ai lỡ nhập thẻ thật; không lưu số thẻ ở đâu cả):
+
+  | Số thẻ | Kết quả |
+  | --- | --- |
+  | `4242 4242 4242 4242` | Visa — thành công |
+  | `4000 0000 0000 3220` | Visa — cần xác thực 3-D Secure, OTP `123456` |
+  | `5555 5555 5555 4444` | Mastercard — thành công |
+  | `3530 1113 3330 0000` | JCB — thành công |
+  | `4000 0000 0000 0002` | Visa — ngân hàng từ chối |
+  | `4000 0000 0000 9995` | Visa — không đủ số dư |
+
+  Hạn bất kỳ trong tương lai, CVC 3 số bất kỳ.
 
 ### Hạng thành viên (đấu giá)
 
@@ -239,7 +274,7 @@ vào đây; menu tài khoản ở cửa hàng cũng có mục "Trang quản tr�
 | `/admin/khach-hang` | Danh sách khách: **hạng Lv1/Lv2**, lọc **chờ duyệt Lv2**, số đơn, tổng chi tiêu, đăng nhập gần nhất, liên kết ngân hàng, trạng thái |
 | `/admin/khach-hang/:id` | Hồ sơ đầy đủ, **hạng thành viên** (duyệt / từ chối yêu cầu nạp tiền hoặc xét duyệt, cấp / hạ hạng), sổ địa chỉ, đơn hàng, lịch sử đấu giá, sửa thông tin, khoá tài khoản, cấp / thu hồi quyền admin, gửi link đặt lại mật khẩu |
 | `/admin/tin-nhan` | Hộp thư chat: cuộc cần nhân viên trả lời, nhận lời thay bot, trả lại cho bot, câu trả lời mẫu |
-| `/admin/cai-dat` | Bật/tắt trợ lý AI, chọn **những việc bot được tự giải quyết**, lời chào, ghi chú cho bot, thử bot; **số tiền nạp lên Lv2 và tài khoản nhận tiền của shop**; khôi phục dữ liệu mẫu |
+| `/admin/cai-dat` | Bật/tắt trợ lý AI, chọn **những việc bot được tự giải quyết**, lời chào, ghi chú cho bot, thử bot; **số tiền nạp lên Lv2 và tài khoản nhận tiền của shop**; **nhận thẻ Visa / Mastercard / JCB, nhận đơn gửi ra nước ngoài, phí gửi theo vùng, tỉ giá tham khảo USD**; khôi phục dữ liệu mẫu |
 
 **Bảo mật thông tin khách:**
 
@@ -301,8 +336,25 @@ Vì vậy để chuyển sang backend thật chỉ cần:
 2. Backend trả đúng hình dạng `ApiResponse<T>` / `Paginated<T>` khai báo trong `src/types`.
 
 **Dùng chung schema:** `src/features/auth/schemas.ts` là nguồn chân lý duy nhất cho quy tắc
-validate tài khoản (họ tên, email, SĐT Việt Nam, mật khẩu…). Backend TypeScript import lại đúng
+validate tài khoản (họ tên, email, SĐT Việt Nam hoặc số nước ngoài có mã nước, mật khẩu…). Backend TypeScript import lại đúng
 file này để validate phía server — frontend và backend không bao giờ lệch quy tắc.
+
+**Thanh toán thẻ thật:** ký hợp đồng với một cổng thanh toán nhận thẻ quốc tế cho doanh nghiệp
+Việt Nam (VD OnePay, VNPAY, 2C2P, Payoo…), rồi backend làm các việc sau — frontend đã gọi sẵn:
+
+| API | Việc của server |
+| --- | --- |
+| `GET /checkout/config` | Phí ship trong nước, bật/tắt thẻ, giao quốc tế, phí theo vùng, tỉ giá tham khảo |
+| `POST /orders` | Tính lại tiền **trên server** (giá, phí gửi theo nước, mã giảm giá), giữ hàng; đơn thẻ hết hạn sau 15 phút |
+| `POST /payments/card/sessions` | Tạo phiên ở cổng (ký bằng khoá bí mật, số tiền lấy từ đơn), trả `redirectUrl` của cổng |
+| IPN / webhook của cổng | **Kiểm tra chữ ký**, đánh dấu đơn đã trả, lưu hãng thẻ + 4 số cuối + mã giao dịch — không lưu số thẻ |
+| `GET /orders/me/:id` | Trang kết quả hỏi lại trạng thái đơn (không tin tham số trên URL trả về) |
+| `PATCH /orders/me/:id/payment-method`, `POST /orders/me/:id/cancel` | Khách đổi sang COD / chuyển khoản / MoMo, hoặc tự huỷ đơn chưa trả |
+| `PATCH /admin/orders/:id/payment` (`refunded`) | Gọi API hoàn tiền của cổng, tiền về đúng thẻ khách đã trả |
+| Tác vụ định kỳ | Huỷ đơn thẻ quá hạn giữ hàng, mở bán lại các con Bakugan (bản mock web tự chạy mỗi 30 giây) |
+
+Khoá bí mật của cổng chỉ nằm trong biến môi trường của server, không bao giờ có tiền tố `VITE_`.
+Trang cổng giả lập tự tắt khi `VITE_USE_MOCK=false`.
 
 **Đấu giá realtime:** `useAuctionSocket` đã viết sẵn cả hai chế độ. Hiện tại giả lập người khác
 đặt giá theo chu kỳ; khi đặt `VITE_WS_URL`, hook tự mở WebSocket tới

@@ -9,11 +9,18 @@ import {
   RotateCcw,
   Save,
 } from 'lucide-react';
-import type { BotReply, BotSettings, BotTopicId, ShopSettings } from '@/types';
+import type {
+  BotReply,
+  BotSettings,
+  BotTopicId,
+  InternationalShippingSettings,
+  ShopSettings,
+} from '@/types';
 import { BOT_TOPIC_IDS } from '@/types';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import { CONSULT_STARTER } from '@/constants/chat';
 import { PURCHASES_FOR_LV2 } from '@/constants/catalog';
+import { CARD_HOLD_MINUTES, DELIVERY_ESTIMATE, ZONE_LABELS } from '@/constants/shipping';
 import {
   getBotSettings,
   getShopSettings,
@@ -34,7 +41,7 @@ import { useLiveRevision } from '@/hooks/useLiveRevision';
 import { toast } from '@/store/uiStore';
 import { formatCurrency, formatDateTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
-import { Button, Input, Modal, Seo, Skeleton, Textarea } from '@/components/ui';
+import { Button, Checkbox, Input, Modal, Seo, Skeleton, Textarea } from '@/components/ui';
 import { AdminPageHeader, ErrorBox, Panel } from '@/features/admin/adminUi';
 import { BOT_TOPIC_META } from '@/features/chat/botTopics';
 import { linksFromText } from '@/features/chat/botKnowledge';
@@ -536,6 +543,149 @@ function ShopSettingsPanel() {
   );
 }
 
+type FeeField = 'feeAsia' | 'feeWorld' | 'usdRate';
+
+function toAmount(value: string): number {
+  return Number(value.replace(/[.,\s₫]/g, ''));
+}
+
+function CardSettingsForm({ initial }: { initial: ShopSettings }) {
+  const [cardPayments, setCardPayments] = useState(initial.cardPayments);
+  const [intlEnabled, setIntlEnabled] = useState(initial.international.enabled);
+  const [values, setValues] = useState<Record<FeeField, string>>({
+    feeAsia: String(initial.international.feeAsia),
+    feeWorld: String(initial.international.feeWorld),
+    usdRate: String(initial.international.usdRate),
+  });
+  const [errors, setErrors] = useState<Partial<Record<FeeField, string>>>({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  const save = async (event: FormEvent): Promise<void> => {
+    event.preventDefault();
+    const international: InternationalShippingSettings = {
+      enabled: cardPayments && intlEnabled,
+      feeAsia: toAmount(values.feeAsia),
+      feeWorld: toAmount(values.feeWorld),
+      usdRate: toAmount(values.usdRate),
+    };
+    const nextErrors: typeof errors = {};
+    (['feeAsia', 'feeWorld'] as const).forEach((field) => {
+      const fee = international[field];
+      if (!Number.isInteger(fee) || fee < 0 || fee > 20_000_000) {
+        nextErrors[field] = 'Nhập số tiền từ 0 đến 20.000.000.';
+      }
+    });
+    if (
+      !Number.isInteger(international.usdRate) ||
+      international.usdRate < 1_000 ||
+      international.usdRate > 100_000
+    ) {
+      nextErrors.usdRate = 'Nhập tỉ giá từ 1.000 đến 100.000.';
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    setIsSaving(true);
+    try {
+      const saved = await updateShopSettings({ cardPayments, international });
+      setIntlEnabled(saved.international.enabled);
+      toast.success('Đã lưu cài đặt thẻ & giao quốc tế');
+    } catch (saveError) {
+      toast.error('Không lưu được', getApiErrorMessage(saveError));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const field = (name: FeeField, label: string, hint: string) => {
+    const amount = toAmount(values[name]);
+    return (
+      <Input
+        label={label}
+        name={name}
+        inputMode="numeric"
+        value={values[name]}
+        onChange={(event) => setValues({ ...values, [name]: event.target.value })}
+        error={errors[name]}
+        hint={Number.isFinite(amount) && amount > 0 ? `${formatCurrency(amount)} · ${hint}` : hint}
+      />
+    );
+  };
+
+  return (
+    <form onSubmit={(event) => void save(event)} className="flex flex-col gap-4" noValidate>
+      <Checkbox
+        name="card-payments"
+        checked={cardPayments}
+        onChange={(event) => setCardPayments(event.target.checked)}
+        label={
+          <>
+            <span className="font-semibold text-text">Nhận thẻ Visa / Mastercard / JCB</span>
+            <span className="block text-xs">
+              Khách nhập thẻ trên trang bảo mật của cổng thanh toán (3-D Secure), web không bao giờ
+              thấy số thẻ. Hàng được giữ {CARD_HOLD_MINUTES} phút chờ khách trả; quá hạn đơn tự huỷ.
+              {!cardPayments &&
+                ' Tắt thẻ chỉ áp dụng cho đơn mới — đơn đã mở trang thẻ vẫn trả được tới hết giờ giữ hàng.'}
+            </span>
+          </>
+        }
+      />
+      <Checkbox
+        name="international-shipping"
+        checked={cardPayments && intlEnabled}
+        disabled={!cardPayments}
+        onChange={(event) => setIntlEnabled(event.target.checked)}
+        label={
+          <>
+            <span className="font-semibold text-text">Nhận đơn gửi ra nước ngoài</span>
+            <span className="block text-xs">
+              {cardPayments
+                ? `Đơn quốc tế chỉ trả bằng thẻ. Giao dự kiến ${DELIVERY_ESTIMATE.international}; thuế nhập khẩu (nếu có) do người nhận trả.`
+                : 'Cần bật nhận thẻ trước — đơn quốc tế chỉ trả bằng thẻ.'}
+            </span>
+          </>
+        }
+      />
+      <div className="grid gap-3 sm:grid-cols-3">
+        {field('feeAsia', `Phí gửi ${ZONE_LABELS.asia}`, 'mỗi đơn')}
+        {field('feeWorld', `Phí gửi ${ZONE_LABELS.world}`, 'mỗi đơn')}
+        {field('usdRate', 'Tỉ giá: 1 USD =', 'đồng')}
+      </div>
+      <p className="text-xs text-text-muted">
+        Tỉ giá chỉ để khách nước ngoài ước lượng số tiền (≈ USD). Thẻ vẫn bị trừ bằng tiền đồng,
+        ngân hàng của khách tự quy đổi.
+      </p>
+      <Button
+        type="submit"
+        variant="secondary"
+        className="self-start"
+        isLoading={isSaving}
+        leftIcon={<Save size={15} aria-hidden="true" />}
+      >
+        Lưu cài đặt thẻ
+      </Button>
+    </form>
+  );
+}
+
+function CardSettingsPanel() {
+  const { data, error, reload } = useAsync(() => getShopSettings(), []);
+  return (
+    <Panel
+      title="Thẻ quốc tế & giao ra nước ngoài"
+      description="Thanh toán thẻ cho khách trong và ngoài nước, phí gửi quốc tế theo vùng."
+    >
+      {error ? (
+        <ErrorBox message={error} onRetry={reload} />
+      ) : !data ? (
+        <Skeleton className="h-48 w-full" />
+      ) : (
+        <CardSettingsForm initial={data} />
+      )}
+    </Panel>
+  );
+}
+
 function DemoDataPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -623,6 +773,7 @@ export default function SettingsPage() {
 
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <ShopSettingsPanel />
+        <CardSettingsPanel />
         {USE_MOCK && <DemoDataPanel />}
       </div>
     </>

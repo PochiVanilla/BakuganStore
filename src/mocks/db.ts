@@ -18,6 +18,7 @@ import type {
   User,
 } from '@/types';
 import { BOT_TOPIC_IDS } from '@/types';
+import { DEFAULT_INTERNATIONAL_SHIPPING } from '@/constants/shipping';
 import { MOCK_AUCTIONS } from './auctions';
 import { createSeedDatabase, DEFAULT_BOT_SETTINGS } from './seed';
 
@@ -114,7 +115,7 @@ export interface MockDatabase {
 
 const STORAGE_KEY = 'td-bakugan:mock-db';
 /** Tăng số này khi đổi cấu trúc dữ liệu; bản cũ được nâng cấp trong `migrate`. */
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 
 let cache: MockDatabase | null = null;
 let revision = 0;
@@ -132,11 +133,26 @@ function persist(db: MockDatabase): void {
 function fromV3(data: MockDatabase): MockDatabase {
   return {
     ...data,
-    version: DB_VERSION,
+    version: 4,
     items: data.items.map((stored) => {
       const { photo, ...item } = stored as StoredItem & { photo?: string };
       return photo ? { ...item, photos: [photo] } : item;
     }),
+  };
+}
+
+/** v5: thêm cài đặt thanh toán thẻ và giao hàng quốc tế. */
+function fromV4(data: MockDatabase): MockDatabase {
+  const settings = data.shopSettings as Partial<ShopSettings> &
+    Pick<ShopSettings, 'memberDepositAmount' | 'bank'>;
+  return {
+    ...data,
+    version: 5,
+    shopSettings: {
+      ...settings,
+      cardPayments: settings.cardPayments ?? true,
+      international: { ...DEFAULT_INTERNATIONAL_SHIPPING, ...settings.international },
+    },
   };
 }
 
@@ -149,7 +165,12 @@ function fromV3(data: MockDatabase): MockDatabase {
  */
 function migrate(data: Partial<MockDatabase>): MockDatabase | undefined {
   if (data.version === DB_VERSION) return data as MockDatabase;
-  if (data.version === 3) return fromV3(data as MockDatabase);
+  // Nâng lần lượt từng bậc: v3 -> v4 -> v5.
+  if (data.version === 3 || data.version === 4) {
+    let db = data as MockDatabase;
+    if (db.version === 3) db = fromV3(db);
+    return fromV4(db);
+  }
   if ((data.version !== 1 && data.version !== 2) || !data.users || !data.botSettings) {
     return undefined;
   }

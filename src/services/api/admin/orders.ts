@@ -5,12 +5,12 @@ import type {
   OrderEvent,
   OrderSource,
   OrderStatus,
+  ManualPaymentMethod,
   Paginated,
-  PaymentMethod,
   PaymentStatus,
 } from '@/types';
-import { ORDER_STATUSES } from '@/types';
-import { ACTIVE_ORDER_STATUSES, ORDER_TRANSITIONS } from '@/constants/orders';
+import { MANUAL_PAYMENT_METHODS, ORDER_STATUSES } from '@/types';
+import { ACTIVE_ORDER_STATUSES, describeCard, ORDER_TRANSITIONS } from '@/constants/orders';
 import {
   createId,
   hydrateOrder,
@@ -188,11 +188,26 @@ export async function updatePaymentStatus(
     return data.data;
   }
   const admin = requireAdmin();
+  const current = readDb().orders.find((item) => item.id === orderId);
+  if (!current) throw new MockApiError('Không tìm thấy đơn hàng này.', 404);
+  // Đơn trả thẻ: cổng thanh toán là nơi xác nhận tiền, admin không tự đánh dấu đã trả.
+  if (current.paymentMethod === 'card' && paymentStatus !== 'refunded') {
+    throw new MockApiError(
+      'Đơn trả bằng thẻ được cổng thanh toán tự xác nhận — không đánh dấu tay được.',
+      409,
+    );
+  }
+  if (paymentStatus === 'refunded' && current.paymentStatus !== 'paid') {
+    throw new MockApiError('Đơn này chưa thanh toán nên không có gì để hoàn.', 409);
+  }
   const updated = updateDb((db) => {
-    const order = db.orders.find((item) => item.id === orderId);
-    if (!order) throw new MockApiError('Không tìm thấy đơn hàng này.', 404);
+    const order = db.orders.find((item) => item.id === orderId)!;
     order.paymentStatus = paymentStatus;
     order.updatedAt = new Date().toISOString();
+    // Có backend: bước này gọi API hoàn tiền của cổng thanh toán, tiền về đúng thẻ khách đã trả.
+    if (paymentStatus === 'refunded' && order.cardPayment) {
+      order.cardPayment = { ...order.cardPayment, refundedAt: order.updatedAt };
+    }
     order.timeline = [
       ...order.timeline,
       {
@@ -204,7 +219,9 @@ export async function updatePaymentStatus(
           paymentStatus === 'paid'
             ? 'Xác nhận đã nhận tiền.'
             : paymentStatus === 'refunded'
-              ? 'Đã hoàn tiền cho khách.'
+              ? order.paymentMethod === 'card'
+                ? `Đã hoàn ${order.total.toLocaleString('vi-VN')}₫ qua cổng thanh toán về ${describeCard(order.cardPayment)}.`
+                : 'Đã hoàn tiền cho khách.'
               : 'Đánh dấu chưa thanh toán.',
       },
     ];
@@ -245,7 +262,8 @@ export interface AdminCreateOrderInput {
   auctionId?: string;
   shippingFee: number;
   discount: number;
-  paymentMethod: PaymentMethod;
+  /** Thẻ chỉ trả được qua cổng thanh toán khi khách tự đặt trên web */
+  paymentMethod: ManualPaymentMethod;
   paymentStatus: 'unpaid' | 'paid';
   initialStatus: 'pending' | 'confirmed';
   note?: string;
@@ -257,6 +275,9 @@ export async function createOrder(input: AdminCreateOrderInput): Promise<Order> 
     return data.data;
   }
   const admin = requireAdmin();
+  if (!MANUAL_PAYMENT_METHODS.includes(input.paymentMethod)) {
+    throw new MockApiError('Đơn tạo tay chỉ chọn COD, chuyển khoản hoặc MoMo.', 422);
+  }
   const db = readDb();
 
   // Server tự tra tên và trạng thái từng con, không tin dữ liệu gửi lên.

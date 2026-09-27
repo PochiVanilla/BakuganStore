@@ -48,8 +48,8 @@ function ShippingContent() {
   return (
     <div>
       <p className="mb-6 text-sm leading-relaxed text-text-muted">
-        TD Bakugan giao hàng toàn quốc qua các đơn vị vận chuyển uy tín. Mọi đơn hàng đều được đóng
-        gói chống sốc và có mã vận đơn để bạn theo dõi.
+        TD Bakugan giao hàng toàn quốc qua các đơn vị vận chuyển uy tín và gửi được ra nước ngoài.
+        Mọi đơn hàng đều được đóng gói chống sốc và có mã vận đơn để bạn theo dõi.
       </p>
       <PolicySection
         title="1. Thời gian giao hàng"
@@ -80,6 +80,16 @@ function ShippingContent() {
         items={[
           'Bạn được đồng kiểm với nhân viên giao hàng trước khi thanh toán.',
           'Nếu phát hiện hư hỏng do vận chuyển, vui lòng từ chối nhận và báo shop ngay trong ngày.',
+        ]}
+      />
+      <PolicySection
+        title="5. Gửi hàng ra nước ngoài · International shipping"
+        items={[
+          'Chọn "Nước ngoài" ở bước Thanh toán; đơn quốc tế thanh toán bằng thẻ Visa / Mastercard / JCB.',
+          'Chuyển phát quốc tế có mã theo dõi, thời gian nhận dự kiến 7 – 15 ngày làm việc tuỳ nước.',
+          'Phí gửi tính theo vùng (Đông Á & Đông Nam Á / các nước khác), hiện rõ trước khi thanh toán. Mã miễn phí vận chuyển chỉ áp dụng trong Việt Nam.',
+          'Thuế nhập khẩu, phí hải quan (nếu có) do người nhận trả theo quy định của nước nhận.',
+          'Ghi địa chỉ bằng chữ Latin kèm mã bưu chính và số điện thoại có mã nước để bưu điện nước ngoài liên hệ.',
         ]}
       />
     </div>

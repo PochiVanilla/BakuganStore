@@ -26,6 +26,7 @@ import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
 } from '@/constants/orders';
+import { CARD_HOLD_MINUTES, DELIVERY_ESTIMATE, ZONE_LABELS } from '@/constants/shipping';
 import { buildAuctionRules } from '@/features/auction/auctionRuleText';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/format';
 
@@ -44,7 +45,7 @@ export const SHIPPING_POLICY = [
 ];
 
 export const PAYMENT_POLICY = [
-  'Hỗ trợ thanh toán khi nhận hàng (COD), chuyển khoản ngân hàng và ví MoMo — chọn ngay lúc chốt đơn trong Giỏ hàng.',
+  'Hỗ trợ thanh toán khi nhận hàng (COD), chuyển khoản ngân hàng và ví MoMo — chọn ở bước Thanh toán (Giỏ hàng → Tiến hành thanh toán).',
   'Đơn chuyển khoản được xác nhận trong giờ làm việc; quá 24 giờ chưa nhận được tiền thì đơn tự huỷ và các con Bakugan trong đơn được mở bán lại.',
   'Hàng đấu giá cần thanh toán trong 48 giờ sau khi thắng phiên.',
 ];
@@ -71,7 +72,7 @@ export const FEED_GUIDE = [
 
 /** Cách đặt hàng trên web. */
 export const ORDERING_GUIDE =
-  'Đặt hàng: đăng nhập, mở feed đang bán, bấm "Thêm vào giỏ" ở con muốn mua rồi vào Giỏ hàng chốt đơn (điền địa chỉ, chọn COD / chuyển khoản / MoMo). Mỗi mã chỉ có một con nên ai chốt đơn trước được trước.';
+  'Đặt hàng: đăng nhập, mở feed đang bán, bấm "Thêm vào giỏ" ở con muốn mua, vào Giỏ hàng bấm "Tiến hành thanh toán" rồi điền địa chỉ (trong nước hoặc nước ngoài) và chọn cách trả tiền. Mỗi mã chỉ có một con nên ai chốt đơn trước được trước.';
 
 export const CANCEL_GUIDE =
   'Huỷ đơn: khách đã đăng nhập tự huỷ được đơn còn "Chờ xác nhận" và chưa thanh toán bằng cách nhắn "huỷ đơn" kèm mã đơn — các con trong đơn được mở bán lại; đơn đã xác nhận, đang giao hoặc đã trả tiền cần nhân viên xử lý.';
@@ -171,6 +172,27 @@ export interface BotKnowledge {
   orders: BotOrderFact[];
   coupons: Array<Pick<Coupon, 'code' | 'label' | 'expiresAt'>>;
   membership: BotMembershipFact;
+  checkout: BotCheckoutFact;
+}
+
+/** Thẻ và giao quốc tế theo cài đặt hiện tại của admin */
+export interface BotCheckoutFact {
+  cardPayments: boolean;
+  /** Có gửi ra nước ngoài (đơn quốc tế chỉ trả bằng thẻ) */
+  international: boolean;
+  feeAsia: number;
+  feeWorld: number;
+}
+
+/** Câu trả lời về trả bằng thẻ; shop tắt nhận thẻ thì không có. */
+export function cardPaymentLine(checkout: BotCheckoutFact): string | undefined {
+  if (!checkout.cardPayments) return undefined;
+  return `Nhận thẻ Visa / Mastercard / JCB (cả thẻ phát hành ở nước ngoài): chọn "Thẻ quốc tế" ở bước Thanh toán, nhập thẻ trên trang bảo mật của cổng thanh toán và xác thực 3-D Secure — shop không lưu số thẻ. Hàng được giữ ${CARD_HOLD_MINUTES} phút để bạn trả, quá hạn đơn tự huỷ.`;
+}
+
+export function internationalShippingLine(checkout: BotCheckoutFact): string {
+  if (!checkout.international) return 'Hiện shop chỉ giao hàng trong Việt Nam.';
+  return `Có gửi ra nước ngoài: ở bước Thanh toán chọn "Nước ngoài", đơn quốc tế trả bằng thẻ Visa / Mastercard / JCB. Chuyển phát quốc tế có mã theo dõi, ${DELIVERY_ESTIMATE.international}; phí mỗi đơn ${formatCurrency(checkout.feeAsia)} (${ZONE_LABELS.asia}) hoặc ${formatCurrency(checkout.feeWorld)} (${ZONE_LABELS.world.toLowerCase()}). Thuế nhập khẩu (nếu có) do người nhận trả.`;
 }
 
 export function buildKnowledge(input: {
@@ -180,6 +202,7 @@ export function buildKnowledge(input: {
   orders: readonly Order[];
   coupons: readonly Coupon[];
   membership: BotMembershipFact;
+  checkout: BotCheckoutFact;
   now?: number;
 }): BotKnowledge {
   const now = input.now ?? Date.now();
@@ -235,6 +258,7 @@ export function buildKnowledge(input: {
       .filter((coupon) => new Date(coupon.expiresAt).getTime() > now)
       .map(({ code, label, expiresAt }) => ({ code, label, expiresAt })),
     membership: input.membership,
+    checkout: input.checkout,
   };
 }
 
@@ -365,8 +389,17 @@ export function knowledgeToFacts(knowledge: BotKnowledge, topics: readonly BotTo
       `[Tài khoản] ${ACCOUNT_GUIDE}`,
     );
   }
-  if (on.has('shipping')) facts.push(...SHIPPING_POLICY.map((line) => `[Vận chuyển] ${line}`));
-  if (on.has('payment')) facts.push(...PAYMENT_POLICY.map((line) => `[Thanh toán] ${line}`));
+  if (on.has('shipping')) {
+    facts.push(
+      ...SHIPPING_POLICY.map((line) => `[Vận chuyển] ${line}`),
+      `[Vận chuyển] ${internationalShippingLine(knowledge.checkout)}`,
+    );
+  }
+  if (on.has('payment')) {
+    facts.push(...PAYMENT_POLICY.map((line) => `[Thanh toán] ${line}`));
+    const card = cardPaymentLine(knowledge.checkout);
+    if (card) facts.push(`[Thanh toán] ${card}`);
+  }
   if (on.has('returns')) facts.push(...RETURN_POLICY.map((line) => `[Đổi trả] ${line}`));
   if (on.has('order-cancel')) facts.push(`[Huỷ đơn] ${CANCEL_GUIDE}`);
   if (on.has('auction-rules')) {

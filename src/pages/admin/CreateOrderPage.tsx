@@ -4,7 +4,7 @@ import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Gavel, Search, Trash2, UserRound } from 'lucide-react';
 import type { AdminCustomer, AdminItem, Address } from '@/types';
-import { PAYMENT_METHODS } from '@/types';
+import { MANUAL_PAYMENT_METHODS } from '@/types';
 import { ADMIN_ROUTES, FREE_SHIPPING_THRESHOLD, SHIPPING_FEE } from '@/constants/routes';
 import { PAYMENT_METHOD_LABELS } from '@/constants/orders';
 import {
@@ -547,7 +547,7 @@ export default function CreateOrderPage() {
                     className="h-12 rounded-xl border border-white/10 bg-surface-2/80 px-3 font-normal text-text"
                     {...register('paymentMethod')}
                   >
-                    {PAYMENT_METHODS.map((method) => (
+                    {MANUAL_PAYMENT_METHODS.map((method) => (
                       <option key={method} value={method}>
                         {PAYMENT_METHOD_LABELS[method]}
                       </option>

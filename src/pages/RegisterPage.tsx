@@ -143,12 +143,12 @@ export default function RegisterPage() {
           <Input
             label="Số điện thoại"
             type="tel"
-            inputMode="numeric"
+            inputMode="tel"
             placeholder="0912345678"
             autoComplete="tel"
             required
             leftIcon={<Phone size={17} />}
-            hint="Số di động Việt Nam 10 số, dùng để liên hệ giao hàng."
+            hint="Dùng để liên hệ giao hàng. Ở nước ngoài thì ghi cả mã nước, VD +1 415 555 0123."
             error={errors.phone?.message}
             {...register('phone')}
           />

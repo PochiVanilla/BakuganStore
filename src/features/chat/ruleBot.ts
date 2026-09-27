@@ -7,7 +7,9 @@ import { formatItemCode } from '@/utils/itemCode';
 import {
   ACCOUNT_GUIDE,
   BAKUGAN_BASICS,
+  cardPaymentLine,
   FEED_GUIDE,
+  internationalShippingLine,
   ORDERING_GUIDE,
   PAYMENT_POLICY,
   RETURN_POLICY,
@@ -282,6 +284,20 @@ const INTENTS: readonly IntentDef[] = [
       'mien tay',
       'o xa',
       'duoc kiem tra',
+      'nuoc ngoai',
+      'ship quoc te',
+      'gui quoc te',
+      'giao quoc te',
+      'ship qua',
+      'gui qua',
+      'ship sang',
+      'gui sang',
+      'viet kieu',
+      'overseas',
+      'international',
+      'internationally',
+      'abroad',
+      'worldwide',
     ],
   },
   {
@@ -298,8 +314,14 @@ const INTENTS: readonly IntentDef[] = [
       'tien mat',
       'tra truoc',
       'nhan hang moi tra',
+      'the ghi no',
+      'the quoc te',
+      'quet the',
+      'tra bang the',
+      'credit card',
+      'debit card',
     ],
-    strong: ['cod', 'momo', 'qr', 'visa', 'atm', 'zalopay', 'vnpay'],
+    strong: ['cod', 'momo', 'qr', 'visa', 'mastercard', 'jcb', 'atm', 'zalopay', 'vnpay'],
   },
   {
     id: 'returns',
@@ -1157,6 +1179,35 @@ function answerShipping(text: string, knowledge: BotKnowledge): BotReply {
     'o xa',
     'toan quoc',
   ]);
+  const abroad = hasAnyPhrase(text, [
+    'nuoc ngoai',
+    'quoc te',
+    'ship qua',
+    'gui qua',
+    'ship sang',
+    'gui sang',
+    'viet kieu',
+    'nhat ban',
+    'han quoc',
+    'dai loan',
+    'singapore',
+    'canada',
+    'chau au',
+    'qua my',
+    'sang my',
+    'ben my',
+    'qua uc',
+    'sang uc',
+    'ben uc',
+    'overseas',
+    'international',
+    'internationally',
+    'abroad',
+    'worldwide',
+    'usa',
+  ]);
+  if (abroad) return reply(internationalShippingLine(knowledge.checkout));
+
   const specific = wantsFee || wantsTime || packaging || inspection;
   const lines: string[] = [];
   if (remote) lines.push('Shop giao toàn quốc ạ.');
@@ -1173,8 +1224,27 @@ function answerShipping(text: string, knowledge: BotKnowledge): BotReply {
   return reply(lines.join(' '));
 }
 
-function answerPayment(text: string): BotReply {
-  const lines = [PAYMENT_POLICY[0]!, PAYMENT_POLICY[1]!];
+function answerPayment(text: string, knowledge: BotKnowledge): BotReply {
+  const card = cardPaymentLine(knowledge.checkout);
+  const aboutCard = hasAnyPhrase(text, [
+    'visa',
+    'mastercard',
+    'master card',
+    'jcb',
+    'the tin dung',
+    'the ghi no',
+    'the quoc te',
+    'quet the',
+    'tra bang the',
+    'credit card',
+    'debit card',
+  ]);
+  if (aboutCard) {
+    return reply(
+      card ?? 'Hiện shop tạm ngưng nhận thanh toán thẻ — bạn chọn COD, chuyển khoản hoặc MoMo nhé.',
+    );
+  }
+  const lines = [PAYMENT_POLICY[0]!, ...(card ? [card] : []), PAYMENT_POLICY[1]!];
   if (hasAnyPhrase(text, ['dau gia', 'thang'])) lines.push(PAYMENT_POLICY[2]!);
   if (hasAnyPhrase(text, ['so tai khoan', 'chuyen khoan', 'qr', 'quet ma'])) {
     lines.push(
@@ -1256,7 +1326,7 @@ function answerPromotions(
       : '';
   const coupons =
     knowledge.coupons.length > 0
-      ? `Mã đang có (nhập ở bước chốt đơn trong Giỏ hàng):\n${knowledge.coupons.map((coupon) => `• ${coupon.code}: ${coupon.label}`).join('\n')}`
+      ? `Mã đang có (nhập trong Giỏ hàng):\n${knowledge.coupons.map((coupon) => `• ${coupon.code}: ${coupon.label}`).join('\n')}`
       : 'Hiện shop chưa có mã giảm giá nào đang chạy ạ.';
   return reply(`${freeShip}${coupons}`);
 }
@@ -1383,7 +1453,7 @@ function answerIntent(id: IntentId, input: AnswerInput): BotReply {
     case 'shipping':
       return answerShipping(text, knowledge);
     case 'payment':
-      return answerPayment(text);
+      return answerPayment(text, knowledge);
     case 'returns':
       return answerReturns(text);
     case 'product-info':

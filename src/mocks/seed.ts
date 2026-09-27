@@ -15,6 +15,7 @@ import type {
   ProductCondition,
 } from '@/types';
 import { FREE_SHIPPING_THRESHOLD, SHIPPING_FEE } from '@/constants/routes';
+import { DEFAULT_INTERNATIONAL_SHIPPING } from '@/constants/shipping';
 import { PURCHASES_FOR_LV2 } from '@/constants/catalog';
 import { formatItemCode } from '@/utils/itemCode';
 import { BAKUGAN_MODELS, type BakuganModel } from './models';
@@ -1495,6 +1496,8 @@ export function createSeedDatabase(version: number): MockDatabase {
       memberDepositAmount: DEFAULT_MEMBER_DEPOSIT,
       // Để trống: admin tự nhập tài khoản nhận tiền thật trong trang Cài đặt.
       bank: { bankName: '', accountNumber: '', accountHolder: '' },
+      cardPayments: true,
+      international: { ...DEFAULT_INTERNATIONAL_SHIPPING },
     },
   };
 }

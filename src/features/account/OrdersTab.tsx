@@ -1,10 +1,14 @@
 import { Link } from 'react-router-dom';
-import { Package } from 'lucide-react';
+import { CreditCard, Globe, Package } from 'lucide-react';
+import type { Order } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import {
+  describeCard,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_STYLES,
   PAYMENT_METHOD_LABELS,
+  PAYMENT_STATUS_LABELS,
+  PAYMENT_STATUS_STYLES,
 } from '@/constants/orders';
 import { fetchMyOrders } from '@/services/api/authService';
 import { useAsync } from '@/hooks/useAsync';
@@ -13,6 +17,13 @@ import { useAuthStore } from '@/store/authStore';
 import { formatCurrency, formatDateTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
 import { ButtonLink, EmptyState, RefImage, Skeleton } from '@/components/ui';
+
+/** Đơn trả thẻ chưa trả xong (quá hạn giữ hàng thì hệ thống tự huỷ, trang kết quả báo rõ) */
+function awaitingCard(order: Order): boolean {
+  return (
+    order.paymentMethod === 'card' && order.paymentStatus === 'unpaid' && order.status === 'pending'
+  );
+}
 
 export function OrdersTab() {
   const userId = useAuthStore((state) => state.user?.id);
@@ -106,8 +117,34 @@ export function OrdersTab() {
                     Giao tới: <span className="text-text">{order.receiverName}</span> ·{' '}
                     {order.phone}
                   </p>
-                  <p className="mt-0.5">{order.addressLine}</p>
-                  <p className="mt-0.5">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</p>
+                  <p className="mt-0.5">
+                    {order.shippingRegion === 'international' && (
+                      <Globe
+                        size={12}
+                        className="mr-1 inline text-accent-cyan"
+                        aria-label="Gửi quốc tế"
+                      />
+                    )}
+                    {order.addressLine}
+                  </p>
+                  <p className="mt-0.5">
+                    {order.paymentMethod === 'card'
+                      ? describeCard(order.cardPayment)
+                      : PAYMENT_METHOD_LABELS[order.paymentMethod]}{' '}
+                    ·{' '}
+                    <span className={PAYMENT_STATUS_STYLES[order.paymentStatus]}>
+                      {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+                    </span>
+                  </p>
+                  {awaitingCard(order) && (
+                    <Link
+                      to={ROUTES.checkoutResult(order.id)}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-accent-cyan/50 bg-accent-cyan/10 px-3 py-1.5 text-xs font-bold text-accent-cyan transition hover:bg-accent-cyan/20"
+                    >
+                      <CreditCard size={13} aria-hidden="true" />
+                      Thanh toán ngay
+                    </Link>
+                  )}
                 </div>
                 <div className="text-right">
                   {order.discount > 0 && (

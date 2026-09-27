@@ -6,6 +6,7 @@ import { RouteFallback } from './RouteFallback';
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute';
 import { AdminRoute } from '@/features/admin/AdminRoute';
 import { ADMIN_ROUTES, LEGACY_REDIRECTS, ROUTES } from '@/constants/routes';
+import { USE_MOCK } from '@/services/api/client';
 // Trang chủ là trang khách vào nhiều nhất: đóng gói chung với phần khung để khỏi
 // chờ thêm một lượt tải file nữa rồi mới thấy nội dung.
 import HomePage from '@/pages/HomePage';
@@ -28,6 +29,9 @@ const BlogPage = lazy(() => import('@/pages/BlogPage'));
 const BlogDetailPage = lazy(() => import('@/pages/BlogDetailPage'));
 const ContactPage = lazy(() => import('@/pages/ContactPage'));
 const CartPage = lazy(loadCartPage);
+const CheckoutPage = lazy(() => import('@/pages/CheckoutPage'));
+const CheckoutResultPage = lazy(() => import('@/pages/CheckoutResultPage'));
+const MockCardGatewayPage = lazy(() => import('@/pages/MockCardGatewayPage'));
 const WishlistPage = lazy(() => import('@/pages/WishlistPage'));
 const AccountPage = lazy(() => import('@/pages/AccountPage'));
 const LoginPage = lazy(loadLoginPage);
@@ -62,6 +66,27 @@ const LIKELY_NEXT = [
   loadAuctionDetailPage,
   loadLoginPage,
 ];
+
+/**
+ * Bản chạy thử: dọn định kỳ những đơn trả thẻ quá hạn giữ hàng (huỷ đơn, mở bán lại các con
+ * Bakugan). Có backend thì server tự làm việc này.
+ */
+function useCardHoldSweep(): void {
+  useEffect(() => {
+    if (!USE_MOCK) return;
+    const run = (): void => {
+      void import('@/services/api/orderMutations').then(({ sweepExpiredCardHolds }) => {
+        sweepExpiredCardHolds();
+      });
+    };
+    const first = window.setTimeout(run, 3_000);
+    const timer = window.setInterval(run, 30_000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+    };
+  }, []);
+}
 
 function usePrefetchLikelyPages(): void {
   useEffect(() => {
@@ -126,10 +151,23 @@ function usePrefetchLikelyPages(): void {
 
 export default function App() {
   usePrefetchLikelyPages();
+  useCardHoldSweep();
   return (
     <>
       <ScrollToTop />
       <Routes>
+        {/* Cổng thanh toán thẻ giả lập — trang riêng, không có đầu trang của shop (bản chạy thử) */}
+        {USE_MOCK && (
+          <Route
+            path={ROUTES.cardGateway(':orderId')}
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <MockCardGatewayPage />
+              </Suspense>
+            }
+          />
+        )}
+
         {/* Quản trị: kiểm tra đăng nhập + quyền admin trước khi tải bất cứ trang nào */}
         <Route element={<AdminRoute />}>
           <Route
@@ -190,6 +228,8 @@ export default function App() {
           {/* Route cần đăng nhập — chưa đăng nhập sẽ bị đẩy về /dang-nhap */}
           <Route element={<ProtectedRoute />}>
             <Route path={ROUTES.account} element={<AccountPage />} />
+            <Route path={ROUTES.checkout} element={<CheckoutPage />} />
+            <Route path={ROUTES.checkoutResult(':orderId')} element={<CheckoutResultPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />

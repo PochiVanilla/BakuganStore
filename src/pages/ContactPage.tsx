@@ -127,7 +127,7 @@ export default function ContactPage() {
                       <Input
                         label="Số điện thoại"
                         type="tel"
-                        inputMode="numeric"
+                        inputMode="tel"
                         placeholder="0912345678"
                         autoComplete="tel"
                         required

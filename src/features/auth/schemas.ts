@@ -1,13 +1,11 @@
 import { z } from 'zod';
+import { isValidPhone } from '@/utils/phone';
 
 /**
  * Nguồn chân lý duy nhất cho validate tài khoản.
  * Backend TypeScript (Node.js) import lại đúng file này để validate
  * ở tầng server — frontend và backend không bao giờ lệch quy tắc.
  */
-
-/** Regex số di động Việt Nam 10 số. */
-export const VN_PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
 
 /** Cho phép chữ cái mọi ngôn ngữ (có dấu tiếng Việt), khoảng trắng, dấu nháy và gạch nối. */
 const FULL_NAME_REGEX = /^[\p{L}\p{M}\s'-]+$/u;
@@ -25,11 +23,15 @@ export const emailSchema = z
   .min(1, 'Vui lòng nhập email.')
   .pipe(z.email('Email không đúng định dạng.'));
 
+/** Số di động Việt Nam, hoặc số nước ngoài có mã nước (khách ở nước ngoài). */
 export const phoneSchema = z
   .string()
   .trim()
   .min(1, 'Vui lòng nhập số điện thoại.')
-  .regex(VN_PHONE_REGEX, 'Số điện thoại di động Việt Nam không hợp lệ (VD: 0912345678).');
+  .refine(
+    isValidPhone,
+    'Số điện thoại không hợp lệ — VD 0912345678, ở nước ngoài thì ghi cả mã nước: +1 415 555 0123.',
+  );
 
 export const passwordSchema = z
   .string()

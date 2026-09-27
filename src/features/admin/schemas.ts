@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PAYMENT_METHODS } from '@/types';
+import { MANUAL_PAYMENT_METHODS } from '@/types';
 import { emailSchema, fullNameSchema, phoneSchema } from '@/features/auth/schemas';
 
 /* ============================================================
@@ -37,7 +37,7 @@ export const createOrderSchema = z
     auctionId: z.string(),
     shippingFee: money('Phí ship'),
     discount: money('Giảm giá'),
-    paymentMethod: z.enum(PAYMENT_METHODS),
+    paymentMethod: z.enum(MANUAL_PAYMENT_METHODS),
     paymentStatus: z.enum(['unpaid', 'paid']),
     initialStatus: z.enum(['pending', 'confirmed']),
     note: z.string().trim().max(300, 'Ghi chú tối đa 300 ký tự.'),

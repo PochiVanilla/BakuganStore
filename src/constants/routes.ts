@@ -12,6 +12,12 @@ export const ROUTES = {
   blogDetail: (slug: string) => `/blog/${slug}`,
   contact: '/lien-he',
   cart: '/gio-hang',
+  /** Thanh toán: địa chỉ (trong nước / nước ngoài), vận chuyển, cách trả tiền */
+  checkout: '/thanh-toan',
+  /** Kết quả sau khi đặt / trả tiền — hỏi lại server trạng thái đơn */
+  checkoutResult: (orderId: string) => `/thanh-toan/ket-qua/${orderId}`,
+  /** Cổng thanh toán thẻ giả lập (chỉ bản chạy thử; bản thật là trang của cổng thanh toán) */
+  cardGateway: (orderId: string) => `/thanh-toan/cong-the/${orderId}`,
   wishlist: '/yeu-thich',
   account: '/tai-khoan',
   membership: '/tai-khoan?tab=membership',

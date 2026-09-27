@@ -72,6 +72,12 @@ export function knowledgeFor(
     orders: orders.map((order) => hydrateOrder(order, db)),
     coupons: MOCK_COUPONS,
     membership: membershipFactOf(db, conversation.customerId),
+    checkout: {
+      cardPayments: db.shopSettings.cardPayments,
+      international: db.shopSettings.cardPayments && db.shopSettings.international.enabled,
+      feeAsia: db.shopSettings.international.feeAsia,
+      feeWorld: db.shopSettings.international.feeWorld,
+    },
   });
 }
 

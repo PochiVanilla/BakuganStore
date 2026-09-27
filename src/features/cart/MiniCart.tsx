@@ -34,7 +34,7 @@ export function MiniCart() {
               </p>
             )}
             <ButtonLink to={ROUTES.cart} fullWidth onClick={closeDrawer}>
-              Xem giỏ hàng &amp; Chốt đơn
+              Xem giỏ hàng &amp; thanh toán
             </ButtonLink>
           </div>
         ) : undefined

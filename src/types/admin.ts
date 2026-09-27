@@ -7,6 +7,7 @@ import type {
   BakuganItem,
   FeedPost,
   Gender,
+  InternationalShippingSettings,
   LevelSource,
   MemberLevel,
   MembershipRequest,
@@ -181,6 +182,10 @@ export interface ShopSettings {
   memberDepositAmount: number;
   /** Tài khoản nhận chuyển khoản của shop — hiện cho khách khi thanh toán / nạp tiền */
   bank: ShopBankInfo;
+  /** Nhận thẻ Visa / Mastercard / JCB qua cổng thanh toán */
+  cardPayments: boolean;
+  /** Gửi hàng ra nước ngoài (đơn quốc tế chỉ trả bằng thẻ) */
+  international: InternationalShippingSettings;
 }
 
 /* ---------- Tổng quan ---------- */

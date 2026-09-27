@@ -69,8 +69,9 @@ export function ProfileTab() {
         <Input
           label="Số điện thoại"
           type="tel"
-          inputMode="numeric"
+          inputMode="tel"
           required
+          hint="Ở nước ngoài thì ghi cả mã nước, VD +1 415 555 0123."
           leftIcon={<Phone size={17} />}
           error={errors.phone?.message}
           {...register('phone')}

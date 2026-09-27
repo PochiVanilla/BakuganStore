@@ -13,6 +13,17 @@ export function formatCompactCurrency(value: number): string {
   return formatCurrency(value);
 }
 
+/** Số đô ước lượng cho khách nước ngoài: 1230000 (tỉ giá 26000) -> "US$47.31" */
+export function formatUsd(vnd: number, vndPerUsd: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    currencyDisplay: 'narrowSymbol',
+  })
+    .format(vnd / vndPerUsd)
+    .replace(/^\$/, 'US$');
+}
+
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat('vi-VN').format(value);
 }

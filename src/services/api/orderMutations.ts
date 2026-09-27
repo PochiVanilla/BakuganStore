@@ -1,5 +1,6 @@
 import type { CancelReason, OrderEvent, OrderStatus } from '@/types';
-import { createId, type MockDatabase, type StoredOrder } from '@/mocks/db';
+import { CARD_HOLD_MINUTES } from '@/constants/shipping';
+import { createId, readDb, updateDb, type MockDatabase, type StoredOrder } from '@/mocks/db';
 
 /* ============================================================
    Thay đổi đơn hàng dùng chung cho mọi nơi ghi dữ liệu (khách đặt,
@@ -83,4 +84,48 @@ export function releaseCancelledOrder(
       fulfillment.updatedAt = at;
     }
   }
+}
+
+/* ---------------- Giữ hàng chờ trả thẻ ---------------- */
+
+/** Đơn trả bằng thẻ, còn chờ xác nhận, chưa trả và đã quá hạn giữ hàng. */
+export function cardHoldExpired(
+  order: Pick<StoredOrder, 'paymentMethod' | 'paymentStatus' | 'status' | 'cardPayment'>,
+  now: number = Date.now(),
+): boolean {
+  return (
+    order.paymentMethod === 'card' &&
+    order.paymentStatus === 'unpaid' &&
+    order.status === 'pending' &&
+    Boolean(order.cardPayment) &&
+    new Date(order.cardPayment!.expiresAt).getTime() <= now
+  );
+}
+
+/** Huỷ các đơn quá hạn trả thẻ, trả những con Bakugan trong đó về feed. Trả về số đơn đã huỷ. */
+export function expireCardHolds(db: MockDatabase, now: number = Date.now()): number {
+  const at = new Date(now).toISOString();
+  let expired = 0;
+  db.orders.forEach((order) => {
+    if (!cardHoldExpired(order, now)) return;
+    releaseCancelledOrder(db, order, 'payment-timeout', 'Quá hạn thanh toán thẻ.', at);
+    recordStatus(
+      order,
+      'cancelled',
+      'Hệ thống',
+      at,
+      `Quá ${CARD_HOLD_MINUTES} phút chưa thanh toán thẻ — đơn tự huỷ, các con Bakugan được mở bán lại.`,
+    );
+    expired += 1;
+  });
+  return expired;
+}
+
+/**
+ * Dọn đơn giữ hàng đã quá hạn. Có backend thì việc này là một tác vụ chạy định kỳ trên
+ * server; ở chế độ mock, web gọi định kỳ và trước khi đặt đơn / trả tiền.
+ */
+export function sweepExpiredCardHolds(now: number = Date.now()): number {
+  if (!readDb().orders.some((order) => cardHoldExpired(order, now))) return 0;
+  return updateDb((db) => expireCardHolds(db, now));
 }
