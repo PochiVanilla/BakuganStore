@@ -4,7 +4,7 @@ import type { BlogPost } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { formatDate, formatNumber } from '@/utils/format';
 import { cn } from '@/utils/cn';
-import { Chip } from '@/components/ui';
+import { Chip, RefImage } from '@/components/ui';
 
 export function BlogCard({ post, featured = false }: { post: BlogPost; featured?: boolean }) {
   return (
@@ -19,7 +19,7 @@ export function BlogCard({ post, featured = false }: { post: BlogPost; featured?
         className={cn('overflow-hidden bg-surface-2', featured && 'sm:w-1/2 sm:shrink-0')}
         aria-label={post.title}
       >
-        <img
+        <RefImage
           src={post.coverImage}
           alt={post.title}
           loading="lazy"

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { RefImage } from './RefImage';
 
 /** Gallery có zoom: rê chuột để phóng to, bấm mũi tên hoặc thumbnail để đổi ảnh. */
 export function ImageGallery({ images, alt }: { images: string[]; alt: string }) {
@@ -34,7 +35,7 @@ export function ImageGallery({ images, alt }: { images: string[]; alt: string })
         onMouseMove={handleMouseMove}
         className="group relative aspect-square overflow-hidden rounded-2xl border border-white/8 bg-surface-2"
       >
-        <img
+        <RefImage
           src={activeImage}
           alt={`${alt} — ảnh ${activeIndex + 1}`}
           width={600}
@@ -46,13 +47,15 @@ export function ImageGallery({ images, alt }: { images: string[]; alt: string })
           }}
         />
 
-        <span
-          className="pointer-events-none absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-lg bg-background/85 px-2.5 py-1.5 text-[11px] text-text-muted transition-opacity group-hover:opacity-0"
-          aria-hidden="true"
-        >
-          <ZoomIn size={13} />
-          Rê chuột để phóng to
-        </span>
+        {activeImage && (
+          <span
+            className="pointer-events-none absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-lg bg-background/85 px-2.5 py-1.5 text-[11px] text-text-muted transition-opacity group-hover:opacity-0"
+            aria-hidden="true"
+          >
+            <ZoomIn size={13} />
+            Rê chuột để phóng to
+          </span>
+        )}
 
         {images.length > 1 && (
           <>
@@ -92,7 +95,7 @@ export function ImageGallery({ images, alt }: { images: string[]; alt: string })
                     : 'border-white/8 opacity-70 hover:border-white/25 hover:opacity-100',
                 )}
               >
-                <img
+                <RefImage
                   src={image}
                   alt=""
                   loading="lazy"

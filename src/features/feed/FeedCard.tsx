@@ -5,7 +5,6 @@ import { ROUTES } from '@/constants/routes';
 import { ATTRIBUTE_META } from '@/constants/catalog';
 import { formatCurrency, formatDateTime, formatRelativeTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
-import { isIllustration } from '@/utils/placeholder';
 import { AttributeIcon, Countdown, RefImage, StatusBadge } from '@/components/ui';
 import { FeedProgress } from './FeedProgress';
 import { attributesOf, FEED_BADGE } from './feedUi';
@@ -55,11 +54,6 @@ export function FeedCard({
             isSoldOut && 'opacity-60 grayscale-[35%]',
           )}
         />
-        {isIllustration(feed.images[0]) && (
-          <span className="pointer-events-none absolute top-3 right-3 rounded bg-background/70 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.15em] text-white/75">
-            ẢNH MINH HOẠ
-          </span>
-        )}
         <span className="absolute top-3 left-3 flex flex-wrap gap-1.5">
           <StatusBadge type={FEED_BADGE[feed.status]} />
           <span className="rounded-md border border-white/15 bg-background/80 px-2 py-0.5 font-display text-[10px] font-bold tracking-wider text-text">

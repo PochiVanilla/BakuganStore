@@ -5,7 +5,7 @@ import { ROUTES } from '@/constants/routes';
 import { AUCTION_STATUS_LABELS, CONDITION_LABELS } from '@/constants/catalog';
 import { formatCurrency, formatDateTime, formatNumber } from '@/utils/format';
 import { cn } from '@/utils/cn';
-import { AttributeBadge, Countdown } from '@/components/ui';
+import { AttributeBadge, Countdown, RefImage } from '@/components/ui';
 import { HiddenPrice, SealedBadge } from './AuctionRules';
 
 const STATUS_STYLES = {
@@ -30,7 +30,7 @@ export function AuctionCard({ auction }: { auction: Auction }) {
     >
       <div className="relative overflow-hidden bg-surface-2">
         <Link to={ROUTES.auctionDetail(auction.id)} aria-label={auction.title}>
-          <img
+          <RefImage
             src={auction.images[0]}
             alt={auction.title}
             loading="lazy"

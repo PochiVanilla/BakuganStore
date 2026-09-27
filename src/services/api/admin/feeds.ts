@@ -236,7 +236,6 @@ function fail(message: string, field?: string): never {
 
 function validateFeedInput(input: FeedInput, allowEmptyItems: boolean): void {
   if (input.title.trim().length < 3) fail('Tiêu đề feed cần ít nhất 3 ký tự.', 'title');
-  if (input.images.length === 0) fail('Thêm ít nhất một ảnh chụp lô hàng.', 'images');
   if (input.images.length > 6) fail('Mỗi feed tối đa 6 ảnh.', 'images');
   if (!allowEmptyItems && input.items.length === 0) {
     fail('Feed cần ít nhất một con Bakugan.', 'items');

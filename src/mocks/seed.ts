@@ -959,7 +959,8 @@ function buildFeeds(
       caption: newest
         ? NEWEST_FEED_CAPTION
         : pick(FEED_CAPTIONS, rand).replace('{n}', String(count)),
-      images: newest ? ['/feeds/lo-mau-01.webp'] : [`lot:${number}`],
+      // Chỉ lô mới nhất có ảnh chụp thật; các feed mẫu khác chưa có ảnh (để trống).
+      images: newest ? ['/feeds/lo-mau-01.webp'] : [],
       publishedAt: iso(publishedAt),
       opensAt: iso(newest ? nextOpeningTime(now) : publishedAt + 2 * HOUR),
       lotCost: Math.round((lotValue * (0.45 + rand() * 0.12)) / 100_000) * 100_000,

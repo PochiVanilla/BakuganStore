@@ -7,7 +7,6 @@ import type {
   ProductCondition,
 } from '@/types';
 import { ATTRIBUTE_META, SERIES_META, CONDITION_LABELS } from '@/constants/catalog';
-import { productPlaceholder } from '@/utils/placeholder';
 import { slugify } from '@/utils/slugify';
 
 const MINUTE = 60 * 1000;
@@ -233,7 +232,8 @@ export const MOCK_AUCTIONS: AuctionRecord[] = SEEDS.map((seed, index) => {
       `Hệ ${attributeMeta.label} (${attributeMeta.element}) · Dòng ${seriesMeta.label} (${seriesMeta.years}) · G-Power ${seed.gPower}G · ${CONDITION_LABELS[seed.condition]}.`,
       'Người thắng phiên sẽ được TD Bakugan liên hệ trong vòng 24 giờ để xác nhận địa chỉ giao hàng. Sản phẩm được quay video khi đóng gói và gửi kèm ảnh thực tế trước khi chuyển đi.',
     ].join('\n\n'),
-    images: [0, 1, 2].map((variant) => productPlaceholder(seed.name, seed.attribute, variant + 5)),
+    // Chưa có ảnh thật — để trống, khi có backend ảnh lấy từ database.
+    images: [],
     startPrice: seed.startPrice,
     currentPrice,
     bidStep: seed.bidStep,

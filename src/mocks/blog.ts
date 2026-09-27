@@ -1,5 +1,4 @@
 import type { BlogPost } from '@/types';
-import { blogPlaceholder } from '@/utils/placeholder';
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = Date.now();
@@ -14,7 +13,7 @@ export const MOCK_BLOG_POSTS: BlogPost[] = [
     title: 'Cách phân biệt Bakugan chính hãng và hàng nhái chỉ trong 5 phút',
     excerpt:
       'Nam châm yếu, khớp bung nở lỏng, nhãn in mờ — ba dấu hiệu dễ nhận ra nhất khi bạn cầm một quả Bakugan không rõ nguồn gốc.',
-    coverImage: blogPlaceholder('Phan biet Bakugan that', 0),
+    coverImage: '',
     category: 'Hướng dẫn',
     tags: ['chính hãng', 'kiểm tra', 'người mới'],
     authorName: 'TD Bakugan Team',
@@ -66,7 +65,7 @@ export const MOCK_BLOG_POSTS: BlogPost[] = [
     title: 'G-Power là gì và có thực sự quan trọng khi sưu tầm không?',
     excerpt:
       'Nhiều người mới nghĩ G-Power càng cao càng tốt. Sự thật phức tạp hơn một chút, đặc biệt khi bạn mua để trưng bày thay vì để đấu.',
-    coverImage: blogPlaceholder('G-Power la gi', 1),
+    coverImage: '',
     category: 'Hướng dẫn',
     tags: ['g-power', 'người mới', 'sưu tầm'],
     authorName: 'Minh Khôi',
@@ -105,7 +104,7 @@ export const MOCK_BLOG_POSTS: BlogPost[] = [
     title: 'Kinh nghiệm tham gia đấu giá Bakugan: đừng đặt giá trong 30 giây cuối',
     excerpt:
       'Chiến thuật đặt giá, cách đọc lịch sử bid và những sai lầm khiến người mới trả cao hơn giá thị trường 30%.',
-    coverImage: blogPlaceholder('Kinh nghiem dau gia', 2),
+    coverImage: '',
     category: 'Đấu giá',
     tags: ['đấu giá', 'chiến thuật', 'mẹo'],
     authorName: 'Gia Bảo',
@@ -150,7 +149,7 @@ export const MOCK_BLOG_POSTS: BlogPost[] = [
     title: 'Top 6 Bakugan hiếm nhất từng xuất hiện tại thị trường Việt Nam',
     excerpt:
       'Từ Titanium Dragonoid mạ vàng đến trọn bộ Geogan Rising — điểm danh những món mà dân sưu tầm trong nước phải chờ nhiều năm mới gặp.',
-    coverImage: blogPlaceholder('Top 6 Bakugan hiem', 3),
+    coverImage: '',
     category: 'Sưu tầm',
     tags: ['hàng hiếm', 'sưu tầm', 'định giá'],
     authorName: 'TD Bakugan Team',
@@ -207,7 +206,7 @@ export const MOCK_BLOG_POSTS: BlogPost[] = [
     title: 'Hướng dẫn bảo quản Bakugan: giữ nam châm khoẻ và nhựa không ố vàng',
     excerpt:
       'Độ ẩm cao ở Việt Nam là kẻ thù số một của bộ sưu tập. Vài thói quen đơn giản giúp món đồ của bạn giữ giá sau mười năm.',
-    coverImage: blogPlaceholder('Bao quan Bakugan', 4),
+    coverImage: '',
     category: 'Hướng dẫn',
     tags: ['bảo quản', 'mẹo', 'sưu tầm'],
     authorName: 'Thu Hà',
@@ -251,7 +250,7 @@ export const MOCK_BLOG_POSTS: BlogPost[] = [
     title: 'TD Bakugan mở bán lô Geogan Rising nhập trực tiếp tháng này',
     excerpt:
       'Lô hàng 40 sản phẩm thuộc dòng Geogan Rising đã về kho, trong đó có bốn mẫu lần đầu xuất hiện tại shop.',
-    coverImage: blogPlaceholder('Lo hang Geogan Rising', 5),
+    coverImage: '',
     category: 'Tin shop',
     tags: ['tin shop', 'hàng mới', 'geogan rising'],
     authorName: 'TD Bakugan Team',

@@ -148,7 +148,7 @@ src/
 │                            # useClickOutside, useLockBodyScroll, useLatestRef
 ├── types/                   # FeedPost, BakuganItem, Auction, User, CartItem, Order, BlogPost…
 ├── constants/               # routes.ts (URL tiếng Việt), catalog.ts (nhãn hệ/series…)
-├── utils/                   # formatCurrency, slugify, cn, placeholder (SVG data-URI)
+├── utils/                   # formatCurrency, slugify, cn, itemCode
 └── styles/globals.css       # Tailwind v4 @theme: màu, font, glow, animation
 ```
 
@@ -316,9 +316,8 @@ Component dùng hook không phải sửa một dòng nào.
   trong lúc JavaScript tải; font Google tải không chặn hiển thị, chỉ lấy các độ đậm đang dùng.
 - **Dữ liệu mock trả về ngay** (không giả lập độ trễ mạng; bật lại bằng `VITE_MOCK_LATENCY=1`),
   danh sách feed được nhớ lại cho tới khi dữ liệu đổi.
-- **Ảnh**: ảnh lô có bản 640 / 960 / 1280px, điện thoại tự tải bản nhỏ; ảnh minh hoạ SVG không dùng
-  bộ lọc hay chữ bên trong (vẽ nhanh gấp đôi), được nhớ lại sau lần tạo đầu. Không dùng
-  `backdrop-blur` trên thẻ và `background-attachment: fixed` (hai thứ làm điện thoại giật khi cuộn).
+- **Ảnh**: ảnh lô có bản 640 / 960 / 1280px, điện thoại tự tải bản nhỏ. Không dùng `backdrop-blur`
+  trên thẻ và `background-attachment: fixed` (hai thứ làm điện thoại giật khi cuộn).
 - **Lazy-load ảnh** (`loading="lazy"` + `width`/`height` chống layout shift).
 - **Skeleton loading** cho mọi danh sách, không nhảy layout khi dữ liệu về.
 - **Một timer duy nhất** cho tất cả đồng hồ đếm ngược (`useSyncExternalStore`).
@@ -326,6 +325,6 @@ Component dùng hook không phải sửa một dòng nào.
 - **Accessibility:** label cho mọi input, `alt` cho ảnh, `aria-*` đúng vai trò, điều hướng bàn
   phím (Escape đóng modal/drawer, mũi tên chọn gợi ý tìm kiếm), link "Bỏ qua điều hướng",
   `focus-visible` rõ trên nền tối, tôn trọng `prefers-reduced-motion`.
-- **Ảnh minh hoạ là SVG sinh tại chỗ** (`src/utils/placeholder.ts`) — không dùng hình nhân vật
-  có bản quyền, không phụ thuộc mạng; có ghi "ảnh minh hoạ". Feed mới nhất dùng ảnh lô thật của
-  shop (`public/feeds/`); admin tải ảnh thật lên khi đăng feed.
+- **Không tự vẽ ảnh**: chỗ nào chưa có ảnh thật (feed mẫu, từng con, phiên đấu giá, bài blog) thì
+  hiện khung trống; khi nối backend ảnh lấy từ database. Feed mới nhất dùng ảnh lô thật của shop
+  (`public/feeds/`); admin tải ảnh thật lên khi đăng feed (không bắt buộc).

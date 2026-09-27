@@ -18,7 +18,6 @@ import type {
   User,
 } from '@/types';
 import { BOT_TOPIC_IDS } from '@/types';
-import { lotPlaceholder, productPlaceholder } from '@/utils/placeholder';
 import { MOCK_AUCTIONS } from './auctions';
 import { createSeedDatabase, DEFAULT_BOT_SETTINGS } from './seed';
 
@@ -85,7 +84,7 @@ export interface StoredFeed {
   number: number;
   title: string;
   caption: string;
-  /** Mã tham chiếu ảnh: "lot:<hạt giống>", "idb:<id>", "/feeds/…" hoặc URL */
+  /** Mã tham chiếu ảnh: "idb:<id>" (ảnh admin tải lên), "/feeds/…" hoặc URL */
   images: string[];
   publishedAt: string;
   opensAt: string;
@@ -257,20 +256,17 @@ export function createId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
-export function itemImage(item: Pick<StoredItem, 'photo' | 'name' | 'attribute'>): string {
-  return item.photo ?? productPlaceholder(item.name, item.attribute);
+/** Ảnh riêng của con này. Chưa có ảnh thật thì để trống (''), giao diện hiện khung trống. */
+export function itemImage(item: Pick<StoredItem, 'photo'>): string {
+  return item.photo ?? '';
 }
 
-/** Ảnh của feed: ảnh minh hoạ "lot:" được sinh theo màu hệ của những con trong lô. */
-export function feedImages(feed: StoredFeed, items: readonly StoredItem[]): string[] {
-  return feed.images.map((ref) =>
-    ref.startsWith('lot:')
-      ? lotPlaceholder(
-          ref.slice(4),
-          items.map((item) => item.attribute),
-        )
-      : ref,
-  );
+/**
+ * Ảnh chụp lô của feed. Dữ liệu cũ lưu trong trình duyệt có mã "lot:…" (ảnh minh hoạ
+ * tự vẽ trước đây) — bỏ qua, feed chưa có ảnh thật thì để trống.
+ */
+export function feedImages(feed: Pick<StoredFeed, 'images'>): string[] {
+  return feed.images.filter((ref) => !ref.startsWith('lot:'));
 }
 
 export function isFeedOpen(feed: Pick<StoredFeed, 'opensAt'>, now: number = Date.now()): boolean {
@@ -324,7 +320,7 @@ export function toFeedPost(
     number: feed.number,
     title: feed.title,
     caption: feed.caption,
-    images: feedImages(feed, items),
+    images: feedImages(feed),
     publishedAt: feed.publishedAt,
     opensAt: feed.opensAt,
     status: !isFeedOpen(feed, now) ? 'upcoming' : soldOut ? 'sold-out' : 'selling',
@@ -375,15 +371,14 @@ export function listFeedPosts(db: Readonly<MockDatabase> = readDb()): FeedPost[]
   return posts;
 }
 
-const FALLBACK_IMAGE = productPlaceholder('TD Bakugan', 'darkus', 0);
-
+/** Ảnh của một dòng trong đơn; không có ảnh thì để trống. */
 function imageFor(itemId: string, db: Readonly<MockDatabase>): string {
   if (itemId.startsWith('auction:')) {
     const auction = MOCK_AUCTIONS.find((item) => item.id === itemId.slice('auction:'.length));
-    return auction?.images[0] ?? FALLBACK_IMAGE;
+    return auction?.images[0] ?? '';
   }
   const item = db.items.find((entry) => entry.id === itemId);
-  return item ? itemImage(item) : FALLBACK_IMAGE;
+  return item ? itemImage(item) : '';
 }
 
 /** Gắn lại ảnh cho đơn đọc từ kho dữ liệu. */

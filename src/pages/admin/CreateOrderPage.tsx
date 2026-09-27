@@ -410,7 +410,7 @@ export default function CreateOrderPage() {
             >
               {watched.auctionId && auctionRow && (
                 <div className="mb-4 flex items-center gap-3 rounded-xl border border-gold/30 bg-gold/5 p-3">
-                  <img
+                  <RefImage
                     src={auctionRow.auction.images[0]}
                     alt=""
                     className="h-12 w-12 shrink-0 rounded-lg object-cover"

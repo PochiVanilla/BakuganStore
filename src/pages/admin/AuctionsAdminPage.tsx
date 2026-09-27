@@ -10,7 +10,16 @@ import { useLiveRevision } from '@/hooks/useLiveRevision';
 import { toast } from '@/store/uiStore';
 import { formatCurrency, formatDateTime, formatRelativeTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
-import { Button, ButtonLink, EmptyState, Modal, Seo, Skeleton, Textarea } from '@/components/ui';
+import {
+  Button,
+  ButtonLink,
+  EmptyState,
+  Modal,
+  RefImage,
+  Seo,
+  Skeleton,
+  Textarea,
+} from '@/components/ui';
 import { AdminPageHeader, ErrorBox, FilterTabs, StatCard } from '@/features/admin/adminUi';
 
 const FULFILLMENT_LABELS: Record<AuctionFulfillmentStatus, string> = {
@@ -38,7 +47,11 @@ function AuctionRow({ row, onForfeit }: { row: AdminAuctionRow; onForfeit: () =>
 
   return (
     <li className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start">
-      <img src={auction.images[0]} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" />
+      <RefImage
+        src={auction.images[0]}
+        alt=""
+        className="h-20 w-20 shrink-0 rounded-xl object-cover"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span

@@ -7,7 +7,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useAuthStore } from '@/store/authStore';
 import { formatCurrency, formatDateTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
-import { ButtonLink, EmptyState, Skeleton } from '@/components/ui';
+import { ButtonLink, EmptyState, RefImage, Skeleton } from '@/components/ui';
 
 export function BidHistoryTab() {
   const user = useAuthStore((state) => state.user);
@@ -49,7 +49,7 @@ export function BidHistoryTab() {
             <li key={auction.id} className="rounded-2xl border border-white/8 bg-surface/70 p-4">
               <div className="flex gap-4">
                 <Link to={ROUTES.auctionDetail(auction.id)} className="shrink-0">
-                  <img
+                  <RefImage
                     src={auction.images[0]}
                     alt=""
                     loading="lazy"

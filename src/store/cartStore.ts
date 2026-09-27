@@ -58,9 +58,21 @@ export const useCartStore = create<CartState>()(
     {
       name: 'td-bakugan:cart',
       storage: createJSONStorage(() => localStorage),
-      // Bản 1 lưu theo "mẫu sản phẩm + số lượng" — bỏ đi khi chuyển sang bán theo từng con.
-      version: 2,
-      migrate: () => ({ items: [], coupon: null }),
+      /*
+       * Bản 1 lưu theo "mẫu sản phẩm + số lượng" — bỏ đi khi chuyển sang bán theo từng con.
+       * Bản 2 còn ảnh minh hoạ tự vẽ trong giỏ — bỏ ảnh đó (web không còn vẽ ảnh nữa).
+       */
+      version: 3,
+      migrate: (persisted, version) => {
+        if (version < 2) return { items: [], coupon: null };
+        const state = persisted as Pick<CartState, 'items' | 'coupon'>;
+        return {
+          ...state,
+          items: (state.items ?? []).map((item) =>
+            item.image.startsWith('data:') ? { ...item, image: '' } : item,
+          ),
+        };
+      },
       // Không lưu trạng thái mở/đóng drawer vào localStorage.
       partialize: (state) => ({ items: state.items, coupon: state.coupon }),
     },

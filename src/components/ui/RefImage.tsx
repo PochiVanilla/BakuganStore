@@ -1,5 +1,4 @@
 import type { ImgHTMLAttributes } from 'react';
-import { ImageOff } from 'lucide-react';
 import { useImageSrc } from '@/hooks/useImageSrc';
 import { cn } from '@/utils/cn';
 
@@ -13,8 +12,8 @@ function feedPhotoSrcSet(url: string): string | undefined {
 }
 
 /**
- * Ảnh nhận mã tham chiếu (URL, đường dẫn, data-URI hoặc "idb:" của ảnh tải lên
- * ở chế độ mock). Trong lúc đọc ảnh thì hiện nền mờ đúng kích thước.
+ * Ảnh nhận mã tham chiếu (URL, đường dẫn hoặc "idb:" của ảnh tải lên ở chế độ mock).
+ * Chưa có ảnh thì hiện khung trống đúng kích thước.
  * Ảnh lô có sẵn nhiều cỡ thì điện thoại tự tải bản nhỏ (truyền `sizes` cho đúng).
  */
 export function RefImage({
@@ -25,19 +24,9 @@ export function RefImage({
   ...rest
 }: Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & { src: string | undefined; alt: string }) {
   const url = useImageSrc(src);
+  // Chưa có ảnh (hoặc đang đọc ảnh tải lên) -> khung trống đúng kích thước, không vẽ gì.
   if (!url) {
-    return (
-      <span
-        role="img"
-        aria-label={alt}
-        className={cn(
-          'flex items-center justify-center bg-surface-2 text-text-muted/50',
-          className,
-        )}
-      >
-        {src?.startsWith('idb:') ? null : <ImageOff size={22} aria-hidden="true" />}
-      </span>
-    );
+    return <span role="img" aria-label={alt} className={cn('block bg-surface-2', className)} />;
   }
   return (
     <img

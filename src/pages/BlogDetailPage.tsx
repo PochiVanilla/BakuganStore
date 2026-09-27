@@ -9,6 +9,7 @@ import {
   Chip,
   Container,
   EmptyState,
+  RefImage,
   SectionHeading,
   Seo,
   Skeleton,
@@ -53,7 +54,7 @@ export default function BlogDetailPage() {
       <Seo
         title={post.title}
         description={post.excerpt}
-        image={post.coverImage}
+        image={post.coverImage || undefined}
         path={ROUTES.blogDetail(post.slug)}
         type="article"
       />
@@ -99,7 +100,7 @@ export default function BlogDetailPage() {
             </div>
           </header>
 
-          <img
+          <RefImage
             src={post.coverImage}
             alt={post.title}
             width={1200}

@@ -60,7 +60,7 @@ export interface BakuganItem {
   /** Tình trạng riêng của con này: trầy nhẹ, lỏng khớp, thiếu thẻ… */
   conditionNote?: string;
   gPower?: number;
-  /** Ảnh riêng của con này, không có thì là ảnh minh hoạ theo hệ */
+  /** Ảnh riêng của con này; chưa có ảnh thì rỗng (giao diện để khung trống) */
   image: string;
   hasOwnPhoto: boolean;
   status: ItemStatus;
@@ -89,7 +89,7 @@ export interface FeedPost {
   number: number;
   title: string;
   caption: string;
-  /** Ảnh chụp cả lô; ảnh đầu tiên là ảnh bìa */
+  /** Ảnh chụp cả lô, ảnh đầu tiên là ảnh bìa; rỗng khi chưa có ảnh */
   images: string[];
   publishedAt: string;
   /** Giờ mở bán — trước giờ này chưa đặt mua được */

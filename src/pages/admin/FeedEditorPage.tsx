@@ -464,7 +464,6 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
   const validate = (): boolean => {
     const next: Record<string, string> = {};
     if (form.title.trim().length < 3) next.title = 'Tiêu đề cần ít nhất 3 ký tự.';
-    if (form.images.length === 0) next.images = 'Thêm ít nhất một ảnh chụp lô hàng.';
     if (form.opensMode === 'scheduled' && !form.opensAt) next.opensAt = 'Chọn giờ mở bán.';
     if (form.items.length === 0) next.items = 'Feed cần ít nhất một con Bakugan.';
     form.items.forEach((item) => {
@@ -631,7 +630,15 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
                 </li>
               )}
             </ul>
-            {errors.images && <p className="mt-2 text-sm text-danger">{errors.images}</p>}
+            {errors.images ? (
+              <p className="mt-2 text-sm text-danger">{errors.images}</p>
+            ) : (
+              form.images.length === 0 && (
+                <p className="mt-2 text-xs text-text-muted">
+                  Chưa có ảnh thì khách thấy khung trống — nên chụp cả lô để khách xem trước.
+                </p>
+              )
+            )}
           </Panel>
 
           <Panel
