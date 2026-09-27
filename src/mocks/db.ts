@@ -28,9 +28,9 @@ import { createSeedDatabase, DEFAULT_BOT_SETTINGS } from './seed';
    khoá tài khoản, chat…) còn nguyên sau khi tải lại trang. Khi nối
    backend thật, toàn bộ file này không còn được dùng tới.
 
-   Ảnh minh hoạ là SVG sinh tại chỗ nên không lưu vào đây; ảnh admin
-   tải lên nằm trong IndexedDB (xem services/api/imageStore.ts), ở đây
-   chỉ giữ mã tham chiếu "idb:<id>".
+   Ảnh và video admin tải lên nằm trong IndexedDB (xem
+   services/api/imageStore.ts), ở đây chỉ giữ mã tham chiếu "idb:<id>".
+   Chưa có ảnh thì để trống, giao diện hiện khung trống.
    ============================================================ */
 
 export type StoredOrderItem = Omit<OrderItem, 'image'>;
@@ -62,8 +62,10 @@ export interface StoredItem {
   condition: ProductCondition;
   conditionNote?: string;
   gPower?: number;
-  /** Ảnh riêng (mã tham chiếu hoặc URL) */
-  photo?: string;
+  /** Ảnh riêng (mã tham chiếu hoặc URL), tối đa 3 — ảnh đầu là ảnh chính */
+  photos?: string[];
+  /** Video giới thiệu (mã tham chiếu hoặc URL) */
+  video?: string;
   status: ItemStatus;
   soldAt?: string;
   soldVia?: 'order' | 'manual';
@@ -112,7 +114,7 @@ export interface MockDatabase {
 
 const STORAGE_KEY = 'td-bakugan:mock-db';
 /** Tăng số này khi đổi cấu trúc dữ liệu; bản cũ được nâng cấp trong `migrate`. */
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;
 
 let cache: MockDatabase | null = null;
 let revision = 0;
@@ -126,15 +128,28 @@ function persist(db: MockDatabase): void {
   }
 }
 
+/** v3 chỉ có một ảnh riêng cho mỗi con; v4 có tới 3 ảnh + 1 video. */
+function fromV3(data: MockDatabase): MockDatabase {
+  return {
+    ...data,
+    version: DB_VERSION,
+    items: data.items.map((stored) => {
+      const { photo, ...item } = stored as StoredItem & { photo?: string };
+      return photo ? { ...item, photos: [photo] } : item;
+    }),
+  };
+}
+
 /**
  * Nâng cấp dữ liệu đã lưu ở phiên bản trước.
  *
- * v1/v2 bán theo "mẫu sản phẩm có số lượng"; v3 bán theo feed, mỗi con một mã.
+ * v1/v2 bán theo "mẫu sản phẩm có số lượng"; từ v3 bán theo feed, mỗi con một mã.
  * Đơn và kho cũ gắn với mẫu sản phẩm nên được sinh lại theo cách bán mới,
  * còn tài khoản, cài đặt bot và tin nhắn thì giữ nguyên.
  */
 function migrate(data: Partial<MockDatabase>): MockDatabase | undefined {
   if (data.version === DB_VERSION) return data as MockDatabase;
+  if (data.version === 3) return fromV3(data as MockDatabase);
   if ((data.version !== 1 && data.version !== 2) || !data.users || !data.botSettings) {
     return undefined;
   }
@@ -256,9 +271,14 @@ export function createId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
-/** Ảnh riêng của con này. Chưa có ảnh thật thì để trống (''), giao diện hiện khung trống. */
-export function itemImage(item: Pick<StoredItem, 'photo'>): string {
-  return item.photo ?? '';
+/** Ảnh chính của con này. Chưa có ảnh thật thì để trống (''), giao diện hiện khung trống. */
+export function itemImage(item: Pick<StoredItem, 'photos'>): string {
+  return item.photos?.[0] ?? '';
+}
+
+/** Mọi mã ảnh / video của một con — để dọn khỏi kho khi bị thay hoặc xoá. */
+export function itemMediaRefs(item: Pick<StoredItem, 'photos' | 'video'>): string[] {
+  return [...(item.photos ?? []), ...(item.video ? [item.video] : [])];
 }
 
 /**
@@ -293,8 +313,9 @@ export function toPublicItem(
     condition: item.condition,
     conditionNote: item.conditionNote,
     gPower: item.gPower,
+    images: item.photos ?? [],
     image: itemImage(item),
-    hasOwnPhoto: Boolean(item.photo),
+    video: item.video,
     status: item.status,
     soldAt: item.soldAt,
     feedId: item.feedId,

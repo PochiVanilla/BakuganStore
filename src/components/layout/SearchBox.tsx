@@ -66,11 +66,7 @@ export function SearchBox({ onNavigate, className }: SearchBoxProps) {
   };
 
   const goToItem = (item: BakuganItem): void => {
-    navigate(
-      item.feedNumber
-        ? ROUTES.feedDetail(item.feedNumber, item.code)
-        : `${ROUTES.feeds}?q=${encodeURIComponent(item.code)}`,
-    );
+    navigate(ROUTES.itemDetail(item.code));
     setIsOpen(false);
     setKeyword('');
     onNavigate?.();

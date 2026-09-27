@@ -287,7 +287,9 @@ export function IssueStatusBadge({ status }: { status: IssueStatus }) {
 /** Khung bảng: cuộn ngang trên màn hình hẹp thay vì làm vỡ bố cục. */
 export function TableShell({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn('overflow-x-auto', className)}>
+    // `relative`: chữ ẩn (sr-only) trong bảng bám vào khung cuộn này, không đẩy cả trang
+    // rộng ra trên điện thoại.
+    <div className={cn('relative overflow-x-auto', className)}>
       <table className="w-full min-w-[640px] border-collapse text-left text-sm">{children}</table>
     </div>
   );

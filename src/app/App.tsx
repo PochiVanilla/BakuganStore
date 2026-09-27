@@ -13,6 +13,7 @@ import HomePage from '@/pages/HomePage';
 /* Code-splitting theo route — mỗi trang là một chunk riêng, tải khi cần. */
 const loadFeedsPage = () => import('@/pages/FeedsPage');
 const loadFeedDetailPage = () => import('@/pages/FeedDetailPage');
+const loadItemDetailPage = () => import('@/pages/ItemDetailPage');
 const loadAuctionsPage = () => import('@/pages/AuctionsPage');
 const loadAuctionDetailPage = () => import('@/pages/AuctionDetailPage');
 const loadCartPage = () => import('@/pages/CartPage');
@@ -20,6 +21,7 @@ const loadLoginPage = () => import('@/pages/LoginPage');
 
 const FeedsPage = lazy(loadFeedsPage);
 const FeedDetailPage = lazy(loadFeedDetailPage);
+const ItemDetailPage = lazy(loadItemDetailPage);
 const AuctionsPage = lazy(loadAuctionsPage);
 const AuctionDetailPage = lazy(loadAuctionDetailPage);
 const BlogPage = lazy(() => import('@/pages/BlogPage'));
@@ -54,6 +56,7 @@ const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
 const LIKELY_NEXT = [
   loadFeedsPage,
   loadFeedDetailPage,
+  loadItemDetailPage,
   loadCartPage,
   loadAuctionsPage,
   loadAuctionDetailPage,
@@ -75,18 +78,45 @@ function usePrefetchLikelyPages(): void {
         void load().catch(() => undefined);
       });
     };
+    // Ảnh đầu trang (ảnh lô mới nhất, đánh dấu fetchpriority="high") đang tải thì chờ nó
+    // xong đã (tối đa 4 giây), để trên mạng điện thoại yếu hai việc không giành băng thông.
+    const afterHeroImage = (): void => {
+      const pending = [
+        ...document.querySelectorAll<HTMLImageElement>('img[fetchpriority="high"]'),
+      ].filter((image) => !image.complete);
+      if (pending.length === 0) {
+        prefetch();
+        return;
+      }
+      let started = false;
+      const start = (): void => {
+        if (started) return;
+        started = true;
+        prefetch();
+      };
+      window.setTimeout(start, 4_000);
+      let left = pending.length;
+      pending.forEach((image) => {
+        const done = (): void => {
+          left -= 1;
+          if (left === 0) start();
+        };
+        image.addEventListener('load', done, { once: true });
+        image.addEventListener('error', done, { once: true });
+      });
+    };
     // Safari chưa có requestIdleCallback -> chờ vài giây sau khi trang hiện.
     const idleWindow = window as Window & {
       requestIdleCallback?: Window['requestIdleCallback'];
     };
     if (idleWindow.requestIdleCallback) {
-      const id = idleWindow.requestIdleCallback(prefetch, { timeout: 4_000 });
+      const id = idleWindow.requestIdleCallback(afterHeroImage, { timeout: 4_000 });
       return () => {
         cancelled = true;
         idleWindow.cancelIdleCallback(id);
       };
     }
-    const timer = window.setTimeout(prefetch, 2_500);
+    const timer = window.setTimeout(afterHeroImage, 2_500);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
@@ -134,6 +164,7 @@ export default function App() {
           <Route path={ROUTES.home} element={<HomePage />} />
           <Route path={ROUTES.feeds} element={<FeedsPage />} />
           <Route path={`${ROUTES.feeds}/:number`} element={<FeedDetailPage />} />
+          <Route path={ROUTES.itemDetail(':code')} element={<ItemDetailPage />} />
           <Route path={ROUTES.auctions} element={<AuctionsPage />} />
           <Route path={`${ROUTES.auctions}/:id`} element={<AuctionDetailPage />} />
           {LEGACY_REDIRECTS.map((redirect) => (

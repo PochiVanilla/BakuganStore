@@ -306,9 +306,7 @@ export default function CartPage() {
                   <ul className="divide-y divide-white/8 rounded-2xl border border-white/8 bg-surface/70">
                     {items.map((item) => {
                       const isGone = unavailable.includes(item);
-                      const link = item.feedNumber
-                        ? ROUTES.feedDetail(item.feedNumber, item.code)
-                        : ROUTES.feeds;
+                      const link = ROUTES.itemDetail(item.code);
                       return (
                         <li key={item.itemId} className="flex gap-4 p-4 sm:p-5">
                           <Link to={link} className="relative shrink-0">

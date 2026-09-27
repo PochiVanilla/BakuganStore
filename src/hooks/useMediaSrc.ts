@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { IDB_PREFIX, resolveImageRef } from '@/services/api/imageStore';
 
 /**
- * Ảnh admin tải lên ở chế độ mock nằm trong IndexedDB (mã "idb:…") nên cần
- * đọc bất đồng bộ; URL / đường dẫn / data-URI thường thì trả về ngay.
+ * Ảnh / video admin tải lên ở chế độ mock nằm trong IndexedDB (mã "idb:…") nên
+ * cần đọc bất đồng bộ; URL / đường dẫn thường thì trả về ngay.
  */
-export function useImageSrc(ref: string | undefined): string | undefined {
+export function useMediaSrc(ref: string | undefined): string | undefined {
   const needsLookup = Boolean(ref?.startsWith(IDB_PREFIX));
   const [resolved, setResolved] = useState<{ ref: string; url: string | null } | null>(null);
 

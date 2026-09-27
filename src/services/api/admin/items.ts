@@ -1,10 +1,12 @@
 import type { AdminItem, ApiResponse, BakuganAttribute, Paginated } from '@/types';
-import { readDb, updateDb } from '@/mocks/db';
+import { ITEM_PHOTO_LIMIT } from '@/types';
+import { itemMediaRefs, readDb, updateDb } from '@/mocks/db';
 import { normalizeSearch } from '@/utils/slugify';
 import { normalizeItemCode } from '@/utils/itemCode';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from '../client';
 import { requireAdmin } from '../mockSession';
-import { toAdminItem, type FeedItemInput } from './feeds';
+import { deleteImageRefs } from '../imageStore';
+import { applyItemFields, toAdminItem, type FeedItemInput } from './feeds';
 
 /* ============================================================
    Quản lý từng con Bakugan (không có số lượng: còn bán hoặc SOLD).
@@ -194,7 +196,7 @@ export async function markItemAvailable(itemId: string): Promise<AdminItem> {
   return mockDelay(toAdminItem(readDb(), item), 300);
 }
 
-/** Sửa thông tin một con (tên, mã, giá, tình trạng…). Con đã bán không đổi giá. */
+/** Sửa thông tin một con (tên, mã, giá, tình trạng, ảnh, video…). Con đã bán không đổi giá. */
 export async function updateItem(
   itemId: string,
   input: Omit<FeedItemInput, 'id'>,
@@ -214,6 +216,10 @@ export async function updateItem(
   if (input.code?.trim() && !code) {
     throw new MockApiError('Mã phải có dạng BK-0123.', 422, { code: 'Mã phải có dạng BK-0123.' });
   }
+  if ((input.photos?.length ?? 0) > ITEM_PHOTO_LIMIT) {
+    throw new MockApiError(`Mỗi con tối đa ${ITEM_PHOTO_LIMIT} ảnh.`, 422);
+  }
+  let removedMedia: string[] = [];
   const item = updateDb((db) => {
     const target = db.items.find((entry) => entry.id === itemId);
     if (!target) throw new MockApiError('Không tìm thấy con Bakugan này.', 404);
@@ -225,16 +231,10 @@ export async function updateItem(
       }
       target.code = code;
     }
-    target.name = input.name.trim();
-    if (target.status !== 'sold') target.price = input.price;
-    target.attribute = input.attribute;
-    target.series = input.series || undefined;
-    target.condition = input.condition;
-    target.conditionNote = input.conditionNote?.trim() || undefined;
-    target.gPower = input.gPower && input.gPower > 0 ? Math.round(input.gPower) : undefined;
-    target.photo = input.photo || undefined;
+    removedMedia = applyItemFields(target, input, target.status !== 'sold');
     return target;
   });
+  if (removedMedia.length > 0) void deleteImageRefs(removedMedia);
   return mockDelay(toAdminItem(readDb(), item), 300);
 }
 
@@ -245,7 +245,7 @@ export async function deleteItem(itemId: string): Promise<void> {
     return;
   }
   requireAdmin();
-  updateDb((db) => {
+  const media = updateDb((db) => {
     const target = db.items.find((entry) => entry.id === itemId);
     if (!target) throw new MockApiError('Không tìm thấy con Bakugan này.', 404);
     if (target.status === 'sold') throw new MockApiError('Không xoá được con đã bán.', 409);
@@ -256,6 +256,8 @@ export async function deleteItem(itemId: string): Promise<void> {
       );
     }
     db.items = db.items.filter((entry) => entry.id !== itemId);
+    return itemMediaRefs(target);
   });
+  void deleteImageRefs(media);
   await mockDelay(null, 250);
 }

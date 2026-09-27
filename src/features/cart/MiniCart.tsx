@@ -56,9 +56,7 @@ export function MiniCart() {
       ) : (
         <ul className="divide-y divide-white/6">
           {items.map((item) => {
-            const link = item.feedNumber
-              ? ROUTES.feedDetail(item.feedNumber, item.code)
-              : ROUTES.feeds;
+            const link = ROUTES.itemDetail(item.code);
             return (
               <li key={item.itemId} className="flex gap-3 p-4">
                 <Link to={link} onClick={closeDrawer} className="shrink-0" aria-label={item.name}>

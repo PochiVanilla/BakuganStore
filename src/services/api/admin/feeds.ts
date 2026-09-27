@@ -8,9 +8,16 @@ import type {
   FeedStatusFilter,
   ProductCondition,
 } from '@/types';
-import { BAKUGAN_ATTRIBUTES, BAKUGAN_SERIES, FEED_LIMIT, PRODUCT_CONDITIONS } from '@/types';
+import {
+  BAKUGAN_ATTRIBUTES,
+  BAKUGAN_SERIES,
+  FEED_LIMIT,
+  ITEM_PHOTO_LIMIT,
+  PRODUCT_CONDITIONS,
+} from '@/types';
 import {
   createId,
+  itemMediaRefs,
   itemsOfFeed,
   readDb,
   toFeedPost,
@@ -207,8 +214,10 @@ export interface FeedItemInput {
   condition: ProductCondition;
   conditionNote?: string;
   gPower?: number;
-  /** Ảnh riêng (mã tham chiếu từ uploadImage) */
-  photo?: string;
+  /** Tối đa 3 ảnh riêng (mã tham chiếu từ uploadImage), ảnh đầu là ảnh chính */
+  photos?: string[];
+  /** Video giới thiệu (mã tham chiếu từ uploadVideo) */
+  video?: string;
 }
 
 export interface FeedInput {
@@ -257,6 +266,9 @@ function validateFeedInput(input: FeedInput, allowEmptyItems: boolean): void {
     if (item.code?.trim() && !normalizeItemCode(item.code)) {
       fail(`${label}: mã "${item.code}" không đúng dạng BK-0123.`);
     }
+    if ((item.photos?.length ?? 0) > ITEM_PHOTO_LIMIT) {
+      fail(`${label}: tối đa ${ITEM_PHOTO_LIMIT} ảnh.`);
+    }
   });
 }
 
@@ -280,7 +292,16 @@ function assignCode(db: MockDatabase, wanted: string | undefined, reserved: Set<
   return code;
 }
 
-function applyItemFields(item: StoredItem, input: FeedItemInput, allowPriceChange: boolean): void {
+/**
+ * Ghi thông tin trong form vào một con. Trả về mã ảnh / video cũ không còn dùng
+ * để dọn khỏi kho sau khi lưu.
+ */
+export function applyItemFields(
+  item: StoredItem,
+  input: Omit<FeedItemInput, 'id' | 'code'>,
+  allowPriceChange: boolean,
+): string[] {
+  const before = itemMediaRefs(item);
   item.name = input.name.trim();
   if (allowPriceChange) item.price = input.price;
   item.attribute = input.attribute;
@@ -288,17 +309,28 @@ function applyItemFields(item: StoredItem, input: FeedItemInput, allowPriceChang
   item.condition = input.condition;
   item.conditionNote = input.conditionNote?.trim() || undefined;
   item.gPower = input.gPower && input.gPower > 0 ? Math.round(input.gPower) : undefined;
-  item.photo = input.photo || undefined;
+  const photos = (input.photos ?? []).filter(Boolean).slice(0, ITEM_PHOTO_LIMIT);
+  item.photos = photos.length > 0 ? photos : undefined;
+  item.video = input.video || undefined;
+  const kept = new Set(itemMediaRefs(item));
+  return before.filter((ref) => !kept.has(ref));
 }
 
 /**
  * Đặt danh sách con vào feed theo đúng thứ tự trong form.
  * Con đã bán giữ nguyên giá (lịch sử đơn); con bị bỏ khỏi form mà chưa bán thì
  * thành hàng tồn, con đã bán thì vẫn ở lại feed.
+ * Trả về mã ảnh / video của từng con đã bị thay hoặc bỏ.
  */
-function placeItems(db: MockDatabase, feed: StoredFeed, inputs: FeedItemInput[], at: string): void {
+function placeItems(
+  db: MockDatabase,
+  feed: StoredFeed,
+  inputs: FeedItemInput[],
+  at: string,
+): string[] {
   const reserved = new Set(db.items.map((item) => item.code));
   const keptIds = new Set<string>();
+  const removedMedia: string[] = [];
 
   inputs.forEach((input, index) => {
     if (input.id) {
@@ -313,7 +345,7 @@ function placeItems(db: MockDatabase, feed: StoredFeed, inputs: FeedItemInput[],
         reserved.delete(item.code);
         item.code = assignCode(db, wantedCode, reserved);
       }
-      applyItemFields(item, input, item.status !== 'sold');
+      removedMedia.push(...applyItemFields(item, input, item.status !== 'sold'));
       item.feedId = feed.id;
       item.position = index + 1;
       keptIds.add(item.id);
@@ -349,6 +381,7 @@ function placeItems(db: MockDatabase, feed: StoredFeed, inputs: FeedItemInput[],
     item.feedNumber = feed.number;
     item.feedId = undefined;
   });
+  return removedMedia;
 }
 
 /** Gỡ feed khỏi web: con chưa bán thành hàng tồn, con đã bán giữ lại lịch sử. */
@@ -405,7 +438,7 @@ export async function createFeed(
     if (check.oldest) {
       const oldest = db.feeds.find((feed) => feed.id === check.oldest!.id);
       if (oldest) {
-        removedImages = oldest.images;
+        removedImages = [...oldest.images];
         const leftovers = retireFeed(db, oldest);
         if (options.carryLeftovers) carried = leftovers;
       }
@@ -441,12 +474,13 @@ export async function createFeed(
           condition: item.condition,
           conditionNote: item.conditionNote,
           gPower: item.gPower,
-          photo: item.photo,
+          photos: item.photos,
+          video: item.video,
         };
       });
     const inputs = [...input.items, ...carriedInputs];
     if (inputs.length === 0) throw new MockApiError('Feed cần ít nhất một con Bakugan.', 422);
-    placeItems(db, feed, inputs, nowIso);
+    removedImages.push(...placeItems(db, feed, inputs, nowIso));
     return feed;
   });
 
@@ -474,7 +508,7 @@ export async function updateFeed(feedId: string, input: FeedInput): Promise<Admi
     if (input.opensAt) feed.opensAt = new Date(input.opensAt).toISOString();
     feed.lotCost = input.lotCost || undefined;
     feed.supplier = input.supplier?.trim() || undefined;
-    placeItems(db, feed, input.items, nowIso);
+    removedImages.push(...placeItems(db, feed, input.items, nowIso));
     if (!db.items.some((item) => item.feedId === feed.id)) {
       throw new MockApiError('Feed cần ít nhất một con Bakugan.', 422);
     }

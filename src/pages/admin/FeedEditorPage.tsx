@@ -2,7 +2,6 @@ import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
-  Camera,
   ImagePlus,
   LoaderCircle,
   PackageOpen,
@@ -34,7 +33,6 @@ import {
   type FeedInput,
   type FeedItemInput,
 } from '@/services/api/admin';
-import { uploadImage, validateImageFile } from '@/services/api/imageStore';
 import { getApiErrorMessage } from '@/services/api/client';
 import { useAsync } from '@/hooks/useAsync';
 import { toast } from '@/store/uiStore';
@@ -42,6 +40,8 @@ import { formatCurrency } from '@/utils/format';
 import { cn } from '@/utils/cn';
 import { Button, Modal, RefImage, Skeleton } from '@/components/ui';
 import { AdminPageHeader, ErrorBox, Panel } from '@/features/admin/adminUi';
+import { ItemMediaEditor, type ItemMedia } from '@/features/admin/ItemMediaEditor';
+import { useUploader } from '@/features/admin/useUploader';
 
 /* ---------------- Trạng thái form ---------------- */
 
@@ -59,7 +59,9 @@ interface DraftItem {
   condition: ProductCondition;
   conditionNote: string;
   gPower: string;
-  photo?: string;
+  /** Tối đa 3 ảnh riêng, ảnh đầu là ảnh chính */
+  photos: string[];
+  video?: string;
 }
 
 let draftCounter = 0;
@@ -79,6 +81,7 @@ function emptyItem(): DraftItem {
     condition: 'like-new',
     conditionNote: '',
     gPower: '',
+    photos: [],
   };
 }
 
@@ -96,7 +99,8 @@ function fromAdminItem(item: AdminItem, fromLeftover = false): DraftItem {
     condition: item.condition,
     conditionNote: item.conditionNote ?? '',
     gPower: item.gPower ? String(item.gPower) : '',
-    photo: item.hasOwnPhoto ? item.image : undefined,
+    photos: [...item.images],
+    video: item.video,
   };
 }
 
@@ -111,96 +115,6 @@ const inputClass =
   'h-10 w-full rounded-lg border border-white/10 bg-surface-2/80 px-3 text-sm text-text outline-none placeholder:text-text-muted/50 focus:border-accent-cyan';
 
 const MODEL_BY_NAME = new Map(BAKUGAN_MODELS.map((model) => [model.name.toLowerCase(), model]));
-
-/* ---------------- Ô tải ảnh ---------------- */
-
-function useUploader() {
-  const [busy, setBusy] = useState(0);
-  const upload = async (files: readonly File[]): Promise<string[]> => {
-    const refs: string[] = [];
-    for (const file of files) {
-      const problem = validateImageFile(file);
-      if (problem) {
-        toast.error(`Bỏ qua ${file.name}`, problem);
-        continue;
-      }
-      setBusy((value) => value + 1);
-      try {
-        refs.push(await uploadImage(file));
-      } catch (error) {
-        toast.error(`Không tải được ${file.name}`, getApiErrorMessage(error));
-      } finally {
-        setBusy((value) => value - 1);
-      }
-    }
-    return refs;
-  };
-  return { upload, isUploading: busy > 0 };
-}
-
-function ItemPhotoButton({
-  photo,
-  onChange,
-  label,
-}: {
-  photo?: string;
-  onChange: (ref: string | undefined) => void;
-  label: string;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const { upload, isUploading } = useUploader();
-
-  const onFile = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    const [ref] = await upload([file]);
-    if (ref) onChange(ref);
-  };
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden="true"
-        onChange={(event) => void onFile(event)}
-      />
-      {photo ? (
-        <span className="relative">
-          <RefImage
-            src={photo}
-            alt={label}
-            width={40}
-            height={40}
-            className="h-10 w-10 rounded-lg object-cover"
-          />
-          <button
-            type="button"
-            onClick={() => onChange(undefined)}
-            className="absolute -top-1.5 -right-1.5 rounded-full bg-danger p-0.5 text-white"
-            aria-label={`Bỏ ảnh riêng của ${label}`}
-          >
-            <X size={11} />
-          </button>
-        </span>
-      ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-dashed border-white/20 text-text-muted transition hover:border-accent-cyan hover:text-accent-cyan"
-          aria-label={`Thêm ảnh riêng cho ${label}`}
-          title="Ảnh riêng (tuỳ chọn)"
-        >
-          {isUploading ? <LoaderCircle size={15} className="animate-spin" /> : <Camera size={15} />}
-        </button>
-      )}
-    </div>
-  );
-}
 
 /* ---------------- Hộp xác nhận khi web đã đủ 30 feed ---------------- */
 
@@ -428,6 +342,17 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
       items: current.items.map((item) => (item.key === key ? { ...item, ...patch } : item)),
     }));
   };
+  // Ảnh / video tải xong sau vài giây -> cập nhật trên dữ liệu mới nhất của đúng con đó.
+  const setItemMedia = (key: string, update: (current: ItemMedia) => ItemMedia): void => {
+    setForm((current) => ({
+      ...current,
+      items: current.items.map((item) =>
+        item.key === key
+          ? { ...item, ...update({ photos: item.photos, video: item.video }) }
+          : item,
+      ),
+    }));
+  };
 
   // Mã gợi ý cho những con mới chưa tự nhập mã (mã thật do hệ thống cấp khi lưu).
   const suggestedCodes = new Map<string, string>();
@@ -498,7 +423,8 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
       condition: item.condition,
       conditionNote: item.conditionNote,
       gPower: item.gPower ? Number(item.gPower) : undefined,
-      photo: item.photo,
+      photos: item.photos,
+      video: item.video,
     })),
   });
 
@@ -643,7 +569,7 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
 
           <Panel
             title={`Danh sách Bakugan (${form.items.length})`}
-            description="Mỗi con là duy nhất: đặt tên, mã (bỏ trống để tự cấp), tình trạng và giá riêng."
+            description="Mỗi con là duy nhất: đặt tên, mã (bỏ trống để tự cấp), tình trạng, giá riêng, tối đa 3 ảnh và 1 video giới thiệu."
             actions={
               <Button
                 size="sm"
@@ -793,12 +719,7 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
                         className={cn(inputClass, 'tabular-nums')}
                       />
                     </label>
-                    <div className="flex items-center justify-end gap-2 lg:col-span-2">
-                      <ItemPhotoButton
-                        photo={item.photo}
-                        label={label}
-                        onChange={(photo) => setItem(item.key, { photo })}
-                      />
+                    <div className="flex items-center justify-end lg:col-span-2">
                       <button
                         type="button"
                         disabled={item.sold}
@@ -820,6 +741,15 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
                       >
                         <Trash2 size={15} />
                       </button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:col-span-2 lg:col-span-12">
+                      <span className="text-xs font-medium text-text-muted">Ảnh & video</span>
+                      <ItemMediaEditor
+                        media={{ photos: item.photos, video: item.video }}
+                        onChange={(update) => setItemMedia(item.key, update)}
+                        upload={upload}
+                        label={label}
+                      />
                     </div>
                   </div>
                 </fieldset>

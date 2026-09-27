@@ -1,6 +1,7 @@
-import type { ApiResponse, BakuganItem, FeedPost, FeedQuery, ItemQuery } from '@/types';
+import type { ApiResponse, BakuganItem, FeedPost, FeedQuery, ItemDetail, ItemQuery } from '@/types';
 import { listFeedPosts } from '@/mocks/db';
 import { normalizeSearch } from '@/utils/slugify';
+import { normalizeItemCode } from '@/utils/itemCode';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from './client';
 
 /* ============================================================
@@ -61,6 +62,25 @@ export async function fetchFeedByNumber(number: number): Promise<FeedPost> {
     );
   }
   return mockDelay(feed, 220);
+}
+
+/** Một con Bakugan theo mã (VD "BK-0231"), kèm feed đang chứa nó. */
+export async function fetchItemDetail(code: string): Promise<ItemDetail> {
+  if (!USE_MOCK) {
+    const { data } = await apiClient.get<ApiResponse<ItemDetail>>(
+      `/feeds/items/${encodeURIComponent(code)}`,
+    );
+    return data.data;
+  }
+  const wanted = normalizeItemCode(code) ?? code.trim().toUpperCase();
+  for (const feed of listFeedPosts()) {
+    const item = feed.items.find((entry) => entry.code === wanted);
+    if (item) return mockDelay({ item, feed }, 180);
+  }
+  throw new MockApiError(
+    'Không tìm thấy con Bakugan này. Có thể feed chứa nó đã được shop gỡ khỏi web.',
+    404,
+  );
 }
 
 /** Tìm Bakugan trên mọi feed đang có (mặc định chỉ con còn bán). */

@@ -20,7 +20,11 @@ interface ItemCardProps {
   className?: string;
 }
 
-/** Một con Bakugan duy nhất: tên + mã, tình trạng riêng, SOLD khi đã bán. */
+/**
+ * Một con Bakugan duy nhất: tên + mã, tình trạng riêng, SOLD khi đã bán.
+ * Bấm vào thẻ mở trang riêng của con đó (ảnh phóng to + video); nút yêu thích,
+ * thêm vào giỏ và link feed nằm trên lớp link nên vẫn bấm riêng được.
+ */
 function ItemCardComponent({
   item,
   showFeed = false,
@@ -82,7 +86,7 @@ function ItemCardComponent({
           aria-label={isWishlisted ? `Bỏ ${item.code} khỏi yêu thích` : `Yêu thích ${item.code}`}
           aria-pressed={isWishlisted}
           className={cn(
-            'absolute top-2 right-2 rounded-full border p-2 transition',
+            'absolute top-2 right-2 z-10 rounded-full border p-2 transition',
             isWishlisted
               ? 'border-accent-pink/60 bg-accent-pink/20 text-accent-pink'
               : 'border-white/15 bg-background/70 text-text-muted hover:text-accent-pink',
@@ -103,13 +107,19 @@ function ItemCardComponent({
         {showFeed && item.feedNumber && (
           <Link
             to={ROUTES.feedDetail(item.feedNumber, item.code)}
-            className="mb-1 text-[11px] font-semibold text-text-muted transition hover:text-accent-cyan"
+            className="relative z-10 mb-1 self-start text-[11px] font-semibold text-text-muted transition hover:text-accent-cyan"
           >
             Feed #{item.feedNumber}
           </Link>
         )}
-        <h3 className="line-clamp-2 font-display text-sm leading-snug font-bold text-text">
-          {item.name}
+        <h3 className="line-clamp-2 font-display text-sm leading-snug font-bold text-text transition-colors group-hover:text-accent-cyan">
+          {/* Lớp phủ cả thẻ: bấm chỗ nào trên thẻ cũng mở trang chi tiết */}
+          <Link
+            to={ROUTES.itemDetail(item.code)}
+            className="after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-accent-cyan focus-visible:after:ring-inset"
+          >
+            {item.name}
+          </Link>
         </h3>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <AttributeBadge attribute={item.attribute} size="sm" />
@@ -148,7 +158,7 @@ function ItemCardComponent({
               type="button"
               onClick={handleAdd}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition',
+                'relative z-10 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition',
                 inCart
                   ? 'border border-success/45 bg-success/12 text-success'
                   : 'gradient-cta text-white hover:brightness-110',

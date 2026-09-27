@@ -126,7 +126,8 @@ src/
 │   └── providers/           # HelmetProvider, BrowserRouter
 ├── components/
 │   ├── ui/                  # Button, Input, Card, Badge, Modal, Drawer, Toast,
-│   │                        # Skeleton, Countdown, ImageGallery, RefImage, Pagination, Seo…
+│   │                        # Skeleton, Countdown, MediaGallery (ảnh + video, phóng to),
+│   │                        # MediaLightbox, RefImage, SnapSlider, Pagination, Seo…
 │   └── layout/              # Header, Footer, MobileMenu, Logo, SearchBox, AccountMenu
 ├── features/                # Theo nghiệp vụ, mỗi feature tự chứa logic + UI
 │   ├── auth/                # schemas.ts (Zod), AuthLayout, PasswordStrengthMeter,
@@ -135,7 +136,8 @@ src/
 │   ├── auction/             # AuctionCard, BidForm (chặn Lv1), useAuctionSocket
 │   ├── cart/                # MiniCart (drawer)
 │   ├── chat/                # ChatWidget, ruleBot, consultFlow (tư vấn chọn Bakugan), botActions
-│   ├── admin/               # AdminLayout, adminUi, schemas
+│   ├── admin/               # AdminLayout, adminUi, schemas, ItemMediaEditor (3 ảnh + video),
+│   │                        # useUploader
 │   ├── blog/                # BlogCard
 │   ├── account/             # Tab: Profile, Address, Orders, BidHistory, Membership, ChangePassword
 │   └── home/                # Hero, CategoryGrid, Commitments
@@ -145,7 +147,8 @@ src/
 │                            # khách, đơn, hạng thành viên), models.ts, đấu giá, blog, coupon
 ├── store/                   # Zustand: cart, wishlist, auth, ui (toast/menu)
 ├── hooks/                   # useAsync, useCountdown, useDebouncedValue, useMediaQuery,
-│                            # useClickOutside, useLockBodyScroll, useLatestRef
+│                            # useClickOutside, useLockBodyScroll, useLatestRef, useLiveRevision,
+│                            # useMediaSrc (đổi mã ảnh / video "idb:" thành URL)
 ├── types/                   # FeedPost, BakuganItem, Auction, User, CartItem, Order, BlogPost…
 ├── constants/               # routes.ts (URL tiếng Việt), catalog.ts (nhãn hệ/series…)
 ├── utils/                   # formatCurrency, slugify, cn, itemCode
@@ -158,9 +161,10 @@ src/
 
 | Route | Trang |
 | --- | --- |
-| `/` | Màn intro (chỉ lần đầu trên mỗi máy, chạm bất kỳ đâu để vào ngay), feed mới nhất, **chọn theo hệ chiến đấu**, băng **feed trượt ngang** (vuốt / kéo chuột / mũi tên, tổng tối đa 10 feed), nút **Tư vấn chọn Bakugan**, đấu giá, cách lên Lv2, blog, cam kết |
+| `/` | Màn intro (chỉ lần đầu trên mỗi máy, chạm bất kỳ đâu để vào ngay), feed mới nhất, băng **feed trượt ngang** (vuốt / kéo chuột / mũi tên, tổng tối đa 10 feed), **chọn theo hệ chiến đấu** (ngay dưới các feed), nút **Tư vấn chọn Bakugan**, đấu giá, cách lên Lv2, blog, cam kết |
 | `/feed` | Mọi feed trên web (tối đa 30): lọc đang bán / sắp mở bán / đã bán hết, theo hệ, tìm theo tên / mã BK |
-| `/feed/:number` | Ảnh cả lô (phóng to), danh sách từng con: mã BK, tình trạng riêng, SOLD, thêm vào giỏ; `#BK-0231` cuộn tới đúng con đó |
+| `/feed/:number` | Ảnh cả lô (phóng to), danh sách từng con: mã BK, tình trạng riêng, SOLD, thêm vào giỏ; **bấm vào một con để mở trang riêng của nó**; `#BK-0231` cuộn tới đúng con đó |
+| `/bakugan/:code` | **Trang riêng của một con** (VD `/bakugan/BK-0231`): 3 ảnh + **video giới thiệu ở cuối**. Máy tính rê chuột để phóng to tại chỗ; bấm ảnh (hoặc chạm trên điện thoại) mở khung xem toàn màn hình: chụm hai ngón / chạm đúp / lăn chuột để phóng to tới 4x, kéo để di chuyển, vuốt để đổi ảnh. Kèm giá, hệ, dòng, G-Power, tình trạng riêng, thêm vào giỏ / mua ngay / yêu thích, hỏi shop, đếm ngược khi feed chưa mở bán, SOLD khi đã bán, các con khác trong cùng feed. Ô tìm kiếm, giỏ hàng và trợ lý chat đều dẫn tới trang này |
 | `/dau-gia` | Danh sách phiên: đang diễn ra / sắp diễn ra / đã kết thúc + thể lệ |
 | `/dau-gia/:id` | Đếm ngược, giá cao nhất + **số người đã đặt** (không lộ tên ai), lượt đặt của chính mình, cảnh báo bị vượt giá; khách Lv1 thấy 3 cách lên Lv2 |
 | `/gio-hang` | Từng con một (không có số lượng), tự loại con vừa có người mua, mã giảm giá, **chốt đơn trên web** (COD / chuyển khoản / MoMo) |
@@ -181,13 +185,17 @@ trang chủ.
   **mở bán ngay** hoặc **hẹn giờ** (VD 20:00) — trước giờ đó khách xem trước danh sách nhưng chưa
   thêm vào giỏ được.
 - **Mỗi con là duy nhất**: chủ shop đặt tên, mã BK tự cấp (hoặc tự gõ), hệ, dòng, tình trạng +
-  ghi chú riêng (trầy nhẹ, lỏng khớp…), G-Power, ảnh riêng nếu có. Khách chốt đơn → con đó
+  ghi chú riêng (trầy nhẹ, lỏng khớp…), G-Power, **tối đa 3 ảnh riêng + 1 video giới thiệu**
+  (ảnh đầu là ảnh chính hiện trên thẻ, video luôn đứng cuối). Khách chốt đơn → con đó
   chuyển **SOLD** ngay; đơn huỷ / hoàn thì con đó được mở bán lại.
 - **Tối đa 30 feed trên web.** Đăng feed thứ 31 → web hỏi admin xác nhận xoá feed cũ nhất, báo
   feed đó đã bán hết chưa; nếu còn con chưa bán thì liệt kê ra và cho **đưa luôn vào feed mới**
   (bỏ chọn thì chúng nằm ở "Hàng tồn" để đăng sau). Lịch sử bán và đơn hàng của feed cũ vẫn giữ.
-- Ở bản mock, ảnh admin tải lên được thu nhỏ (cạnh dài 1600px, WebP) và lưu trong IndexedDB của
-  trình duyệt; khi có backend thì thay `src/services/api/imageStore.ts` bằng upload lên kho ảnh.
+- Ở bản mock, ảnh admin tải lên được thu nhỏ (cạnh dài 1600px, WebP), video giữ nguyên (tối đa
+  100 MB, 3 phút; định dạng trình duyệt không mở được thì báo ngay lúc tải lên), tất cả lưu trong
+  IndexedDB của trình duyệt. Khi có backend, `src/services/api/imageStore.ts` gửi file lên
+  `POST /admin/uploads` (kèm `kind: image | video`) và lưu URL trả về; ảnh / video bị thay hoặc
+  con bị xoá thì file cũ được dọn khỏi kho.
 
 ### Hạng thành viên (đấu giá)
 
@@ -225,8 +233,8 @@ vào đây; menu tài khoản ở cửa hàng cũng có mục "Trang quản tr�
 | `/admin/don-hang/tao-moi` | Tạo đơn cho khách có tài khoản hoặc khách lẻ (VD chốt qua Zalo), chọn từng con theo tên / mã BK, sửa giá, phí ship, giảm giá |
 | `/admin/dau-gia` | Phiên đang chạy, phiên thắng chờ tạo đơn (liên hệ người thắng), tạo đơn đấu giá, đánh dấu bỏ cọc. Admin thấy cả giá phiên kín |
 | `/admin/feed` | **Giám sát theo feed**: x/30 feed, danh sách **feed đã bán hết** (gỡ khỏi web một chạm), mỗi feed đã bán bao nhiêu, doanh thu, giá nhập lô, lãi; xoá feed (báo con còn tồn) |
-| `/admin/feed/dang-moi`, `/admin/feed/:id` | Đăng / sửa feed: ảnh cả lô, từng con (tên gợi ý theo mẫu, mã BK tự cấp, hệ, dòng, giá, tình trạng, ghi chú, ảnh riêng), thêm từ hàng tồn, giờ mở bán, giá nhập lô |
-| `/admin/bakugan` | **Giám sát từng con**: còn bán / đã bán / hàng tồn, bán cho ai, qua đơn nào, tổng tiền đã bán; đánh dấu SOLD khi bán ngoài web, bỏ SOLD, sửa, xoá hàng tồn |
+| `/admin/feed/dang-moi`, `/admin/feed/:id` | Đăng / sửa feed: ảnh cả lô, từng con (tên gợi ý theo mẫu, mã BK tự cấp, hệ, dòng, giá, tình trạng, ghi chú, **3 ảnh + 1 video**, chọn ảnh chính), thêm từ hàng tồn, giờ mở bán, giá nhập lô |
+| `/admin/bakugan` | **Giám sát từng con**: còn bán / đã bán / hàng tồn, bán cho ai, qua đơn nào, tổng tiền đã bán, con nào còn thiếu ảnh / video; đánh dấu SOLD khi bán ngoài web, bỏ SOLD, sửa (kể cả ảnh, video), xoá hàng tồn; bấm mã để xem trang của con đó trên web |
 | `/admin/huy-va-su-co` | Báo cáo đơn huỷ (theo lý do), đơn hoàn trả, sự cố giao hàng / thanh toán — nhận xử lý, đóng sự cố kèm cách giải quyết, xuất CSV |
 | `/admin/khach-hang` | Danh sách khách: **hạng Lv1/Lv2**, lọc **chờ duyệt Lv2**, số đơn, tổng chi tiêu, đăng nhập gần nhất, liên kết ngân hàng, trạng thái |
 | `/admin/khach-hang/:id` | Hồ sơ đầy đủ, **hạng thành viên** (duyệt / từ chối yêu cầu nạp tiền hoặc xét duyệt, cấp / hạ hạng), sổ địa chỉ, đơn hàng, lịch sử đấu giá, sửa thông tin, khoá tài khoản, cấp / thu hồi quyền admin, gửi link đặt lại mật khẩu |
@@ -305,8 +313,9 @@ Component dùng hook không phải sửa một dòng nào.
 
 ## 7. Hiệu năng & chất lượng
 
-- **Lần tải đầu nhẹ (~185 kB JS nén)**: trang chủ đóng gói sẵn cùng khung trang; các trang khác
-  là chunk riêng, được tải sẵn khi trình duyệt rảnh nên bấm là hiện ngay. Những thứ chưa cần lúc
+- **Lần tải đầu nhẹ (~180 kB JS nén)**: trang chủ đóng gói sẵn cùng khung trang; các trang khác
+  là chunk riêng, được tải sẵn khi trình duyệt rảnh (chờ ảnh lô đầu trang tải xong trước) nên
+  bấm là hiện ngay. Bộ ảnh phóng to + video chỉ tải ở trang chi tiết. Những thứ chưa cần lúc
   mở trang đều tải sau: thư viện form (react-hook-form + zod) chỉ ở trang có form, "bộ não" bot chat
   chỉ khi khách gửi tin đầu tiên, phần hiệu ứng của framer-motion (`LazyMotion`), và axios chỉ khi
   nối backend thật.
@@ -321,10 +330,11 @@ Component dùng hook không phải sửa một dòng nào.
 - **Lazy-load ảnh** (`loading="lazy"` + `width`/`height` chống layout shift).
 - **Skeleton loading** cho mọi danh sách, không nhảy layout khi dữ liệu về.
 - **Một timer duy nhất** cho tất cả đồng hồ đếm ngược (`useSyncExternalStore`).
-- **TypeScript strict, không dùng `any`.** ESLint sạch, không có `eslint-disable` che lỗi.
+- **TypeScript strict, không dùng `any`.** ESLint sạch; chỉ một chỗ tắt luật có ghi lý do (video
+  giới thiệu do shop tự quay, không có lời thoại nên không kèm phụ đề).
 - **Accessibility:** label cho mọi input, `alt` cho ảnh, `aria-*` đúng vai trò, điều hướng bàn
-  phím (Escape đóng modal/drawer, mũi tên chọn gợi ý tìm kiếm), link "Bỏ qua điều hướng",
+  phím (Escape đóng modal/drawer/khung xem ảnh, mũi tên chọn gợi ý tìm kiếm và đổi ảnh), link "Bỏ qua điều hướng",
   `focus-visible` rõ trên nền tối, tôn trọng `prefers-reduced-motion`.
 - **Không tự vẽ ảnh**: chỗ nào chưa có ảnh thật (feed mẫu, từng con, phiên đấu giá, bài blog) thì
   hiện khung trống; khi nối backend ảnh lấy từ database. Feed mới nhất dùng ảnh lô thật của shop
-  (`public/feeds/`); admin tải ảnh thật lên khi đăng feed (không bắt buộc).
+  (`public/feeds/`); admin tải ảnh / video thật lên khi đăng feed hoặc sửa từng con (không bắt buộc).

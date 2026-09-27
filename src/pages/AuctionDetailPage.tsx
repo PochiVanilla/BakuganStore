@@ -16,10 +16,11 @@ import {
   Container,
   Countdown,
   EmptyState,
-  ImageGallery,
   Seo,
   Skeleton,
 } from '@/components/ui';
+// Chỉ hai trang chi tiết dùng bộ ảnh phóng to — import thẳng để khỏi dồn vào gói tải đầu.
+import { MediaGallery } from '@/components/ui/MediaGallery';
 import { BidForm } from '@/features/auction/BidForm';
 import { useAuctionSocket, type AuctionSocketEvent } from '@/features/auction/useAuctionSocket';
 import {
@@ -159,7 +160,7 @@ export default function AuctionDetailPage() {
 
         <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
           <div>
-            <ImageGallery images={auction.images} alt={auction.title} />
+            <MediaGallery photos={auction.images} alt={auction.title} />
 
             <section className="mt-8 rounded-2xl border border-white/8 bg-surface/60 p-6">
               <h2 className="mb-3 font-display text-base font-bold text-text">Mô tả sản phẩm</h2>

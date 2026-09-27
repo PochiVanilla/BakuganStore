@@ -105,9 +105,6 @@ export default function HomePage() {
         liveAuctions={liveAuctions.length}
       />
 
-      {/* Chọn theo hệ chiến đấu — ngay dưới phần đầu trang */}
-      <AttributeGrid />
-
       {/* Feed bán — tối đa 10 feed trên trang chủ (1 ở trên + 9 ở băng trượt này) */}
       <section className="py-10 sm:py-14" aria-labelledby="home-feeds">
         <Container>
@@ -160,6 +157,9 @@ export default function HomePage() {
           )}
         </Container>
       </section>
+
+      {/* Chọn theo hệ chiến đấu — ngay dưới các feed */}
+      <AttributeGrid />
 
       {/* Tư vấn cho người mới */}
       <section className="py-6 sm:py-10">

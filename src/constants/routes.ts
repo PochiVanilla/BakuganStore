@@ -4,6 +4,8 @@ export const ROUTES = {
   /** Feed bán: mỗi feed là một lô Bakugan, mỗi con một mã riêng */
   feeds: '/feed',
   feedDetail: (number: number, code?: string) => `/feed/${number}${code ? `#${code}` : ''}`,
+  /** Trang riêng của một con Bakugan: 3 ảnh phóng to được + video giới thiệu */
+  itemDetail: (code: string) => `/bakugan/${code}`,
   auctions: '/dau-gia',
   auctionDetail: (id: string) => `/dau-gia/${id}`,
   blog: '/blog',

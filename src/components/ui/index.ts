@@ -9,7 +9,6 @@ export { Modal } from './Modal';
 export { Drawer } from './Drawer';
 export { ToastViewport } from './Toast';
 export { Countdown } from './Countdown';
-export { ImageGallery } from './ImageGallery';
 export { RefImage } from './RefImage';
 export { Pagination } from './Pagination';
 export { SnapSlider } from './SnapSlider';

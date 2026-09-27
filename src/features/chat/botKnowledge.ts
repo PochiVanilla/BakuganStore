@@ -270,13 +270,11 @@ export function describeFeed(feed: BotFeedFact): string {
   return `Feed #${feed.number} "${feed.title}": ${state}, còn ${feed.availableCount}/${feed.itemCount} con${price}`;
 }
 
-/** Nút mở đúng con Bakugan trong feed (trang tự cuộn tới và làm nổi con đó). */
-export function itemLink(
-  item: Pick<BotItemFact, 'code' | 'name' | 'price' | 'feedNumber'>,
-): ChatLink {
+/** Nút mở trang riêng của con Bakugan (ảnh, video, thêm vào giỏ). */
+export function itemLink(item: Pick<BotItemFact, 'code' | 'name' | 'price'>): ChatLink {
   return {
     label: `${item.code} · ${item.name} · ${formatCurrency(item.price)}`,
-    to: ROUTES.feedDetail(item.feedNumber, item.code),
+    to: ROUTES.itemDetail(item.code),
   };
 }
 

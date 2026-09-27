@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CircleCheck, Pencil, RotateCcw, Trash2 } from 'lucide-react';
+import { Camera, CircleCheck, Film, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import type { AdminItem, BakuganAttribute, BakuganSeries, ProductCondition } from '@/types';
 import { BAKUGAN_ATTRIBUTES, BAKUGAN_SERIES, PRODUCT_CONDITIONS } from '@/types';
-import { ADMIN_ROUTES } from '@/constants/routes';
+import { ADMIN_ROUTES, ROUTES } from '@/constants/routes';
 import { ATTRIBUTE_META, CONDITION_LABELS, SERIES_META } from '@/constants/catalog';
 import {
   deleteItem,
@@ -32,6 +32,8 @@ import {
   td,
   th,
 } from '@/features/admin/adminUi';
+import { ItemMediaEditor, type ItemMedia } from '@/features/admin/ItemMediaEditor';
+import { useUploader } from '@/features/admin/useUploader';
 
 const FILTERS: ReadonlyArray<{ value: AdminItemFilter; label: string }> = [
   { value: 'all', label: 'Tất cả' },
@@ -158,6 +160,8 @@ function EditItemForm({ item, onDone }: { item: AdminItem; onDone: () => void })
   const [condition, setCondition] = useState<ProductCondition>(item.condition);
   const [conditionNote, setConditionNote] = useState(item.conditionNote ?? '');
   const [gPower, setGPower] = useState(item.gPower ? String(item.gPower) : '');
+  const [media, setMedia] = useState<ItemMedia>({ photos: [...item.images], video: item.video });
+  const { upload, isUploading } = useUploader();
   const [busy, setBusy] = useState(false);
 
   const submit = async (): Promise<void> => {
@@ -172,7 +176,8 @@ function EditItemForm({ item, onDone }: { item: AdminItem; onDone: () => void })
         condition,
         conditionNote,
         gPower: gPower ? Number(gPower) : undefined,
-        photo: item.hasOwnPhoto ? item.image : undefined,
+        photos: media.photos,
+        video: media.video,
       });
       toast.success('Đã lưu', code);
       onDone();
@@ -273,9 +278,20 @@ function EditItemForm({ item, onDone }: { item: AdminItem; onDone: () => void })
           className={fieldClass}
         />
       </label>
+      <div>
+        <p className="mb-1.5 text-xs text-text-muted">
+          Ảnh & video — tối đa 3 ảnh (ảnh chính hiện trên thẻ) và 1 video giới thiệu
+        </p>
+        <ItemMediaEditor
+          media={media}
+          onChange={setMedia}
+          upload={upload}
+          label={name || item.code}
+        />
+      </div>
       <div className="flex justify-end pt-1">
-        <Button isLoading={busy} onClick={() => void submit()}>
-          Lưu
+        <Button isLoading={busy} disabled={isUploading} onClick={() => void submit()}>
+          {isUploading ? 'Đang tải file…' : 'Lưu'}
         </Button>
       </div>
     </div>
@@ -422,7 +438,18 @@ export default function ItemsAdminPage() {
                 return (
                   <tr key={item.id} className="hover:bg-white/3">
                     <td className={cn(td, 'font-mono text-xs font-bold text-accent-cyan')}>
-                      {item.code}
+                      {item.feedId ? (
+                        <Link
+                          to={ROUTES.itemDetail(item.code)}
+                          target="_blank"
+                          title="Xem trang của con này trên web"
+                          className="hover:underline"
+                        >
+                          {item.code}
+                        </Link>
+                      ) : (
+                        item.code
+                      )}
                     </td>
                     <td className={td}>
                       <p className="max-w-56 truncate font-medium">{item.name}</p>
@@ -430,6 +457,17 @@ export default function ItemsAdminPage() {
                         <AttributeBadge attribute={item.attribute} size="sm" />
                         <span className="text-[11px] text-text-muted">
                           {CONDITION_LABELS[item.condition]}
+                        </span>
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1 text-[11px]',
+                            item.images.length > 0 ? 'text-text-muted' : 'text-warning',
+                          )}
+                          title={`${item.images.length}/3 ảnh${item.video ? ', có video' : ', chưa có video'}`}
+                        >
+                          <Camera size={11} aria-hidden="true" />
+                          {item.images.length}/3
+                          {item.video && <Film size={11} aria-label="có video" />}
                         </span>
                       </div>
                     </td>

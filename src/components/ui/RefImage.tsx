@@ -1,5 +1,5 @@
 import type { ImgHTMLAttributes } from 'react';
-import { useImageSrc } from '@/hooks/useImageSrc';
+import { useMediaSrc } from '@/hooks/useMediaSrc';
 import { cn } from '@/utils/cn';
 
 /** Ảnh lô chụp sẵn trong public/feeds có thêm bản 640px và 960px (VD lo-mau-01-640.webp). */
@@ -23,7 +23,7 @@ export function RefImage({
   srcSet,
   ...rest
 }: Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & { src: string | undefined; alt: string }) {
-  const url = useImageSrc(src);
+  const url = useMediaSrc(src);
   // Chưa có ảnh (hoặc đang đọc ảnh tải lên) -> khung trống đúng kích thước, không vẽ gì.
   if (!url) {
     return <span role="img" aria-label={alt} className={cn('block bg-surface-2', className)} />;

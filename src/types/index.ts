@@ -45,6 +45,9 @@ export interface ProductAccessory {
 export const ITEM_STATUSES = ['available', 'sold'] as const;
 export type ItemStatus = (typeof ITEM_STATUSES)[number];
 
+/** Mỗi con có tối đa ngần này ảnh riêng (kèm một video giới thiệu) */
+export const ITEM_PHOTO_LIMIT = 3;
+
 /** Một con Bakugan duy nhất */
 export interface BakuganItem {
   id: string;
@@ -60,9 +63,12 @@ export interface BakuganItem {
   /** Tình trạng riêng của con này: trầy nhẹ, lỏng khớp, thiếu thẻ… */
   conditionNote?: string;
   gPower?: number;
-  /** Ảnh riêng của con này; chưa có ảnh thì rỗng (giao diện để khung trống) */
+  /** Ảnh riêng của con này (tối đa 3), ảnh đầu là ảnh chính; rỗng khi chưa có ảnh */
+  images: string[];
+  /** Ảnh chính (= images[0]); chưa có ảnh thì rỗng (giao diện để khung trống) */
   image: string;
-  hasOwnPhoto: boolean;
+  /** Video giới thiệu do admin đăng, luôn đứng cuối trong bộ ảnh */
+  video?: string;
   status: ItemStatus;
   soldAt?: string;
   /** Feed đang chứa con này; trống nghĩa là hàng tồn chưa được đăng lại */
@@ -102,6 +108,12 @@ export interface FeedPost {
   /** Giá thấp nhất – cao nhất của những con còn bán */
   priceRange?: { min: number; max: number };
   items: BakuganItem[];
+}
+
+/** Trang riêng của một con: con đó + feed đang chứa nó (để gợi ý xem các con khác) */
+export interface ItemDetail {
+  item: BakuganItem;
+  feed: FeedPost;
 }
 
 export const FEED_STATUS_FILTERS = ['all', 'selling', 'upcoming', 'sold-out'] as const;
