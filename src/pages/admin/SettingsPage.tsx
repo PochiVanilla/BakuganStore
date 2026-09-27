@@ -438,7 +438,15 @@ function MembershipSettingsForm({ initial }: { initial: ShopSettings }) {
 
     setIsSaving(true);
     try {
-      await updateShopSettings({ memberDepositAmount: parsed, bank: { ...bank, accountNumber } });
+      const saved = {
+        bankName: bank.bankName.trim(),
+        accountNumber,
+        accountHolder: bank.accountHolder.trim().toUpperCase(),
+      };
+      await updateShopSettings({ memberDepositAmount: parsed, bank: saved });
+      // Hiện lại đúng giá trị đã lưu (bỏ dấu cách, tên chủ tài khoản viết hoa).
+      setBank(saved);
+      setAmount(String(parsed));
       toast.success('Đã lưu cài đặt thành viên & thanh toán');
     } catch (saveError) {
       toast.error('Không lưu được', getApiErrorMessage(saveError));

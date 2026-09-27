@@ -4,7 +4,11 @@ Website thương mại điện tử cho shop **TD Bakugan** (chuyên đồ chơi
 Giai đoạn này là **frontend thuần**, chạy hoàn toàn trên mock data, nhưng kiến trúc đã sẵn sàng
 nối với backend TypeScript (Node.js) — chỉ cần đổi biến môi trường, không phải sửa component.
 
-Giao diện: dark mode, neon/glow theo bộ nhận diện của logo (tím/hồng/cyan + mặt trăng vàng).
+Shop **bán theo feed**: mỗi feed là một lô hàng (ảnh chụp cả lô + danh sách từng con), mỗi con
+Bakugan là **duy nhất** — có tên và mã riêng (`BK-0231`), tình trạng riêng, không có số lượng; bán
+rồi hiện **SOLD**. Sàn đấu giá chỉ dành cho **thành viên Lv2**, không công khai tên người đặt.
+
+Giao diện: dark mode, neon/glow theo logo TD (tím/cyan + trăng khuyết vàng).
 Toàn bộ nội dung bằng tiếng Việt, tiền tệ VND (`1.250.000₫`).
 
 ---
@@ -51,11 +55,12 @@ npm run dev        # http://localhost:3000
 
 | Vai trò | Email | Mật khẩu |
 | --- | --- | --- |
-| Khách hàng | `demo@tdbakugan.vn` | bất kỳ từ 8 ký tự (VD `Bakugan123`) |
+| Khách thành viên Lv2 (đã mua nhiều, đấu giá được) | `demo@tdbakugan.vn` | `Bakugan123` |
+| Khách mới Lv1 (chưa đấu giá được) | `khachmoi@tdbakugan.vn` | `Bakugan123` |
 | Quản trị | `admin@tdbakugan.vn` | `TdAdmin@2026` (phải đúng) |
 
 Ở chế độ mock, mọi email đúng định dạng + mật khẩu ≥ 8 ký tự đều đăng nhập được với vai trò
-khách. Trang đăng nhập có nút điền sẵn cả hai tài khoản (chỉ hiện khi `VITE_USE_MOCK` bật).
+khách. Trang đăng nhập có nút điền sẵn các tài khoản trên (chỉ hiện khi `VITE_USE_MOCK` bật).
 
 ---
 
@@ -103,9 +108,9 @@ Endpoint tự thử lần lượt `GEMINI_MODEL` (nếu có) → `gemini-flash-l
 
 Chưa có khoá, hết hạn mức miễn phí hoặc Gemini lỗi → bot tự lùi về bộ trả lời theo từ khoá
 (`src/features/chat/ruleBot.ts`). Bộ này hiểu câu có dấu / không dấu và kiểu viết tắt khi chat
-("ko", "dc", "sp", "bh"…), trả lời được: tra đơn, gợi ý mẫu theo hệ / dòng / tầm giá / rẻ nhất /
-mạnh nhất / hàng mới, phí và thời gian ship, thanh toán, đổi trả, luật đấu giá, mã giảm giá, địa
-chỉ, kiến thức Bakugan. Câu chưa hiểu thì bot hỏi lại kèm gợi ý; hỏi lại vẫn không hiểu mới chuyển
+("ko", "dc", "sp", "bh"…), trả lời được: tra đơn, con nào còn / đã SOLD (theo tên hoặc mã BK),
+feed nào đang / sắp mở bán, gợi ý theo hệ / dòng / tầm giá / rẻ nhất / mạnh nhất, cách lên Lv2,
+phí và thời gian ship, thanh toán, đổi trả, luật đấu giá, mã giảm giá, địa chỉ, kiến thức Bakugan. Câu chưa hiểu thì bot hỏi lại kèm gợi ý; hỏi lại vẫn không hiểu mới chuyển
 nhân viên. Chạy thử ở máy: tạo `.env.local` có `GEMINI_API_KEY=...` rồi `npm run dev` (dev server
 tự chạy luôn `api/chat-bot.ts`).
 
@@ -121,25 +126,27 @@ src/
 │   └── providers/           # HelmetProvider, BrowserRouter
 ├── components/
 │   ├── ui/                  # Button, Input, Card, Badge, Modal, Drawer, Toast,
-│   │                        # Skeleton, Countdown, Rating, Pagination, Seo…
+│   │                        # Skeleton, Countdown, ImageGallery, RefImage, Pagination, Seo…
 │   └── layout/              # Header, Footer, MobileMenu, Logo, SearchBox, AccountMenu
 ├── features/                # Theo nghiệp vụ, mỗi feature tự chứa logic + UI
 │   ├── auth/                # schemas.ts (Zod), AuthLayout, PasswordStrengthMeter,
 │   │                        # ProtectedRoute, legalContent
-│   ├── products/            # ProductCard, ProductFilters, ProductGallery,
-│   │                        # ProductTabs, useProductFilters
-│   ├── auction/             # AuctionCard, BidForm, useAuctionSocket
+│   ├── feed/                # FeedCard, FeedGallery, ItemCard (SOLD, mã BK), FeedProgress
+│   ├── auction/             # AuctionCard, BidForm (chặn Lv1), useAuctionSocket
 │   ├── cart/                # MiniCart (drawer)
+│   ├── chat/                # ChatWidget, ruleBot, consultFlow (tư vấn chọn Bakugan), botActions
+│   ├── admin/               # AdminLayout, adminUi, schemas
 │   ├── blog/                # BlogCard
-│   ├── account/             # 5 tab: Profile, Address, Orders, BidHistory, ChangePassword
+│   ├── account/             # Tab: Profile, Address, Orders, BidHistory, Membership, ChangePassword
 │   └── home/                # Hero, CategoryGrid, Commitments
 ├── pages/                   # 1 file = 1 route, export default để lazy-load
 ├── services/api/            # Axios instance + service theo domain (hiện trả mock)
-├── mocks/                   # 32 sản phẩm, 6 phiên đấu giá, 6 bài blog, đơn hàng, coupon
+├── mocks/                   # db.ts (kho dữ liệu localStorage), seed.ts (28 feed, ~400 con,
+│                            # khách, đơn, hạng thành viên), models.ts, đấu giá, blog, coupon
 ├── store/                   # Zustand: cart, wishlist, auth, ui (toast/menu)
 ├── hooks/                   # useAsync, useCountdown, useDebouncedValue, useMediaQuery,
 │                            # useClickOutside, useLockBodyScroll, useLatestRef
-├── types/                   # Product, Auction, Bid, User, CartItem, Order, BlogPost…
+├── types/                   # FeedPost, BakuganItem, Auction, User, CartItem, Order, BlogPost…
 ├── constants/               # routes.ts (URL tiếng Việt), catalog.ts (nhãn hệ/series…)
 ├── utils/                   # formatCurrency, slugify, cn, placeholder (SVG data-URI)
 └── styles/globals.css       # Tailwind v4 @theme: màu, font, glow, animation
@@ -151,21 +158,59 @@ src/
 
 | Route | Trang |
 | --- | --- |
-| `/` | Trang chủ: hero neon, danh mục theo hệ & series, hàng mới, đấu giá đang diễn ra (đếm ngược), bán chạy, blog, cam kết |
-| `/san-pham` | Lưới/danh sách + sidebar lọc (hệ, series, tình trạng, giá, G-Power, còn hàng, giảm giá), sắp xếp, phân trang |
-| `/san-pham/:slug` | Gallery zoom, thông tin sưu tầm, phụ kiện kèm theo, tab Mô tả/Thông số/Đánh giá, sản phẩm liên quan |
-| `/hang-moi` | Sản phẩm nhập trong 30 ngày, nhãn **NEW** phát sáng |
+| `/` | Màn intro (chạm bất kỳ đâu để vào ngay), feed mới nhất + tối đa **10 feed**, nút **Tư vấn chọn Bakugan**, lọc theo hệ, đấu giá, cách lên Lv2, blog, cam kết |
+| `/feed` | Mọi feed trên web (tối đa 30): lọc đang bán / sắp mở bán / đã bán hết, theo hệ, tìm theo tên / mã BK |
+| `/feed/:number` | Ảnh cả lô (phóng to), danh sách từng con: mã BK, tình trạng riêng, SOLD, thêm vào giỏ; `#BK-0231` cuộn tới đúng con đó |
 | `/dau-gia` | Danh sách phiên: đang diễn ra / sắp diễn ra / đã kết thúc + thể lệ |
-| `/dau-gia/:id` | Đếm ngược, lịch sử đặt giá (ẩn tên), ô đặt giá có validate, cảnh báo bị vượt giá, yêu cầu đăng nhập |
-| `/gio-hang` | Tăng/giảm/xoá, mã giảm giá, tạm tính, phí ship, tổng cộng |
-| `/yeu-thich` | Lưới đã thích, thêm tất cả vào giỏ |
+| `/dau-gia/:id` | Đếm ngược, giá cao nhất + **số người đã đặt** (không lộ tên ai), lượt đặt của chính mình, cảnh báo bị vượt giá; khách Lv1 thấy 3 cách lên Lv2 |
+| `/gio-hang` | Từng con một (không có số lượng), tự loại con vừa có người mua, mã giảm giá, **chốt đơn trên web** (COD / chuyển khoản / MoMo) |
+| `/yeu-thich` | Những con đã thích, còn bán hay đã SOLD |
 | `/blog`, `/blog/:slug` | Tìm kiếm, lọc theo danh mục & thẻ, bài nổi bật, bài liên quan |
-| `/gioi-thieu` | Câu chuyện shop, cột mốc, cam kết |
 | `/lien-he` | Form có validate, Zalo/Messenger, bản đồ nhúng |
-| `/tai-khoan` | **Route bảo vệ** — 5 tab: thông tin, sổ địa chỉ, đơn hàng, lịch sử đấu giá, đổi mật khẩu |
+| `/tai-khoan` | **Route bảo vệ** — thông tin, sổ địa chỉ, đơn hàng, lịch sử đấu giá, **hạng thành viên**, đổi mật khẩu |
 | `/dang-nhap`, `/dang-ky`, `/quen-mat-khau` | Xác thực |
 | `/dieu-khoan`, `/chinh-sach-bao-mat`, `/chinh-sach-van-chuyen`, `/chinh-sach-doi-tra` | Trang chính sách |
 | `*` | 404 theo phong cách thương hiệu |
+
+Link cũ `/san-pham`, `/san-pham/*`, `/hang-moi` tự chuyển về `/feed`; `/gioi-thieu` (đã bỏ) về
+trang chủ.
+
+### Bán theo feed
+
+- **Feed** = một lô: 1–6 ảnh chụp cả lô (ảnh đầu là ảnh bìa) + danh sách từng con. Feed có thể
+  **mở bán ngay** hoặc **hẹn giờ** (VD 20:00) — trước giờ đó khách xem trước danh sách nhưng chưa
+  thêm vào giỏ được.
+- **Mỗi con là duy nhất**: chủ shop đặt tên, mã BK tự cấp (hoặc tự gõ), hệ, dòng, tình trạng +
+  ghi chú riêng (trầy nhẹ, lỏng khớp…), G-Power, ảnh riêng nếu có. Khách chốt đơn → con đó
+  chuyển **SOLD** ngay; đơn huỷ / hoàn thì con đó được mở bán lại.
+- **Tối đa 30 feed trên web.** Đăng feed thứ 31 → web hỏi admin xác nhận xoá feed cũ nhất, báo
+  feed đó đã bán hết chưa; nếu còn con chưa bán thì liệt kê ra và cho **đưa luôn vào feed mới**
+  (bỏ chọn thì chúng nằm ở "Hàng tồn" để đăng sau). Lịch sử bán và đơn hàng của feed cũ vẫn giữ.
+- Ở bản mock, ảnh admin tải lên được thu nhỏ (cạnh dài 1600px, WebP) và lưu trong IndexedDB của
+  trình duyệt; khi có backend thì thay `src/services/api/imageStore.ts` bằng upload lên kho ảnh.
+
+### Hạng thành viên (đấu giá)
+
+Tài khoản mới là **Lv1** — mua hàng bình thường. Muốn đặt giá đấu giá phải lên **Lv2** bằng
+**một trong ba cách**:
+
+1. Nhận đủ **3 con** mua ở TD shop (tính khi đơn hoàn tất) — tự lên hạng.
+2. **Nạp tiền thành viên** (mặc định 500.000₫, đổi ở `/admin/cai-dat`): khách chuyển khoản theo
+   nội dung `TDLV2 <SĐT>` rồi bấm "Tôi đã chuyển khoản", admin đối soát và duyệt.
+3. Gửi yêu cầu để **admin xét duyệt** (khách quen, mua tại shop…).
+
+Khách xem tiến độ ở **Tài khoản → Hạng thành viên**. Việc chặn đặt giá được kiểm tra ở tầng
+"server" (`placeBid`), không chỉ ở giao diện.
+
+### Trợ lý AI tư vấn chọn Bakugan
+
+Nút **Tư vấn chọn Bakugan** (trang chủ, khung chat) mở chat và hỏi khách mới 4 câu có nút trả lời
+nhanh: mua để làm gì → thích hệ nào (kèm màu, tính cách từng hệ) → ngân sách → tình trạng. Khách
+cũng gõ tự do được ("xanh lá", "tầm 1tr5", "cũ cũng được"), nói sẵn trong câu đầu ("tư vấn con hệ
+lửa dưới 500k") thì bot bỏ qua câu đã biết. Cuối cùng bot gợi ý tối đa 3 con **đang còn bán**, nêu
+lý do, kèm nút mở đúng con đó trong feed; không có con khớp đủ thì nói rõ đã nới tiêu chí nào.
+Phần này chạy bằng luật cố định (`src/features/chat/consultFlow.ts`) nên trả lời ngay, không tốn
+hạn mức Gemini.
 
 ### Khu vực quản trị (`/admin`)
 
@@ -174,18 +219,19 @@ vào đây; menu tài khoản ở cửa hàng cũng có mục "Trang quản tr�
 
 | Route | Trang |
 | --- | --- |
-| `/admin` | Bảng điều khiển: doanh thu, số đơn, tỉ lệ huỷ (so với kỳ trước), việc cần xử lý, biểu đồ doanh thu 14 ngày, đơn theo trạng thái, hàng sắp hết |
+| `/admin` | Bảng điều khiển: doanh thu, số đơn, tỉ lệ huỷ (so với kỳ trước), việc cần xử lý (gồm yêu cầu lên Lv2), biểu đồ doanh thu 14 ngày, đơn theo trạng thái, tình hình feed (đang bán, đã bán hết, hàng tồn, x/30 feed) |
 | `/admin/don-hang` | Mọi đơn (web / đấu giá / admin tạo): lọc trạng thái, nguồn, thời gian, tìm kiếm, xuất CSV |
-| `/admin/don-hang/:id` | Đổi trạng thái theo đúng quy trình, huỷ có lý do (tự trả hàng về kho), hoàn hàng, xác nhận tiền / hoàn tiền, báo sự cố, ghi chú nội bộ, lịch sử xử lý |
-| `/admin/don-hang/tao-moi` | Tạo đơn cho khách có tài khoản hoặc khách lẻ, chọn địa chỉ, thêm sản phẩm (kiểm tồn kho), sửa đơn giá, phí ship, giảm giá |
+| `/admin/don-hang/:id` | Đổi trạng thái theo đúng quy trình, huỷ có lý do (các con trong đơn được mở bán lại), hoàn hàng, xác nhận tiền / hoàn tiền, báo sự cố, ghi chú nội bộ, lịch sử xử lý |
+| `/admin/don-hang/tao-moi` | Tạo đơn cho khách có tài khoản hoặc khách lẻ (VD chốt qua Zalo), chọn từng con theo tên / mã BK, sửa giá, phí ship, giảm giá |
 | `/admin/dau-gia` | Phiên đang chạy, phiên thắng chờ tạo đơn (liên hệ người thắng), tạo đơn đấu giá, đánh dấu bỏ cọc. Admin thấy cả giá phiên kín |
-| `/admin/kho-hang` | Số lượng Bakugan theo mẫu và theo hệ, cảnh báo sắp hết / hết hàng, +/- nhanh, thêm & sửa sản phẩm, ẩn khỏi cửa hàng, xuất CSV |
-| `/admin/nhap-hang` | Lập phiếu nhập (cộng tồn kho), báo cáo nhập theo tháng / nhà cung cấp / hệ, giá vốn trung bình, xuất CSV |
+| `/admin/feed` | **Giám sát theo feed**: x/30 feed, danh sách **feed đã bán hết** (gỡ khỏi web một chạm), mỗi feed đã bán bao nhiêu, doanh thu, giá nhập lô, lãi; xoá feed (báo con còn tồn) |
+| `/admin/feed/dang-moi`, `/admin/feed/:id` | Đăng / sửa feed: ảnh cả lô, từng con (tên gợi ý theo mẫu, mã BK tự cấp, hệ, dòng, giá, tình trạng, ghi chú, ảnh riêng), thêm từ hàng tồn, giờ mở bán, giá nhập lô |
+| `/admin/bakugan` | **Giám sát từng con**: còn bán / đã bán / hàng tồn, bán cho ai, qua đơn nào, tổng tiền đã bán; đánh dấu SOLD khi bán ngoài web, bỏ SOLD, sửa, xoá hàng tồn |
 | `/admin/huy-va-su-co` | Báo cáo đơn huỷ (theo lý do), đơn hoàn trả, sự cố giao hàng / thanh toán — nhận xử lý, đóng sự cố kèm cách giải quyết, xuất CSV |
-| `/admin/khach-hang` | Danh sách khách: số đơn, tổng chi tiêu, đăng nhập gần nhất, liên kết ngân hàng, trạng thái |
-| `/admin/khach-hang/:id` | Hồ sơ đầy đủ, sổ địa chỉ, đơn hàng, lịch sử đấu giá, sửa thông tin / thẻ / ghi chú, khoá tài khoản, cấp / thu hồi quyền admin, gửi link đặt lại mật khẩu |
+| `/admin/khach-hang` | Danh sách khách: **hạng Lv1/Lv2**, lọc **chờ duyệt Lv2**, số đơn, tổng chi tiêu, đăng nhập gần nhất, liên kết ngân hàng, trạng thái |
+| `/admin/khach-hang/:id` | Hồ sơ đầy đủ, **hạng thành viên** (duyệt / từ chối yêu cầu nạp tiền hoặc xét duyệt, cấp / hạ hạng), sổ địa chỉ, đơn hàng, lịch sử đấu giá, sửa thông tin, khoá tài khoản, cấp / thu hồi quyền admin, gửi link đặt lại mật khẩu |
 | `/admin/tin-nhan` | Hộp thư chat: cuộc cần nhân viên trả lời, nhận lời thay bot, trả lại cho bot, câu trả lời mẫu |
-| `/admin/cai-dat` | Bật/tắt trợ lý AI, chọn **những việc bot được tự giải quyết**, lời chào, ghi chú cho bot, thử bot; ngưỡng sắp hết hàng; khôi phục dữ liệu mẫu |
+| `/admin/cai-dat` | Bật/tắt trợ lý AI, chọn **những việc bot được tự giải quyết**, lời chào, ghi chú cho bot, thử bot; **số tiền nạp lên Lv2 và tài khoản nhận tiền của shop**; khôi phục dữ liệu mẫu |
 
 **Bảo mật thông tin khách:**
 
@@ -214,7 +260,11 @@ giới hạn độ dài dữ liệu và giới hạn 8 lượt/phút mỗi IP đ
 - **Đang chờ nhân viên**, bot vẫn trả lời các câu đơn giản để khách không phải đợi; khi nhân viên
   nhận cuộc chat thì bot dừng.
 
-**Dữ liệu demo:** ở chế độ mock, đơn, khách, phiếu nhập, tin nhắn… lưu trong `localStorage` của
+**Tài khoản nhận tiền của shop** để trống sẵn (không bịa số tài khoản): khi trống, trang xác
+nhận đơn và mục Hạng thành viên nhắc khách nhắn shop để nhận số tài khoản. Điền ở
+`/admin/cai-dat` → **Thành viên & thanh toán** là web hiện ngay cho khách.
+
+**Dữ liệu demo:** ở chế độ mock, feed, đơn, khách, tin nhắn… lưu trong `localStorage` của
 trình duyệt (`src/mocks/db.ts`), nên thao tác của admin còn nguyên sau khi tải lại trang và hiện
 luôn ở phía khách (VD admin tạo đơn cho `demo@tdbakugan.vn` → khách thấy trong "Đơn hàng của
 tôi"). Mở hai tab (một khách, một admin) là thấy tin nhắn cập nhật qua lại. Muốn làm lại từ đầu:
@@ -228,11 +278,9 @@ nhau chỉ chạy được khi đã nối backend thật.
 Mọi lời gọi mạng đi qua `src/services/api/`. Mỗi hàm service có sẵn **cả hai nhánh**:
 
 ```ts
-export async function fetchProducts(query: ProductQuery = {}): Promise<Paginated<Product>> {
+export async function fetchFeeds(query: FeedQuery = {}): Promise<FeedPost[]> {
   if (!USE_MOCK) {
-    const { data } = await apiClient.get<ApiResponse<Paginated<Product>>>('/products', {
-      params: query,
-    });
+    const { data } = await apiClient.get<ApiResponse<FeedPost[]>>('/feeds', { params: query });
     return data.data;            // ← nhánh HTTP thật
   }
   /* … lọc trên mock data … */   // ← nhánh mock hiện tại
@@ -257,7 +305,7 @@ Component dùng hook không phải sửa một dòng nào.
 
 ## 7. Hiệu năng & chất lượng
 
-- **Code-splitting theo route** — mỗi trang là một chunk riêng (trang nặng nhất ~19 kB).
+- **Code-splitting theo route** — mỗi trang là một chunk riêng (trang nặng nhất ~22 kB).
 - **Vendor chunk tách riêng** (react / form / motion) để cache tốt hơn giữa các lần deploy.
 - **Lazy-load ảnh** (`loading="lazy"` + `width`/`height` chống layout shift).
 - **Skeleton loading** cho mọi danh sách, không nhảy layout khi dữ liệu về.
@@ -266,5 +314,6 @@ Component dùng hook không phải sửa một dòng nào.
 - **Accessibility:** label cho mọi input, `alt` cho ảnh, `aria-*` đúng vai trò, điều hướng bàn
   phím (Escape đóng modal/drawer, mũi tên chọn gợi ý tìm kiếm), link "Bỏ qua điều hướng",
   `focus-visible` rõ trên nền tối, tôn trọng `prefers-reduced-motion`.
-- **Ảnh sản phẩm là SVG placeholder sinh tại chỗ** (`src/utils/placeholder.ts`) — không dùng
-  hình nhân vật có bản quyền, không phụ thuộc mạng. Khi có ảnh thật chỉ cần thay `product.images`.
+- **Ảnh minh hoạ là SVG sinh tại chỗ** (`src/utils/placeholder.ts`) — không dùng hình nhân vật
+  có bản quyền, không phụ thuộc mạng; có ghi "ảnh minh hoạ". Feed mới nhất dùng ảnh lô thật của
+  shop (`public/feeds/`); admin tải ảnh thật lên khi đăng feed.

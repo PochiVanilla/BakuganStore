@@ -126,7 +126,7 @@ function ItemCardComponent({
           </p>
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 pt-3">
           <p
             className={cn(
               'font-display text-base font-extrabold',
@@ -136,11 +136,11 @@ function ItemCardComponent({
             {formatCurrency(item.price)}
           </p>
           {isSold ? (
-            <span className="rounded-lg bg-danger/12 px-2.5 py-1.5 text-xs font-bold text-danger">
+            <span className="rounded-lg bg-danger/12 px-2.5 py-1.5 text-xs font-bold whitespace-nowrap text-danger">
               Đã bán
             </span>
           ) : isUpcoming ? (
-            <span className="rounded-lg bg-gold/12 px-2.5 py-1.5 text-xs font-semibold text-gold">
+            <span className="rounded-lg bg-gold/12 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-gold">
               Chưa mở bán
             </span>
           ) : (
@@ -148,7 +148,7 @@ function ItemCardComponent({
               type="button"
               onClick={handleAdd}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition',
+                'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap transition',
                 inCart
                   ? 'border border-success/45 bg-success/12 text-success'
                   : 'gradient-cta text-white hover:brightness-110',

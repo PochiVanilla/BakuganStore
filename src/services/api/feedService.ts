@@ -48,11 +48,6 @@ export async function fetchFeeds(query: FeedQuery = {}): Promise<FeedPost[]> {
   return mockDelay(query.limit ? feeds.slice(0, query.limit) : feeds, 240);
 }
 
-/** Trang chủ: tối đa 10 feed mới nhất. */
-export async function fetchLatestFeeds(limit = 10): Promise<FeedPost[]> {
-  return fetchFeeds({ limit });
-}
-
 export async function fetchFeedByNumber(number: number): Promise<FeedPost> {
   if (!USE_MOCK) {
     const { data } = await apiClient.get<ApiResponse<FeedPost>>(`/feeds/${number}`);

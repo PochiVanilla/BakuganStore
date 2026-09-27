@@ -12,7 +12,7 @@ import {
 import { ROUTES } from '@/constants/routes';
 import { CONSULT_STARTER } from '@/constants/chat';
 import { HOME_FEED_LIMIT, PURCHASES_FOR_LV2 } from '@/constants/catalog';
-import { fetchLatestFeeds } from '@/services/api/feedService';
+import { fetchFeeds } from '@/services/api/feedService';
 import { fetchAuctions } from '@/services/api/auctionService';
 import { fetchLatestPosts } from '@/services/api/blogService';
 import { useAsync } from '@/hooks/useAsync';
@@ -72,17 +72,17 @@ const LEVEL_UP_WAYS = [
 export default function HomePage() {
   const revision = useLiveRevision();
   const openChat = useUIStore((state) => state.openChat);
-  const feeds = useAsync(() => fetchLatestFeeds(HOME_FEED_LIMIT), [revision], {
-    keepPreviousData: true,
-  });
+  // Lấy cả danh sách (tối đa 30 feed) để đếm đúng số liệu; trang chủ chỉ hiện 10 feed mới nhất.
+  const feeds = useAsync(() => fetchFeeds(), [revision], { keepPreviousData: true });
   const auctions = useAsync(() => fetchAuctions(), []);
   const posts = useAsync(() => fetchLatestPosts(3), []);
 
-  const [latestFeed, ...otherFeeds] = feeds.data ?? [];
+  const allFeeds = feeds.data ?? [];
+  const [latestFeed, ...otherFeeds] = allFeeds.slice(0, HOME_FEED_LIMIT);
   const liveAuctions = (auctions.data ?? []).filter((auction) => auction.status === 'live');
   const upcomingAuctions = (auctions.data ?? []).filter((auction) => auction.status === 'upcoming');
   const highlightAuctions = [...liveAuctions, ...upcomingAuctions].slice(0, 3);
-  const availableCount = (feeds.data ?? []).reduce(
+  const availableCount = allFeeds.reduce(
     (sum, feed) => sum + (feed.status === 'upcoming' ? 0 : feed.itemCount - feed.soldCount),
     0,
   );
@@ -99,7 +99,7 @@ export default function HomePage() {
         latestFeed={latestFeed}
         isLoading={feeds.isLoading && !feeds.data}
         availableCount={availableCount}
-        feedCount={feeds.data?.length ?? 0}
+        feedCount={allFeeds.length}
         liveAuctions={liveAuctions.length}
       />
 

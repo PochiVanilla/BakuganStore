@@ -127,8 +127,10 @@ export default function AuctionDetailPage() {
   const isEnded = auction.status === 'ended';
   /** Phiên kín chỉ lộ giá sau khi đã kết thúc. */
   const showPrice = !isSealed || isEnded;
-  const myHighestBid = Math.max(0, ...auction.myBids.map((bid) => bid.amount));
-  const isLeading = auction.viewerIsLeading;
+  // Chỉ tin phần "của bạn" khi giao diện cũng đang đăng nhập (phòng khi phiên lệch nhau).
+  const myBids = user ? auction.myBids : [];
+  const myHighestBid = Math.max(0, ...myBids.map((bid) => bid.amount));
+  const isLeading = Boolean(user) && auction.viewerIsLeading;
 
   return (
     <>
@@ -333,15 +335,15 @@ export default function AuctionDetailPage() {
             <section className="mt-6 rounded-2xl border border-white/8 bg-surface/60 p-5">
               <h2 className="mb-3 inline-flex items-center gap-2 font-display text-base font-bold text-text">
                 <Gavel size={17} className="text-accent-cyan" aria-hidden="true" />
-                Lượt đặt của bạn ({auction.myBids.length})
+                Lượt đặt của bạn ({myBids.length})
               </h2>
-              {auction.myBids.length === 0 ? (
+              {myBids.length === 0 ? (
                 <p className="py-3 text-sm text-text-muted">
                   {user ? 'Bạn chưa đặt giá ở phiên này.' : 'Đăng nhập để xem lượt đặt của bạn.'}
                 </p>
               ) : (
                 <ol className="max-h-64 divide-y divide-white/6 overflow-y-auto">
-                  {auction.myBids.map((bid, index) => (
+                  {myBids.map((bid, index) => (
                     <li
                       key={`${bid.createdAt}-${bid.amount}`}
                       className="flex items-center justify-between gap-3 py-2.5"
