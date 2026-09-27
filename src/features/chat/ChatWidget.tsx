@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { Headset, MessageCircle, SendHorizontal, X } from 'lucide-react';
 import type { ChatConversation, ChatMessage } from '@/types';
 import {
@@ -239,7 +239,7 @@ export function ChatWidget() {
     <>
       <AnimatePresence>
         {isOpen && (
-          <motion.section
+          <m.section
             key="chat-panel"
             role="dialog"
             aria-label="Trò chuyện với TD Bakugan"
@@ -392,7 +392,7 @@ export function ChatWidget() {
                 </button>
               )}
             </form>
-          </motion.section>
+          </m.section>
         )}
       </AnimatePresence>
 

@@ -158,7 +158,7 @@ src/
 
 | Route | Trang |
 | --- | --- |
-| `/` | Màn intro (chạm bất kỳ đâu để vào ngay), feed mới nhất + tối đa **10 feed**, nút **Tư vấn chọn Bakugan**, lọc theo hệ, đấu giá, cách lên Lv2, blog, cam kết |
+| `/` | Màn intro (chỉ lần đầu trên mỗi máy, chạm bất kỳ đâu để vào ngay), feed mới nhất, **chọn theo hệ chiến đấu**, băng **feed trượt ngang** (vuốt / kéo chuột / mũi tên, tổng tối đa 10 feed), nút **Tư vấn chọn Bakugan**, đấu giá, cách lên Lv2, blog, cam kết |
 | `/feed` | Mọi feed trên web (tối đa 30): lọc đang bán / sắp mở bán / đã bán hết, theo hệ, tìm theo tên / mã BK |
 | `/feed/:number` | Ảnh cả lô (phóng to), danh sách từng con: mã BK, tình trạng riêng, SOLD, thêm vào giỏ; `#BK-0231` cuộn tới đúng con đó |
 | `/dau-gia` | Danh sách phiên: đang diễn ra / sắp diễn ra / đã kết thúc + thể lệ |
@@ -305,8 +305,20 @@ Component dùng hook không phải sửa một dòng nào.
 
 ## 7. Hiệu năng & chất lượng
 
-- **Code-splitting theo route** — mỗi trang là một chunk riêng (trang nặng nhất ~22 kB).
-- **Vendor chunk tách riêng** (react / form / motion) để cache tốt hơn giữa các lần deploy.
+- **Lần tải đầu nhẹ (~185 kB JS nén)**: trang chủ đóng gói sẵn cùng khung trang; các trang khác
+  là chunk riêng, được tải sẵn khi trình duyệt rảnh nên bấm là hiện ngay. Những thứ chưa cần lúc
+  mở trang đều tải sau: thư viện form (react-hook-form + zod) chỉ ở trang có form, "bộ não" bot chat
+  chỉ khi khách gửi tin đầu tiên, phần hiệu ứng của framer-motion (`LazyMotion`), và axios chỉ khi
+  nối backend thật.
+- **Vendor chunk tách riêng** (react / form) có độ ưu tiên để React không bị cuốn nhầm vào chunk
+  form (`build.rolldownOptions.output.codeSplitting` trong `vite.config.ts`).
+- **Màn chờ trong `index.html`** (nền tối + logo) hiện ngay khi HTML tới, không để màn hình trắng
+  trong lúc JavaScript tải; font Google tải không chặn hiển thị, chỉ lấy các độ đậm đang dùng.
+- **Dữ liệu mock trả về ngay** (không giả lập độ trễ mạng; bật lại bằng `VITE_MOCK_LATENCY=1`),
+  danh sách feed được nhớ lại cho tới khi dữ liệu đổi.
+- **Ảnh**: ảnh lô có bản 640 / 960 / 1280px, điện thoại tự tải bản nhỏ; ảnh minh hoạ SVG không dùng
+  bộ lọc hay chữ bên trong (vẽ nhanh gấp đôi), được nhớ lại sau lần tạo đầu. Không dùng
+  `backdrop-blur` trên thẻ và `background-attachment: fixed` (hai thứ làm điện thoại giật khi cuộn).
 - **Lazy-load ảnh** (`loading="lazy"` + `width`/`height` chống layout shift).
 - **Skeleton loading** cho mọi danh sách, không nhảy layout khi dữ liệu về.
 - **Một timer duy nhất** cho tất cả đồng hồ đếm ngược (`useSyncExternalStore`).

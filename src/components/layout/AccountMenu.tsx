@@ -10,7 +10,7 @@ import {
   Gavel,
   LayoutDashboard,
 } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { ADMIN_ROUTES, ROUTES } from '@/constants/routes';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/uiStore';
@@ -55,7 +55,7 @@ export function AccountMenu() {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -6, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.97 }}
@@ -147,7 +147,7 @@ export function AccountMenu() {
                 </Link>
               </nav>
             )}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

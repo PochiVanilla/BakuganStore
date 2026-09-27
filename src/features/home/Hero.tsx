@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Gavel, MessagesSquare, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
 import type { FeedPost } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { CONSULT_STARTER } from '@/constants/chat';
@@ -50,11 +49,7 @@ export function Hero({
 
       <Container>
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-          >
+          <div className="animate-fade-up">
             <span className="inline-flex items-center gap-2 rounded-full border border-accent-cyan/40 bg-accent-cyan/10 px-3.5 py-1.5 text-xs font-semibold text-accent-cyan">
               <Sparkles size={13} aria-hidden="true" />
               {eyebrow}
@@ -110,15 +105,10 @@ export function Hero({
                 </div>
               ))}
             </dl>
-          </motion.div>
+          </div>
 
           {/* Feed mới nhất thay cho hình minh hoạ: khách thấy ngay lô hàng sắp / đang bán. */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.1, ease: 'easeOut' }}
-            className="relative"
-          >
+          <div className="relative animate-fade-up [animation-delay:80ms]">
             <div
               className="pointer-events-none absolute -inset-3 rounded-3xl bg-gradient-to-br from-accent-cyan/20 via-primary/10 to-accent-pink/20 blur-2xl"
               aria-hidden="true"
@@ -126,9 +116,14 @@ export function Hero({
             {isLoading ? (
               <FeedCardSkeleton />
             ) : latestFeed ? (
-              <FeedCard feed={latestFeed} priority className="relative" />
+              <FeedCard
+                feed={latestFeed}
+                priority
+                sizes="(min-width: 1024px) 600px, 100vw"
+                className="relative"
+              />
             ) : null}
-          </motion.div>
+          </div>
         </div>
       </Container>
     </section>

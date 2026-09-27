@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
@@ -30,7 +30,7 @@ export function Drawer({
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[90]">
-          <motion.button
+          <m.button
             type="button"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -39,7 +39,7 @@ export function Drawer({
             aria-label="Đóng bảng trượt"
             className="absolute inset-0 h-full w-full cursor-default bg-background/80 backdrop-blur-sm"
           />
-          <motion.aside
+          <m.aside
             role="dialog"
             aria-modal="true"
             aria-label={title}
@@ -66,7 +66,7 @@ export function Drawer({
             </header>
             <div className="flex-1 overflow-y-auto">{children}</div>
             {footer && <footer className="border-t border-white/8 p-5">{footer}</footer>}
-          </motion.aside>
+          </m.aside>
         </div>
       )}
     </AnimatePresence>,

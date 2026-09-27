@@ -12,17 +12,62 @@
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <link rel="preload" as="image" href="/brand/logo-192.webp" type="image/webp" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Orbitron:wght@500;600;700;800;900&family=Russo+One&display=swap"
-      rel="stylesheet"
-    />
+    <!--
+      Font Google tải không chặn hiển thị: trang hiện ngay bằng font hệ thống rồi đổi
+      sang font thương hiệu khi tải xong (display=swap). Chỉ lấy các độ đậm đang dùng.
+    -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Orbitron:wght@600;700;800;900&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Orbitron:wght@600;700;800;900&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Orbitron:wght@600;700;800;900&display=swap" /></noscript>
     <title>TD Bakugan — Shop Bakugan chính hãng &amp; Đấu giá</title>
+    <!--
+      Màn chờ hiện ngay khi HTML vừa tới (nền tối + logo), trong lúc JavaScript
+      còn đang tải — thay cho màn hình trắng. React thay thế nó khi khởi động.
+    -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0a0a12;
+      }
+      .boot {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        color: #8b8ba7;
+        font: 600 12px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+        letter-spacing: 0.3em;
+      }
+      .boot img {
+        border-radius: 9999px;
+        box-shadow: 0 0 36px rgba(63, 227, 245, 0.28);
+        animation: boot-pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes boot-pulse {
+        50% {
+          transform: scale(0.94);
+          opacity: 0.75;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot img {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot" role="status" aria-label="Đang tải TD Bakugan">
+        <img src="/brand/logo-192.webp" width="96" height="96" alt="" fetchpriority="high" />
+        ĐANG TẢI…
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

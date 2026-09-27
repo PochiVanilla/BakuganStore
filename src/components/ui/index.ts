@@ -12,6 +12,7 @@ export { Countdown } from './Countdown';
 export { ImageGallery } from './ImageGallery';
 export { RefImage } from './RefImage';
 export { Pagination } from './Pagination';
+export { SnapSlider } from './SnapSlider';
 export { EmptyState } from './EmptyState';
 export { Seo } from './Seo';
 export {

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
-import type { BakuganAttribute, FeedStatusFilter } from '@/types';
+import type { BakuganAttribute, FeedPost, FeedStatusFilter } from '@/types';
 import { BAKUGAN_ATTRIBUTES, FEED_STATUS_FILTERS } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { ATTRIBUTE_META, FEED_FILTER_LABELS } from '@/constants/catalog';
@@ -27,6 +27,31 @@ function isStatus(value: string | null): value is FeedStatusFilter {
 
 function isAttribute(value: string | null): value is BakuganAttribute {
   return Boolean(value) && (BAKUGAN_ATTRIBUTES as readonly string[]).includes(value!);
+}
+
+/** Hiện dần: vẽ 12 feed trước, còn lại bấm "Xem thêm" — mở trang nhanh hơn trên điện thoại. */
+const FEEDS_PER_PAGE = 12;
+
+function FeedGrid({ feeds }: { feeds: readonly FeedPost[] }) {
+  const [visible, setVisible] = useState(FEEDS_PER_PAGE);
+  const shown = feeds.slice(0, visible);
+  const remaining = feeds.length - shown.length;
+  return (
+    <>
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        {shown.map((feed, index) => (
+          <FeedCard key={feed.id} feed={feed} priority={index < 2} />
+        ))}
+      </div>
+      {remaining > 0 && (
+        <div className="mt-6 flex justify-center">
+          <Button variant="outline" onClick={() => setVisible((count) => count + FEEDS_PER_PAGE)}>
+            Xem thêm {Math.min(remaining, FEEDS_PER_PAGE)} feed (còn {remaining})
+          </Button>
+        </div>
+      )}
+    </>
+  );
 }
 
 export default function FeedsPage() {
@@ -259,11 +284,8 @@ export default function FeedsPage() {
             ) : feeds.error ? (
               <EmptyState title="Chưa tải được feed" description={feeds.error} />
             ) : feeds.data && feeds.data.length > 0 ? (
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                {feeds.data.map((feed, index) => (
-                  <FeedCard key={feed.id} feed={feed} priority={index < 2} />
-                ))}
-              </div>
+              // Đổi bộ lọc thì hiện lại từ đầu (key mới -> số feed đang hiện quay về 12).
+              <FeedGrid key={`${status}|${keyword}|${attribute ?? ''}`} feeds={feeds.data} />
             ) : (
               <EmptyState
                 title="Không có feed nào"

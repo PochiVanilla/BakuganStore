@@ -76,24 +76,29 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       target: 'es2020',
-      rollupOptions: {
+      rolldownOptions: {
         output: {
-          // Vite 8 chạy trên Rolldown: manualChunks phải là hàm.
-          // Tách vendor để cache tốt hơn; các trang đã tự code-split qua React.lazy.
-          manualChunks(id: string) {
-            if (!id.includes('node_modules')) return undefined;
-            if (
-              /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom)[\\/]/.test(id)
-            ) {
-              return 'vendor-react';
-            }
-            if (/[\\/]node_modules[\\/](react-hook-form|@hookform|zod)[\\/]/.test(id)) {
-              return 'vendor-form';
-            }
-            if (/[\\/]node_modules[\\/](framer-motion|motion-dom|motion-utils)[\\/]/.test(id)) {
-              return 'vendor-motion';
-            }
-            return undefined;
+          /*
+           * Tách thư viện để cache tốt hơn giữa các lần deploy; các trang tự code-split
+           * qua React.lazy. Mỗi nhóm mặc định kéo theo cả thư viện nó phụ thuộc, nên phải
+           * đặt độ ưu tiên: React vào nhóm của React trước, nếu không nó bị cuốn vào nhóm
+           * form (react-hook-form + zod) và trang nào cũng phải tải cả thư viện form.
+           * framer-motion không gom nhóm: phần hiệu ứng tải lười (LazyMotion) mới
+           * tách được ra khỏi lần tải đầu.
+           */
+          codeSplitting: {
+            groups: [
+              {
+                name: 'vendor-react',
+                test: /node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler|cookie|set-cookie-parser)[\\/]/,
+                priority: 30,
+              },
+              {
+                name: 'vendor-form',
+                test: /node_modules[\\/](react-hook-form|@hookform|zod)[\\/]/,
+                priority: 20,
+              },
+            ],
           },
         },
       },

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, LoaderCircle } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import type { BakuganItem } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { searchSuggestions } from '@/services/api/feedService';
@@ -131,7 +131,7 @@ export function SearchBox({ onNavigate, className }: SearchBoxProps) {
 
       <AnimatePresence>
         {isOpen && (suggestions.length > 0 || (isSearchable && !isLoading)) && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
@@ -201,7 +201,7 @@ export function SearchBox({ onNavigate, className }: SearchBoxProps) {
                 </button>
               </>
             )}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

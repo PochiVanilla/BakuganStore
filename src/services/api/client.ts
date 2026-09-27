@@ -1,4 +1,4 @@
-import axios, { AxiosError, type AxiosInstance } from 'axios';
+import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
@@ -11,66 +11,45 @@ export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
 export const AUTH_TOKEN_KEY = 'td-bakugan:access-token';
 
-export const apiClient: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 15_000,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-apiClient.interceptors.request.use((config) => {
-  try {
-    const token = window.localStorage.getItem(AUTH_TOKEN_KEY);
-    if (token) {
-      config.headers.set('Authorization', `Bearer ${token}`);
-    }
-  } catch {
-    // localStorage có thể bị chặn (chế độ riêng tư) — bỏ qua, request vẫn chạy.
-  }
-  return config;
-});
-
 export interface ApiError {
   status: number;
   message: string;
   fieldErrors?: Record<string, string>;
 }
 
-function toApiError(error: unknown): ApiError {
-  if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError<{
-      message?: string;
-      fieldErrors?: Record<string, string>;
-    }>;
-    return {
-      status: axiosError.response?.status ?? 0,
-      message:
-        axiosError.response?.data?.message ??
-        (axiosError.code === 'ECONNABORTED'
-          ? 'Máy chủ phản hồi quá lâu. Vui lòng thử lại.'
-          : 'Không kết nối được máy chủ. Vui lòng kiểm tra đường truyền.'),
-      fieldErrors: axiosError.response?.data?.fieldErrors,
-    };
-  }
-  if (error instanceof Error) {
-    return { status: 0, message: error.message };
-  }
-  return { status: 0, message: 'Đã có lỗi không xác định xảy ra.' };
+/*
+ * Axios chỉ tải ở lần gọi backend đầu tiên — bản chạy dữ liệu mock không bao giờ
+ * cần, nên lần tải trang đầu nhẹ hơn. Cách gọi giữ nguyên như axios:
+ * `apiClient.get<ApiResponse<T>>(url, { params })` rồi đọc `data`.
+ */
+let http: Promise<AxiosInstance> | null = null;
+
+function loadHttp(): Promise<AxiosInstance> {
+  http ??= import('./httpClient').then((mod) => mod.createHttpClient());
+  return http;
 }
 
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error: unknown) => {
-    const apiError = toApiError(error);
-    if (apiError.status === 401) {
-      try {
-        window.localStorage.removeItem(AUTH_TOKEN_KEY);
-      } catch {
-        // bỏ qua
-      }
-    }
-    return Promise.reject(apiError);
-  },
-);
+export const apiClient = {
+  get: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> =>
+    loadHttp().then((client) => client.get<T>(url, config)),
+  delete: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> =>
+    loadHttp().then((client) => client.delete<T>(url, config)),
+  post: <T = unknown>(
+    url: string,
+    body?: unknown,
+    config?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<T>> => loadHttp().then((client) => client.post<T>(url, body, config)),
+  put: <T = unknown>(
+    url: string,
+    body?: unknown,
+    config?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<T>> => loadHttp().then((client) => client.put<T>(url, body, config)),
+  patch: <T = unknown>(
+    url: string,
+    body?: unknown,
+    config?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<T>> => loadHttp().then((client) => client.patch<T>(url, body, config)),
+};
 
 /** Lỗi nghiệp vụ dùng chung cho tầng mock (giữ đúng hình dạng ApiError). */
 export class MockApiError extends Error implements ApiError {
@@ -85,8 +64,16 @@ export class MockApiError extends Error implements ApiError {
   }
 }
 
-/** Giả lập độ trễ mạng để skeleton loading hiển thị đúng như thật. */
+/**
+ * Dữ liệu mock nằm ngay trong trình duyệt nên trả về ngay (vẫn bất đồng bộ như gọi
+ * API thật). Trước đây mỗi lần đọc dữ liệu cố tình chờ 150–700ms cho giống mạng thật,
+ * làm cả web chậm vô cớ. Muốn xem lại skeleton / trạng thái chờ khi phát triển thì
+ * chạy với VITE_MOCK_LATENCY=1.
+ */
+const SIMULATE_LATENCY = import.meta.env.VITE_MOCK_LATENCY === '1';
+
 export function mockDelay<T>(data: T, ms = 320): Promise<T> {
+  if (!SIMULATE_LATENCY) return Promise.resolve(data);
   return new Promise((resolve) => {
     window.setTimeout(() => resolve(data), ms);
   });

@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { Gavel, Eye, Zap } from 'lucide-react';
-import { motion } from 'framer-motion';
 import type { Auction } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { AUCTION_STATUS_LABELS, CONDITION_LABELS } from '@/constants/catalog';
@@ -21,11 +20,9 @@ export function AuctionCard({ auction }: { auction: Auction }) {
   const isSealed = auction.priceVisibility === 'sealed';
 
   return (
-    <motion.article
-      whileHover={{ y: -6 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
+    <article
       className={cn(
-        'group flex flex-col overflow-hidden rounded-2xl border bg-surface/80 transition-colors duration-300',
+        'group flex flex-col overflow-hidden rounded-2xl border bg-surface/80 transition duration-300 hover:-translate-y-1.5',
         isLive
           ? 'border-accent-pink/30 hover:border-accent-pink/60 hover:shadow-[0_18px_44px_-20px_rgba(233,64,210,0.8)]'
           : 'border-white/8 hover:border-accent-cyan/40',
@@ -59,12 +56,12 @@ export function AuctionCard({ auction }: { auction: Auction }) {
           {AUCTION_STATUS_LABELS[auction.status].toUpperCase()}
         </span>
 
-        <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-lg bg-background/75 px-2 py-1 text-[11px] font-medium text-text-muted backdrop-blur">
+        <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-lg bg-background/85 px-2 py-1 text-[11px] font-medium text-text-muted">
           <Eye size={12} aria-hidden="true" />
           {formatNumber(auction.watcherCount)}
         </span>
 
-        {isSealed && <SealedBadge className="absolute bottom-3 left-3 backdrop-blur" />}
+        {isSealed && <SealedBadge className="absolute bottom-3 left-3" />}
       </div>
 
       <div className="flex flex-1 flex-col p-4">
@@ -159,6 +156,6 @@ export function AuctionCard({ auction }: { auction: Auction }) {
           {isLive ? 'Đặt giá ngay' : isUpcoming ? 'Xem chi tiết' : 'Xem kết quả'}
         </Link>
       </div>
-    </motion.article>
+    </article>
   );
 }

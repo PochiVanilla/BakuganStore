@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Expand, X } from 'lucide-react';
 import { RefImage } from '@/components/ui';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import { cn } from '@/utils/cn';
+import { isIllustration } from '@/utils/placeholder';
 
 /**
  * Ảnh chụp cả lô của một feed. Bấm vào ảnh để xem toàn màn hình (điện thoại
@@ -49,8 +50,13 @@ export function FeedGallery({ images, alt }: { images: readonly string[]; alt: s
           height={720}
           className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
         />
+        {isIllustration(current) && (
+          <span className="pointer-events-none absolute top-3 left-3 rounded bg-background/70 px-2 py-0.5 text-[10px] font-semibold tracking-[0.15em] text-white/75">
+            ẢNH MINH HOẠ
+          </span>
+        )}
         <span
-          className="pointer-events-none absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-lg bg-background/80 px-2.5 py-1.5 text-[11px] text-text backdrop-blur"
+          className="pointer-events-none absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-lg bg-background/80 px-2.5 py-1.5 text-[11px] text-text"
           aria-hidden="true"
         >
           <Expand size={13} />

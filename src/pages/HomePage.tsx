@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
+  ArrowRight,
   ArrowUpRight,
   EyeOff,
   Gavel,
@@ -25,6 +26,7 @@ import {
   FeedCardSkeleton,
   SectionHeading,
   Seo,
+  SnapSlider,
 } from '@/components/ui';
 import { FeedCard } from '@/features/feed/FeedCard';
 import { AuctionCard } from '@/features/auction/AuctionCard';
@@ -103,8 +105,11 @@ export default function HomePage() {
         liveAuctions={liveAuctions.length}
       />
 
-      {/* Feed bán — tối đa 10 feed trên trang chủ (1 ở trên + 9 ở đây) */}
-      <section className="py-12 sm:py-16" aria-labelledby="home-feeds">
+      {/* Chọn theo hệ chiến đấu — ngay dưới phần đầu trang */}
+      <AttributeGrid />
+
+      {/* Feed bán — tối đa 10 feed trên trang chủ (1 ở trên + 9 ở băng trượt này) */}
+      <section className="py-10 sm:py-14" aria-labelledby="home-feeds">
         <Container>
           <SectionHeading
             eyebrow="FEED BÁN"
@@ -117,17 +122,37 @@ export default function HomePage() {
           </h2>
 
           {feeds.isLoading && !feeds.data ? (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <SnapSlider label="Các feed gần đây">
               {Array.from({ length: 3 }, (_, index) => (
                 <FeedCardSkeleton key={index} />
               ))}
-            </div>
+            </SnapSlider>
           ) : otherFeeds.length > 0 ? (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <SnapSlider label="Các feed gần đây">
               {otherFeeds.map((feed) => (
-                <FeedCard key={feed.id} feed={feed} />
+                <FeedCard
+                  key={feed.id}
+                  feed={feed}
+                  sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 82vw"
+                  className="h-full"
+                />
               ))}
-            </div>
+              <Link
+                key="all"
+                to={ROUTES.feeds}
+                className="group flex h-full min-h-72 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-accent-cyan/35 bg-surface/50 p-6 text-center transition hover:border-accent-cyan/70 hover:bg-accent-cyan/5"
+              >
+                <span className="grid h-14 w-14 place-items-center rounded-full border border-accent-cyan/40 text-accent-cyan transition group-hover:scale-105">
+                  <ArrowRight size={22} aria-hidden="true" />
+                </span>
+                <span className="font-display text-base font-bold text-text">
+                  Xem tất cả {allFeeds.length} feed
+                </span>
+                <span className="text-xs text-text-muted">
+                  Lọc theo hệ, tình trạng, tìm theo mã BK
+                </span>
+              </Link>
+            </SnapSlider>
           ) : (
             <p className="rounded-2xl border border-dashed border-white/12 bg-surface/50 px-6 py-12 text-center text-sm text-text-muted">
               Chưa có feed nào khác. Feed mới lên mỗi tuần, quay lại sớm nhé!
@@ -170,8 +195,6 @@ export default function HomePage() {
           </div>
         </Container>
       </section>
-
-      <AttributeGrid />
 
       {/* Đấu giá */}
       <section className="relative overflow-hidden py-14 sm:py-20">

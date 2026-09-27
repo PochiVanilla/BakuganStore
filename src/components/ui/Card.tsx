@@ -10,7 +10,7 @@ export function Card({ children, className, hoverable = false, ...rest }: CardPr
   return (
     <div
       className={cn(
-        'rounded-2xl border border-white/8 bg-surface/80 backdrop-blur-sm',
+        'rounded-2xl border border-white/8 bg-surface/80',
         hoverable &&
           'transition-all duration-300 hover:-translate-y-1 hover:border-accent-cyan/40 hover:shadow-[0_18px_40px_-20px_rgba(123,75,232,0.8)]',
         className,

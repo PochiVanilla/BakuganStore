@@ -5,6 +5,7 @@ import { ROUTES } from '@/constants/routes';
 import { ATTRIBUTE_META } from '@/constants/catalog';
 import { formatCurrency, formatDateTime, formatRelativeTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
+import { isIllustration } from '@/utils/placeholder';
 import { AttributeIcon, Countdown, RefImage, StatusBadge } from '@/components/ui';
 import { FeedProgress } from './FeedProgress';
 import { attributesOf, FEED_BADGE } from './feedUi';
@@ -13,11 +14,14 @@ import { attributesOf, FEED_BADGE } from './feedUi';
 export function FeedCard({
   feed,
   priority = false,
+  sizes = '(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw',
   className,
 }: {
   feed: FeedPost;
-  /** Ảnh nằm ở đầu trang: tải ngay */
+  /** Ảnh nằm ở đầu trang: tải ngay, ưu tiên hơn ảnh khác */
   priority?: boolean;
+  /** Bề rộng ảnh trên màn hình, để điện thoại tải đúng cỡ ảnh */
+  sizes?: string;
   className?: string;
 }) {
   const detail = ROUTES.feedDetail(feed.number);
@@ -42,21 +46,28 @@ export function FeedCard({
           alt={`Ảnh chụp lô hàng feed #${feed.number}`}
           width={1280}
           height={720}
+          sizes={sizes}
           loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : undefined}
           decoding="async"
           className={cn(
             'aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]',
             isSoldOut && 'opacity-60 grayscale-[35%]',
           )}
         />
+        {isIllustration(feed.images[0]) && (
+          <span className="pointer-events-none absolute top-3 right-3 rounded bg-background/70 px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.15em] text-white/75">
+            ẢNH MINH HOẠ
+          </span>
+        )}
         <span className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-          <StatusBadge type={FEED_BADGE[feed.status]} className="backdrop-blur" />
-          <span className="rounded-md border border-white/15 bg-background/80 px-2 py-0.5 font-display text-[10px] font-bold tracking-wider text-text backdrop-blur">
+          <StatusBadge type={FEED_BADGE[feed.status]} />
+          <span className="rounded-md border border-white/15 bg-background/80 px-2 py-0.5 font-display text-[10px] font-bold tracking-wider text-text">
             FEED #{feed.number}
           </span>
         </span>
         {isUpcoming && (
-          <span className="absolute inset-x-3 bottom-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gold/30 bg-background/85 px-3 py-2 backdrop-blur">
+          <span className="absolute inset-x-3 bottom-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gold/30 bg-background/85 px-3 py-2">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gold">
               <Clock size={13} aria-hidden="true" />
               Mở bán {formatDateTime(feed.opensAt)}

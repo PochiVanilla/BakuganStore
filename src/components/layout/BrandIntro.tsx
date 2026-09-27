@@ -1,24 +1,29 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { BrandMark } from './BrandMark';
 
-const SESSION_KEY = 'td-bakugan:intro-played';
-const DURATION_MS = 2800;
+/** Máy này đã xem intro chưa — chỉ chiếu lần đầu, lần sau vào thẳng trang. */
+const SEEN_KEY = 'td-bakugan:intro-seen';
+/** Khoá cũ (chỉ nhớ trong một phiên) — vẫn tôn trọng để ai vừa xem không phải xem lại. */
+const LEGACY_SESSION_KEY = 'td-bakugan:intro-played';
+const DURATION_MS = 1800;
 
-/** Đã chiếu intro trong phiên làm việc này chưa. */
-function hasPlayed(): boolean {
+function hasSeen(): boolean {
   try {
-    return window.sessionStorage.getItem(SESSION_KEY) === '1';
+    return (
+      window.localStorage.getItem(SEEN_KEY) === '1' ||
+      window.sessionStorage.getItem(LEGACY_SESSION_KEY) === '1'
+    );
   } catch {
-    // sessionStorage bị chặn (chế độ riêng tư) — cứ chiếu, không lỗi gì.
+    // Bộ nhớ trình duyệt bị chặn (chế độ riêng tư) — cứ chiếu, không lỗi gì.
     return false;
   }
 }
 
-function markPlayed(): void {
+function markSeen(): void {
   try {
-    window.sessionStorage.setItem(SESSION_KEY, '1');
+    window.localStorage.setItem(SEEN_KEY, '1');
   } catch {
     // bỏ qua
   }
@@ -27,7 +32,7 @@ function markPlayed(): void {
 /**
  * Màn mở đầu: logo TD Bakugan hiện ra cùng quầng sáng, rồi vào thẳng trang.
  *
- * - Chỉ chiếu một lần mỗi phiên trình duyệt, không cản trở người quay lại.
+ * - Chỉ chiếu lần đầu tiên trên mỗi máy (khoảng 1,8 giây), lần sau vào thẳng trang.
  * - Chạm / bấm vào bất kỳ đâu trên màn hình, bấm phím bất kỳ hay cuộn chuột là
  *   vào thẳng trang ngay (có dòng nhắc "Chạm vào bất kỳ đâu để vào shop").
  * - Người bật "giảm chuyển động" trong hệ điều hành sẽ không thấy intro.
@@ -40,13 +45,14 @@ export function BrandIntro() {
   const [decided, setDecided] = useState(false);
   if (!decided) {
     setDecided(true);
-    if (!hasPlayed() && !prefersReducedMotion) setIsVisible(true);
+    if (!hasSeen() && !prefersReducedMotion) {
+      setIsVisible(true);
+      // Ghi ngay: khách đóng tab giữa chừng thì lần sau cũng không phải xem lại.
+      markSeen();
+    }
   }
 
-  const dismiss = useCallback(() => {
-    setIsVisible(false);
-    markPlayed();
-  }, []);
+  const dismiss = useCallback(() => setIsVisible(false), []);
 
   useEffect(() => {
     if (!isVisible) return;
@@ -71,7 +77,7 @@ export function BrandIntro() {
   return createPortal(
     <AnimatePresence>
       {isVisible && (
-        <motion.div
+        <m.div
           key="brand-intro"
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -81,12 +87,12 @@ export function BrandIntro() {
           role="presentation"
         >
           {/* Nền tinh vân toả ra từ tâm */}
-          <motion.div
+          <m.div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0"
             initial={{ opacity: 0, scale: 0.6 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1.6, ease: 'easeOut' }}
+            transition={{ duration: 1.1, ease: 'easeOut' }}
             style={{
               background:
                 'radial-gradient(circle at 50% 46%, rgba(123,75,232,0.42), transparent 46%), radial-gradient(circle at 50% 46%, rgba(63,227,245,0.22), transparent 62%)',
@@ -96,7 +102,7 @@ export function BrandIntro() {
           {/* Sao lấp lánh */}
           <div aria-hidden="true" className="pointer-events-none absolute inset-0">
             {Array.from({ length: 26 }, (_, index) => (
-              <motion.span
+              <m.span
                 key={index}
                 className="absolute rounded-full"
                 style={{
@@ -109,8 +115,8 @@ export function BrandIntro() {
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{ opacity: [0, 1, 0.4], scale: [0, 1.3, 1] }}
                 transition={{
-                  duration: 1.8,
-                  delay: 0.25 + (index % 9) * 0.07,
+                  duration: 1.2,
+                  delay: 0.15 + (index % 9) * 0.05,
                   ease: 'easeOut',
                 }}
               />
@@ -118,19 +124,19 @@ export function BrandIntro() {
           </div>
 
           {/* Logo hiện ra */}
-          <motion.div
+          <m.div
             aria-hidden="true"
             className="relative mb-7"
             initial={{ scale: 0.4, opacity: 0, rotate: -18 }}
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
             {/* Quầng sáng loé ra phía sau logo */}
-            <motion.span
+            <m.span
               className="absolute inset-0 rounded-full"
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: [0, 2.1, 1.45], opacity: [0, 0.9, 0.4] }}
-              transition={{ duration: 1.1, delay: 0.3, ease: 'easeOut' }}
+              transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
               style={{
                 background:
                   'radial-gradient(circle, rgba(233,64,210,0.55), rgba(123,75,232,0.25) 45%, transparent 70%)',
@@ -141,45 +147,45 @@ export function BrandIntro() {
               priority
               className="relative shadow-[0_0_40px_rgba(63,227,245,0.35)]"
             />
-          </motion.div>
+          </m.div>
 
-          <motion.p
+          <m.p
             className="font-display text-[11px] font-bold tracking-[0.45em] text-gold"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.95 }}
+            transition={{ duration: 0.4, delay: 0.55 }}
           >
             SHOP
-          </motion.p>
+          </m.p>
 
           {/* Vạch sáng quét ngang */}
-          <motion.span
+          <m.span
             aria-hidden="true"
             className="mt-4 block h-px bg-gradient-to-r from-transparent via-accent-cyan to-transparent"
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 240, opacity: 1 }}
-            transition={{ duration: 0.7, delay: 1.1, ease: 'easeOut' }}
+            transition={{ duration: 0.5, delay: 0.65, ease: 'easeOut' }}
           />
 
-          <motion.p
+          <m.p
             className="mt-4 px-6 text-center text-xs text-text-muted"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 1.35 }}
+            transition={{ duration: 0.4, delay: 0.8 }}
           >
             Chiến binh Bakugan chính hãng — Feed bán mỗi tuần &amp; Đấu giá
-          </motion.p>
+          </m.p>
 
-          <motion.p
+          <m.p
             className="absolute inset-x-0 bottom-20 text-center text-xs font-semibold text-accent-cyan sm:bottom-24"
             initial={{ opacity: 0 }}
             animate={{ opacity: [0, 1, 0.45, 1] }}
-            transition={{ duration: 1.6, delay: 0.6, repeat: Infinity, repeatType: 'mirror' }}
+            transition={{ duration: 1.2, delay: 0.4, repeat: Infinity, repeatType: 'mirror' }}
           >
             Chạm vào bất kỳ đâu để vào shop
-          </motion.p>
+          </m.p>
 
-          <motion.button
+          <m.button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
@@ -188,11 +194,11 @@ export function BrandIntro() {
             className="absolute right-5 bottom-6 rounded-lg border border-white/12 px-3.5 py-2 text-xs font-semibold text-text-muted transition hover:border-accent-cyan/50 hover:text-accent-cyan sm:right-8"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.9 }}
+            transition={{ duration: 0.3, delay: 0.5 }}
           >
             Bỏ qua
-          </motion.button>
-        </motion.div>
+          </m.button>
+        </m.div>
       )}
     </AnimatePresence>,
     document.body,

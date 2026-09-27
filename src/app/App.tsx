@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './layouts/Layout';
 import { ScrollToTop } from './ScrollToTop';
@@ -6,20 +6,29 @@ import { RouteFallback } from './RouteFallback';
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute';
 import { AdminRoute } from '@/features/admin/AdminRoute';
 import { ADMIN_ROUTES, LEGACY_REDIRECTS, ROUTES } from '@/constants/routes';
+// Trang chủ là trang khách vào nhiều nhất: đóng gói chung với phần khung để khỏi
+// chờ thêm một lượt tải file nữa rồi mới thấy nội dung.
+import HomePage from '@/pages/HomePage';
 
 /* Code-splitting theo route — mỗi trang là một chunk riêng, tải khi cần. */
-const HomePage = lazy(() => import('@/pages/HomePage'));
-const FeedsPage = lazy(() => import('@/pages/FeedsPage'));
-const FeedDetailPage = lazy(() => import('@/pages/FeedDetailPage'));
-const AuctionsPage = lazy(() => import('@/pages/AuctionsPage'));
-const AuctionDetailPage = lazy(() => import('@/pages/AuctionDetailPage'));
+const loadFeedsPage = () => import('@/pages/FeedsPage');
+const loadFeedDetailPage = () => import('@/pages/FeedDetailPage');
+const loadAuctionsPage = () => import('@/pages/AuctionsPage');
+const loadAuctionDetailPage = () => import('@/pages/AuctionDetailPage');
+const loadCartPage = () => import('@/pages/CartPage');
+const loadLoginPage = () => import('@/pages/LoginPage');
+
+const FeedsPage = lazy(loadFeedsPage);
+const FeedDetailPage = lazy(loadFeedDetailPage);
+const AuctionsPage = lazy(loadAuctionsPage);
+const AuctionDetailPage = lazy(loadAuctionDetailPage);
 const BlogPage = lazy(() => import('@/pages/BlogPage'));
 const BlogDetailPage = lazy(() => import('@/pages/BlogDetailPage'));
 const ContactPage = lazy(() => import('@/pages/ContactPage'));
-const CartPage = lazy(() => import('@/pages/CartPage'));
+const CartPage = lazy(loadCartPage);
 const WishlistPage = lazy(() => import('@/pages/WishlistPage'));
 const AccountPage = lazy(() => import('@/pages/AccountPage'));
-const LoginPage = lazy(() => import('@/pages/LoginPage'));
+const LoginPage = lazy(loadLoginPage);
 const RegisterPage = lazy(() => import('@/pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
 const LegalPage = lazy(() => import('@/pages/LegalPage'));
@@ -41,7 +50,52 @@ const CustomerDetailPage = lazy(() => import('@/pages/admin/CustomerDetailPage')
 const ChatInboxPage = lazy(() => import('@/pages/admin/ChatInboxPage'));
 const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
 
+/** Những trang khách hay mở tiếp theo — tải sẵn khi trình duyệt rảnh để bấm là hiện ngay. */
+const LIKELY_NEXT = [
+  loadFeedsPage,
+  loadFeedDetailPage,
+  loadCartPage,
+  loadAuctionsPage,
+  loadAuctionDetailPage,
+  loadLoginPage,
+];
+
+function usePrefetchLikelyPages(): void {
+  useEffect(() => {
+    // Mạng yếu / bật tiết kiệm dữ liệu thì thôi, để dành băng thông cho trang đang xem.
+    const connection = (
+      navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }
+    ).connection;
+    if (connection?.saveData || /2g/.test(connection?.effectiveType ?? '')) return;
+
+    let cancelled = false;
+    const prefetch = (): void => {
+      if (cancelled) return;
+      LIKELY_NEXT.forEach((load) => {
+        void load().catch(() => undefined);
+      });
+    };
+    // Safari chưa có requestIdleCallback -> chờ vài giây sau khi trang hiện.
+    const idleWindow = window as Window & {
+      requestIdleCallback?: Window['requestIdleCallback'];
+    };
+    if (idleWindow.requestIdleCallback) {
+      const id = idleWindow.requestIdleCallback(prefetch, { timeout: 4_000 });
+      return () => {
+        cancelled = true;
+        idleWindow.cancelIdleCallback(id);
+      };
+    }
+    const timer = window.setTimeout(prefetch, 2_500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, []);
+}
+
 export default function App() {
+  usePrefetchLikelyPages();
   return (
     <>
       <ScrollToTop />

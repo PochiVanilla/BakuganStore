@@ -6,7 +6,7 @@ import { AttributeIcon, Container, SectionHeading } from '@/components/ui';
 
 export function AttributeGrid() {
   return (
-    <section className="py-12 sm:py-16">
+    <section className="py-8 sm:py-12">
       <Container>
         <SectionHeading
           eyebrow="TÌM THEO HỆ"
@@ -14,14 +14,14 @@ export function AttributeGrid() {
           description="Sáu hệ Bakugan với lối chơi và sức mạnh riêng — bấm để xem những con đang bán trong các feed."
         />
 
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <ul className="grid grid-cols-3 gap-2.5 sm:gap-3 lg:grid-cols-6">
           {BAKUGAN_ATTRIBUTES.map((attribute) => {
             const meta = ATTRIBUTE_META[attribute];
             return (
               <li key={attribute}>
                 <Link
                   to={`${ROUTES.feeds}?he=${attribute}`}
-                  className="group relative flex h-full flex-col items-center gap-3 overflow-hidden rounded-2xl border border-white/8 bg-surface/80 p-5 text-center transition-all duration-300 hover:-translate-y-1"
+                  className="group relative flex h-full flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/8 bg-surface/80 px-2 py-3.5 text-center transition-all duration-300 hover:-translate-y-1 sm:gap-3 sm:p-5"
                   style={{ ['--attr-color' as string]: meta.color }}
                 >
                   <span
@@ -32,7 +32,7 @@ export function AttributeGrid() {
                     aria-hidden="true"
                   />
                   <span
-                    className="relative grid h-14 w-14 place-items-center rounded-full border-2 transition-transform duration-300 group-hover:scale-110"
+                    className="relative grid h-11 w-11 place-items-center rounded-full border-2 transition-transform duration-300 group-hover:scale-110 sm:h-14 sm:w-14"
                     style={{
                       borderColor: `${meta.color}88`,
                       backgroundColor: `${meta.color}1F`,
@@ -41,7 +41,7 @@ export function AttributeGrid() {
                     }}
                     aria-hidden="true"
                   >
-                    <AttributeIcon attribute={attribute} size={30} glow />
+                    <AttributeIcon attribute={attribute} size={24} glow />
                   </span>
                   <span className="relative">
                     <span className="block font-display text-sm font-bold text-text">

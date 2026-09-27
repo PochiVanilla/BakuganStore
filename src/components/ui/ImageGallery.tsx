@@ -47,7 +47,7 @@ export function ImageGallery({ images, alt }: { images: string[]; alt: string })
         />
 
         <span
-          className="pointer-events-none absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-lg bg-background/75 px-2.5 py-1.5 text-[11px] text-text-muted backdrop-blur transition-opacity group-hover:opacity-0"
+          className="pointer-events-none absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-lg bg-background/85 px-2.5 py-1.5 text-[11px] text-text-muted transition-opacity group-hover:opacity-0"
           aria-hidden="true"
         >
           <ZoomIn size={13} />
@@ -60,7 +60,7 @@ export function ImageGallery({ images, alt }: { images: string[]; alt: string })
               type="button"
               onClick={() => step(-1)}
               aria-label="Ảnh trước"
-              className="absolute top-1/2 left-3 -translate-y-1/2 rounded-full border border-white/10 bg-background/80 p-2.5 text-text-muted opacity-0 backdrop-blur transition group-hover:opacity-100 hover:text-accent-cyan focus-visible:opacity-100"
+              className="absolute top-1/2 left-3 -translate-y-1/2 rounded-full border border-white/10 bg-background/80 p-2.5 text-text-muted opacity-0 transition group-hover:opacity-100 hover:text-accent-cyan focus-visible:opacity-100"
             >
               <ChevronLeft size={18} />
             </button>
@@ -68,7 +68,7 @@ export function ImageGallery({ images, alt }: { images: string[]; alt: string })
               type="button"
               onClick={() => step(1)}
               aria-label="Ảnh kế tiếp"
-              className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full border border-white/10 bg-background/80 p-2.5 text-text-muted opacity-0 backdrop-blur transition group-hover:opacity-100 hover:text-accent-cyan focus-visible:opacity-100"
+              className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full border border-white/10 bg-background/80 p-2.5 text-text-muted opacity-0 transition group-hover:opacity-100 hover:text-accent-cyan focus-visible:opacity-100"
             >
               <ChevronRight size={18} />
             </button>

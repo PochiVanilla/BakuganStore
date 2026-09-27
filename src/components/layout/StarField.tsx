@@ -31,7 +31,8 @@ export function StarField({ count = 28 }: { count?: number }) {
       {stars.map((star) => (
         <span
           key={star.id}
-          className="absolute animate-twinkle rounded-full"
+          // Điện thoại chỉ giữ một nửa số sao: đỡ việc cho máy mà nhìn vẫn như cũ.
+          className={`absolute animate-twinkle rounded-full${star.id % 2 === 1 ? 'max-sm:hidden' : ''}`}
           style={{
             top: star.top,
             left: star.left,

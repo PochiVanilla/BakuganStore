@@ -343,12 +343,36 @@ export function toFeedPost(
   };
 }
 
+/*
+ * Danh sách feed được dựng lại (ghép từng con, ảnh, trạng thái) mỗi khi màn hình
+ * cần. Nhớ kết quả cho tới khi dữ liệu đổi (updateDb tạo object mới) hoặc tới giờ
+ * mở bán của feed kế tiếp (trạng thái "sắp mở bán" đổi thành "đang bán").
+ */
+let postsCache: { db: Readonly<MockDatabase>; validUntil: number; posts: FeedPost[] } | null = null;
+
 /** Các feed đang có trên web, mới nhất trước. */
 export function listFeedPosts(db: Readonly<MockDatabase> = readDb()): FeedPost[] {
   const now = Date.now();
-  return [...db.feeds]
+  if (postsCache && postsCache.db === db && now < postsCache.validUntil) return postsCache.posts;
+
+  const byFeed = new Map<string, StoredItem[]>();
+  db.items.forEach((item) => {
+    if (!item.feedId) return;
+    const list = byFeed.get(item.feedId);
+    if (list) list.push(item);
+    else byFeed.set(item.feedId, [item]);
+  });
+  byFeed.forEach((list) => list.sort((a, b) => a.position - b.position));
+
+  const posts = [...db.feeds]
     .sort((a, b) => b.number - a.number)
-    .map((feed) => toFeedPost(feed, itemsOfFeed(db, feed.id), now));
+    .map((feed) => toFeedPost(feed, byFeed.get(feed.id) ?? [], now));
+  const nextOpening = db.feeds
+    .map((feed) => new Date(feed.opensAt).getTime())
+    .filter((time) => time > now)
+    .reduce((soonest, time) => Math.min(soonest, time), Number.POSITIVE_INFINITY);
+  postsCache = { db, validUntil: nextOpening, posts };
+  return posts;
 }
 
 const FALLBACK_IMAGE = productPlaceholder('TD Bakugan', 'darkus', 0);

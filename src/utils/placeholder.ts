@@ -2,6 +2,8 @@ import type { BakuganAttribute } from '@/types';
 
 /**
  * Ảnh placeholder sinh tại chỗ dưới dạng SVG data-URI.
+ * Không đặt chữ bên trong SVG: chữ trong ảnh SVG phải dò font khi vẽ, làm mỗi ảnh
+ * chậm gần gấp đôi — nhãn "Ảnh minh hoạ" hiện bằng HTML đè lên ảnh (xem isIllustration).
  * Không tải ảnh ngoài, không dùng hình nhân vật có bản quyền —
  * khi nối backend chỉ cần thay bằng URL ảnh thật trong `product.images`.
  */
@@ -28,12 +30,21 @@ function toDataUri(svg: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.replace(/\s+/g, ' ').trim())}`;
 }
 
-function initials(label: string): string {
-  const words = label.split(/\s+/).filter(Boolean);
-  return words
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? '')
-    .join('');
+/*
+ * Ảnh sinh ra được nhớ lại theo tham số: danh sách feed dựng lại nhiều lần (mỗi
+ * lần dữ liệu đổi) mà không phải tạo lại hàng trăm chuỗi SVG, và trình duyệt
+ * nhận đúng chuỗi cũ nên không giải mã lại ảnh.
+ */
+const MAX_CACHED = 800;
+const cache = new Map<string, string>();
+
+function memo(key: string, build: () => string): string {
+  const hit = cache.get(key);
+  if (hit !== undefined) return hit;
+  const value = build();
+  if (cache.size >= MAX_CACHED) cache.delete(cache.keys().next().value!);
+  cache.set(key, value);
+  return value;
 }
 
 /** Ảnh sản phẩm vuông: quả cầu chiến đấu cách điệu, tô theo màu hệ. */
@@ -41,6 +52,16 @@ export function productPlaceholder(
   label: string,
   attribute: BakuganAttribute,
   variant = 0,
+): string {
+  return memo(`p|${label}|${attribute}|${variant}`, () =>
+    buildProductPlaceholder(label, attribute, variant),
+  );
+}
+
+function buildProductPlaceholder(
+  label: string,
+  attribute: BakuganAttribute,
+  variant: number,
 ): string {
   const [from, to] = ATTRIBUTE_COLORS[attribute];
   const seed = hashSeed(`${label}-${variant}`);
@@ -86,16 +107,16 @@ export function productPlaceholder(
     <circle cx="300" cy="290" r="40" fill="none" stroke="#F5F5FA" stroke-opacity="0.35" stroke-width="3"/>
     <path d="M300 118 a172 172 0 0 1 122 50 l-30 30 a130 130 0 0 0 -92 -38 z" fill="url(#shine${uid})"/>
   </g>
-  <text x="300" y="303" font-family="Orbitron, Arial, sans-serif" font-size="34" font-weight="800"
-        text-anchor="middle" fill="#0A0A12" opacity="0.85">${initials(label)}</text>
-  <text x="300" y="545" font-family="Orbitron, Arial, sans-serif" font-size="26" font-weight="700"
-        letter-spacing="7" text-anchor="middle" fill="#F5F5FA" opacity="0.32">TD BAKUGAN</text>
 </svg>`;
   return toDataUri(svg);
 }
 
 /** Ảnh bìa bài viết (tỉ lệ 1200x630). */
 export function blogPlaceholder(label: string, index = 0): string {
+  return memo(`b|${label}|${index}`, () => buildBlogPlaceholder(label, index));
+}
+
+function buildBlogPlaceholder(label: string, index: number): string {
   const palettes: ReadonlyArray<readonly [string, string]> = [
     ['#7B4BE8', '#E940D2'],
     ['#3FE3F5', '#7B4BE8'],
@@ -133,10 +154,6 @@ export function blogPlaceholder(label: string, index = 0): string {
     <circle cx="700" cy="150" r="2.5" opacity="0.5"/>
     <circle cx="260" cy="250" r="2" opacity="0.4"/>
   </g>
-  <text x="80" y="330" font-family="Orbitron, Arial, sans-serif" font-size="66" font-weight="800"
-        fill="#F5F5FA" opacity="0.92">${initials(label)}</text>
-  <text x="80" y="390" font-family="Arial, sans-serif" font-size="26" letter-spacing="6"
-        fill="#3FE3F5" opacity="0.85">TD BAKUGAN BLOG</text>
 </svg>`;
   return toDataUri(svg);
 }
@@ -160,6 +177,12 @@ function seededRandom(seed: number): () => number {
  * Feed thật dùng ảnh admin chụp và tải lên.
  */
 export function lotPlaceholder(seedLabel: string, attributes: readonly BakuganAttribute[]): string {
+  return memo(`l|${seedLabel}|${attributes.join(',')}`, () =>
+    buildLotPlaceholder(seedLabel, attributes),
+  );
+}
+
+function buildLotPlaceholder(seedLabel: string, attributes: readonly BakuganAttribute[]): string {
   const seed = hashSeed(`lot-${seedLabel}`);
   const rand = seededRandom(seed);
   const uid = `l${seed % 99991}`;
@@ -198,18 +221,17 @@ export function lotPlaceholder(seedLabel: string, attributes: readonly BakuganAt
   const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img">
   <defs>
-    <filter id="n${uid}" x="0" y="0" width="100%" height="100%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="${seed % 97}"/>
-      <feColorMatrix type="saturate" values="0"/>
-      <feComponentTransfer><feFuncA type="table" tableValues="0 0.22"/></feComponentTransfer>
-    </filter>
+    <radialGradient id="s${uid}" cx="${30 + (seed % 40)}%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
     <radialGradient id="v${uid}" cx="50%" cy="45%" r="75%">
       <stop offset="60%" stop-color="#000" stop-opacity="0"/>
       <stop offset="100%" stop-color="#000" stop-opacity="0.35"/>
     </radialGradient>
   </defs>
   <rect width="1280" height="720" fill="#8C8F94"/>
-  <rect width="1280" height="720" filter="url(#n${uid})"/>
+  <rect width="1280" height="720" fill="url(#s${uid})"/>
   <g transform="rotate(8 1130 150)">
     <rect x="1040" y="40" width="170" height="236" rx="12" fill="#232640"/>
     <rect x="1052" y="52" width="146" height="100" rx="6" fill="#3B2F6B"/>
@@ -218,8 +240,11 @@ export function lotPlaceholder(seedLabel: string, attributes: readonly BakuganAt
   </g>
   ${balls.join('')}
   <rect width="1280" height="720" fill="url(#v${uid})"/>
-  <text x="36" y="690" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="4"
-        fill="#FFFFFF" opacity="0.55">ẢNH MINH HOẠ · TD BAKUGAN</text>
 </svg>`;
   return toDataUri(svg);
+}
+
+/** Ảnh minh hoạ sinh tự động (không phải ảnh chụp thật) — để hiện nhãn "Ảnh minh hoạ". */
+export function isIllustration(src: string | undefined): boolean {
+  return Boolean(src?.startsWith('data:image/svg'));
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
@@ -47,7 +47,7 @@ export function Modal({
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4">
-          <motion.button
+          <m.button
             type="button"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -56,7 +56,7 @@ export function Modal({
             aria-label="Đóng hộp thoại"
             className="absolute inset-0 h-full w-full cursor-default bg-background/80 backdrop-blur-sm"
           />
-          <motion.div
+          <m.div
             ref={panelRef}
             tabIndex={-1}
             role="dialog"
@@ -91,7 +91,7 @@ export function Modal({
               {children}
             </div>
             {footer && <footer className="border-t border-white/8 px-6 py-4">{footer}</footer>}
-          </motion.div>
+          </m.div>
         </div>
       )}
     </AnimatePresence>,

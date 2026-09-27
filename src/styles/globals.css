@@ -40,7 +40,7 @@
 
   /* Font */
   --font-sans: 'Be Vietnam Pro', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-display: 'Orbitron', 'Russo One', 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-display: 'Orbitron', 'Be Vietnam Pro', system-ui, sans-serif;
 
   /* Glow */
   --shadow-glow-cyan: 0 0 18px rgba(63, 227, 245, 0.45);
@@ -54,6 +54,7 @@
   --animate-pulse-glow: pulse-glow 2.4s ease-in-out infinite;
   --animate-shimmer: shimmer 1.6s linear infinite;
   --animate-marquee: marquee 26s linear infinite;
+  --animate-fade-up: fade-up 0.35s ease-out both;
 }
 
 @keyframes twinkle {
@@ -65,6 +66,18 @@
   50% {
     opacity: 1;
     transform: scale(1.15);
+  }
+}
+
+/* Hiện dần từ dưới lên — chạy bằng CSS nên nội dung hiện ngay khi trang vẽ xong. */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -123,14 +136,26 @@
     margin: 0;
     min-height: 100vh;
     background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /*
+   * Nền tinh vân đứng yên khi cuộn. Đặt trên một lớp cố định riêng thay cho
+   * background-attachment: fixed — kiểu cũ bắt điện thoại vẽ lại cả nền ở mỗi
+   * khung hình khi cuộn, làm trang giật.
+   */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -20;
+    pointer-events: none;
     background-image:
       radial-gradient(ellipse 80% 50% at 50% -10%, rgba(123, 75, 232, 0.22), transparent 60%),
       radial-gradient(ellipse 60% 40% at 100% 20%, rgba(63, 227, 245, 0.1), transparent 60%),
       radial-gradient(ellipse 50% 40% at 0% 60%, rgba(233, 64, 210, 0.08), transparent 60%);
-    background-attachment: fixed;
-    color: var(--color-text);
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
   }
 
   h1,

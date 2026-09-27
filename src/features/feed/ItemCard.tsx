@@ -73,7 +73,7 @@ function ItemCardComponent({
           decoding="async"
           className={cn('aspect-square w-full object-cover', isSold && 'opacity-40 grayscale')}
         />
-        <span className="absolute top-2.5 left-2.5 rounded-md border border-white/15 bg-background/85 px-2 py-0.5 font-mono text-[11px] font-bold tracking-wide text-accent-cyan backdrop-blur">
+        <span className="absolute top-2.5 left-2.5 rounded-md border border-white/15 bg-background/85 px-2 py-0.5 font-mono text-[11px] font-bold tracking-wide text-accent-cyan">
           {item.code}
         </span>
         <button
@@ -82,7 +82,7 @@ function ItemCardComponent({
           aria-label={isWishlisted ? `Bỏ ${item.code} khỏi yêu thích` : `Yêu thích ${item.code}`}
           aria-pressed={isWishlisted}
           className={cn(
-            'absolute top-2 right-2 rounded-full border p-2 backdrop-blur transition',
+            'absolute top-2 right-2 rounded-full border p-2 transition',
             isWishlisted
               ? 'border-accent-pink/60 bg-accent-pink/20 text-accent-pink'
               : 'border-white/15 bg-background/70 text-text-muted hover:text-accent-pink',
