@@ -6,14 +6,14 @@ const ITEMS = [
     icon: BadgeCheck,
     title: 'Hàng chính hãng',
     description:
-      'Mọi sản phẩm đều nhập từ nguồn uy tín, có kiểm tra mã series và lực nam châm trước khi lên kệ.',
+      'Mọi Bakugan nhập từ nguồn uy tín, có kiểm tra mã series và lực nam châm trước khi đăng feed.',
     color: '#3FE3F5',
   },
   {
     icon: Search,
     title: 'Kiểm tra kỹ từng quả',
     description:
-      'Thử cơ cấu bung nở 10 lần, vệ sinh khoang nam châm và chụp ảnh thực tế cho từng sản phẩm.',
+      'Thử cơ cấu bung nở 10 lần, vệ sinh khoang nam châm và ghi rõ tình trạng riêng của từng con.',
     color: '#E940D2',
   },
   {
@@ -27,7 +27,7 @@ const ITEMS = [
     icon: RefreshCw,
     title: 'Đổi trả 7 ngày',
     description:
-      'Hoàn tiền hoặc đổi sản phẩm khác nếu phát hiện lỗi từ nhà sản xuất trong vòng 7 ngày.',
+      'Hoàn tiền nếu con Bakugan bị lỗi cơ cấu, mất từ tính hoặc giao sai mã trong vòng 7 ngày.',
     color: '#7B4BE8',
   },
 ];

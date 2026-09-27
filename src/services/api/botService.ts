@@ -97,14 +97,21 @@ export interface AskBotInput {
   knowledge: BotKnowledge;
 }
 
+/** Giới hạn của endpoint (api/chat-bot.ts) — vượt là cả yêu cầu bị từ chối. */
+const REQUEST_LIMITS = { messages: 12, messageChars: 1_000, facts: 140, factChars: 600 };
+
 /** Hỏi Gemini; nếu không được thì trả lời bằng bộ quy tắc, kèm lý do để admin biết. */
 export async function askBot(input: AskBotInput): Promise<BotReply> {
   const topics = input.topics.filter(isTopic);
   const request: BotRequest = {
-    messages: input.messages.slice(-12),
+    messages: input.messages
+      .slice(-REQUEST_LIMITS.messages)
+      .map((message) => ({ ...message, text: message.text.slice(0, REQUEST_LIMITS.messageChars) })),
     topics,
     extraKnowledge: input.extraKnowledge.slice(0, 1_500),
-    facts: knowledgeToFacts(input.knowledge, topics),
+    facts: knowledgeToFacts(input.knowledge, topics)
+      .slice(0, REQUEST_LIMITS.facts)
+      .map((fact) => fact.slice(0, REQUEST_LIMITS.factChars)),
   };
 
   const now = Date.now();

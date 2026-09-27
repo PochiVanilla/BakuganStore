@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Gavel, Minus, Plus, Search, Trash2, UserRound } from 'lucide-react';
-import type { AdminCustomer, Address, Product } from '@/types';
+import { ArrowLeft, Gavel, Search, Trash2, UserRound } from 'lucide-react';
+import type { AdminCustomer, AdminItem, Address } from '@/types';
 import { PAYMENT_METHODS } from '@/types';
 import { ADMIN_ROUTES, FREE_SHIPPING_THRESHOLD, SHIPPING_FEE } from '@/constants/routes';
 import { PAYMENT_METHOD_LABELS } from '@/constants/orders';
@@ -11,16 +11,17 @@ import {
   createOrder,
   listAdminAuctions,
   listCustomers,
-  listProductOptions,
+  listSellableItems,
 } from '@/services/api/admin';
 import { getApiErrorMessage } from '@/services/api/client';
 import { useAsync } from '@/hooks/useAsync';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { toast } from '@/store/uiStore';
 import { formatCurrency } from '@/utils/format';
 import { normalizeSearch } from '@/utils/slugify';
 import { cn } from '@/utils/cn';
-import { Button, Input, Seo, Skeleton, Textarea } from '@/components/ui';
+import { Button, Input, RefImage, Seo, Skeleton, Textarea } from '@/components/ui';
 import { AdminPageHeader, ErrorBox, Panel } from '@/features/admin/adminUi';
 import { createOrderSchema, type CreateOrderFormValues } from '@/features/admin/schemas';
 
@@ -78,7 +79,6 @@ export default function CreateOrderPage() {
     () => listCustomers({ role: 'customer', status: 'active', sort: 'name' }),
     [],
   );
-  const products = useAsync(() => listProductOptions(), []);
   const auctions = useAsync(() => listAdminAuctions(), [auctionParam], {
     enabled: Boolean(auctionParam),
   });
@@ -164,49 +164,31 @@ export default function CreateOrderPage() {
     if (customer) selectCustomerRef.current(customer);
   }, [customerParam, customers.data, getValues, selectCustomerRef]);
 
-  /* ---- Sản phẩm ---- */
-  const [productQuery, setProductQuery] = useState('');
-  const productById = useMemo(
-    () => new Map((products.data ?? []).map((product) => [product.id, product])),
-    [products.data],
-  );
-  const productMatches = useMemo(() => {
-    const needle = normalizeSearch(productQuery);
-    if (!needle) return [];
-    return (products.data ?? [])
-      .filter((product) => normalizeSearch(product.name).includes(needle))
-      .slice(0, 6);
-  }, [products.data, productQuery]);
+  /* ---- Bakugan: mỗi con là duy nhất, chọn theo mã hoặc tên ---- */
+  const [itemQuery, setItemQuery] = useState('');
+  const debouncedItemQuery = useDebouncedValue(itemQuery.trim(), 200);
+  const [picked, setPicked] = useState<Record<string, AdminItem>>({});
+  const matches = useAsync(() => listSellableItems(debouncedItemQuery), [debouncedItemQuery], {
+    enabled: debouncedItemQuery.length > 0,
+  });
+  const itemMatches = (matches.data ?? [])
+    .filter((item) => !getValues('items').some((line) => line.itemId === item.id))
+    .slice(0, 8);
 
-  const addProduct = (product: Product): void => {
-    const index = getValues('items').findIndex((item) => item.productId === product.id);
-    if (index >= 0) {
-      const current = getValues(`items.${index}.quantity`);
-      setValue(`items.${index}.quantity`, Math.min(product.stock, current + 1), {
-        shouldValidate: true,
-      });
-    } else {
-      append({ productId: product.id, quantity: 1, price: product.price });
-    }
-    setProductQuery('');
+  const addItem = (item: AdminItem): void => {
+    if (getValues('items').some((line) => line.itemId === item.id)) return;
+    setPicked((current) => ({ ...current, [item.id]: item }));
+    append({ itemId: item.id, price: item.price });
+    setItemQuery('');
   };
 
   /* ---- Tổng tiền ---- */
   const items = watched.items ?? [];
   const auctionPrice = watched.auctionId && auctionRow ? auctionRow.auction.currentPrice : 0;
-  const subtotal =
-    auctionPrice +
-    items.reduce(
-      (sum, item) => sum + (Number(item?.price) || 0) * (Number(item?.quantity) || 0),
-      0,
-    );
+  const subtotal = auctionPrice + items.reduce((sum, item) => sum + (Number(item?.price) || 0), 0);
   const shippingFee = Number(watched.shippingFee) || 0;
   const discount = Number(watched.discount) || 0;
   const total = Math.max(0, subtotal + shippingFee - discount);
-  const stockProblems = items.filter((item) => {
-    const product = item?.productId ? productById.get(item.productId) : undefined;
-    return product ? (Number(item?.quantity) || 0) > product.stock : false;
-  }).length;
 
   const onSubmit = async (values: CreateOrderFormValues): Promise<void> => {
     try {
@@ -232,8 +214,8 @@ export default function CreateOrderPage() {
     }
   };
 
-  const loading = customers.isLoading || products.isLoading || (auctionParam && auctions.isLoading);
-  const loadError = customers.error ?? products.error ?? auctions.error;
+  const loading = customers.isLoading || (auctionParam && auctions.isLoading);
+  const loadError = customers.error ?? auctions.error;
 
   return (
     <>
@@ -251,7 +233,7 @@ export default function CreateOrderPage() {
       </Link>
       <AdminPageHeader
         title={auctionParam ? 'Tạo đơn cho người thắng đấu giá' : 'Tạo đơn hàng'}
-        description="Dùng cho đơn chốt qua Zalo, Messenger, tại cửa hàng hoặc đơn đấu giá. Tồn kho được trừ ngay khi tạo."
+        description="Dùng cho đơn chốt qua Zalo, Messenger, tại cửa hàng hoặc đơn đấu giá. Những con trong đơn chuyển sang SOLD ngay khi tạo."
       />
 
       {loadError && <ErrorBox message={loadError} />}
@@ -421,9 +403,9 @@ export default function CreateOrderPage() {
               </div>
             </Panel>
 
-            {/* ---------- Sản phẩm ---------- */}
+            {/* ---------- Bakugan ---------- */}
             <Panel
-              title="2. Sản phẩm"
+              title="2. Bakugan"
               description="Có thể sửa đơn giá khi chốt giá riêng với khách."
             >
               {watched.auctionId && auctionRow && (
@@ -448,7 +430,7 @@ export default function CreateOrderPage() {
               )}
 
               <label className="relative block">
-                <span className="sr-only">Tìm sản phẩm để thêm</span>
+                <span className="sr-only">Tìm Bakugan để thêm</span>
                 <Search
                   size={16}
                   className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-muted"
@@ -456,100 +438,78 @@ export default function CreateOrderPage() {
                 />
                 <input
                   type="search"
-                  value={productQuery}
-                  onChange={(event) => setProductQuery(event.target.value)}
+                  value={itemQuery}
+                  onChange={(event) => setItemQuery(event.target.value)}
                   placeholder={
                     watched.auctionId
-                      ? 'Thêm món khác vào cùng đơn (tuỳ chọn)'
-                      : 'Gõ tên sản phẩm để thêm vào đơn'
+                      ? 'Thêm Bakugan khác vào cùng đơn (tuỳ chọn)'
+                      : 'Gõ mã (BK-0231) hoặc tên Bakugan còn bán'
                   }
                   className="h-11 w-full rounded-xl border border-white/10 bg-surface-2/80 pr-3 pl-9 text-sm text-text outline-none focus:border-accent-cyan"
                 />
               </label>
-              {productMatches.length > 0 && (
+              {itemMatches.length > 0 && (
                 <ul className="mt-2 divide-y divide-white/5 rounded-xl border border-white/8">
-                  {productMatches.map((product) => (
-                    <li key={product.id}>
+                  {itemMatches.map((item) => (
+                    <li key={item.id}>
                       <button
                         type="button"
-                        disabled={product.stock === 0}
-                        onClick={() => addProduct(product)}
-                        className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={() => addItem(item)}
+                        className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-white/5"
                       >
-                        <img
-                          src={product.images[0]}
+                        <RefImage
+                          src={item.image}
                           alt=""
+                          width={36}
+                          height={36}
                           className="h-9 w-9 rounded-lg object-cover"
                         />
                         <span className="min-w-0 flex-1 truncate text-sm text-text">
-                          {product.name}
+                          <span className="font-mono text-xs text-accent-cyan">{item.code}</span>{' '}
+                          {item.name}
                         </span>
                         <span className="text-xs text-text-muted">
-                          {product.stock === 0 ? 'Hết hàng' : `Còn ${product.stock}`}
+                          {item.feedId ? `Feed #${item.feedNumber}` : 'Hàng tồn'}
                         </span>
                         <span className="w-24 text-right text-sm font-semibold text-text tabular-nums">
-                          {formatCurrency(product.price)}
+                          {formatCurrency(item.price)}
                         </span>
                       </button>
                     </li>
                   ))}
                 </ul>
               )}
+              {debouncedItemQuery && matches.data && itemMatches.length === 0 && (
+                <p className="mt-2 text-xs text-text-muted">
+                  Không có con nào còn bán khớp “{debouncedItemQuery}”.
+                </p>
+              )}
 
               {fields.length > 0 && (
                 <ul className="mt-4 divide-y divide-white/5 rounded-xl border border-white/8">
                   {fields.map((field, index) => {
-                    const product = productById.get(field.productId);
-                    const quantity = Number(items[index]?.quantity) || 0;
-                    const overStock = product ? quantity > product.stock : false;
+                    const item = picked[field.itemId];
                     return (
                       <li key={field.id} className="flex flex-wrap items-center gap-3 p-3">
-                        <img
-                          src={product?.images[0]}
+                        <RefImage
+                          src={item?.image}
                           alt=""
+                          width={44}
+                          height={44}
                           className="h-11 w-11 shrink-0 rounded-lg object-cover"
                         />
                         <div className="min-w-0 flex-1 basis-40">
-                          <p className="truncate text-sm font-medium text-text">{product?.name}</p>
-                          <p
-                            className={cn('text-xs', overStock ? 'text-danger' : 'text-text-muted')}
-                          >
-                            {overStock
-                              ? `Chỉ còn ${product?.stock} trong kho`
-                              : `Tồn kho: ${product?.stock ?? 0}`}
+                          <p className="truncate text-sm font-medium text-text">
+                            <span className="font-mono text-xs text-accent-cyan">{item?.code}</span>{' '}
+                            {item?.name}
+                          </p>
+                          <p className="text-xs text-text-muted">
+                            {item?.feedId ? `Feed #${item.feedNumber}` : 'Hàng tồn'} · giá feed{' '}
+                            {item ? formatCurrency(item.price) : ''}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            aria-label="Giảm số lượng"
-                            className="rounded-lg p-2 text-text-muted hover:bg-white/5"
-                            onClick={() =>
-                              setValue(`items.${index}.quantity`, Math.max(1, quantity - 1))
-                            }
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <label>
-                            <span className="sr-only">Số lượng {product?.name}</span>
-                            <input
-                              type="number"
-                              min={1}
-                              className={cn(numberInput, 'w-14', overStock && 'border-danger/70')}
-                              {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            aria-label="Tăng số lượng"
-                            className="rounded-lg p-2 text-text-muted hover:bg-white/5"
-                            onClick={() => setValue(`items.${index}.quantity`, quantity + 1)}
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
                         <label className="w-32">
-                          <span className="sr-only">Đơn giá {product?.name}</span>
+                          <span className="sr-only">Giá chốt {item?.code}</span>
                           <input
                             type="number"
                             min={0}
@@ -561,7 +521,7 @@ export default function CreateOrderPage() {
                         <button
                           type="button"
                           onClick={() => remove(index)}
-                          aria-label={`Bỏ ${product?.name ?? 'sản phẩm'} khỏi đơn`}
+                          aria-label={`Bỏ ${item?.code ?? 'con này'} khỏi đơn`}
                           className="rounded-lg p-2 text-text-muted hover:bg-danger/10 hover:text-danger"
                         >
                           <Trash2 size={16} />
@@ -690,18 +650,13 @@ export default function CreateOrderPage() {
                   Đơn đủ điều kiện miễn phí ship — áp dụng
                 </button>
               )}
-              {stockProblems > 0 && (
-                <p role="alert" className="mt-3 text-xs text-danger">
-                  Có {stockProblems} dòng vượt quá tồn kho.
-                </p>
-              )}
               <Button
                 type="submit"
                 fullWidth
                 size="lg"
                 className="mt-5"
                 isLoading={isSubmitting}
-                disabled={stockProblems > 0 || (Boolean(auctionParam) && !auctionReady)}
+                disabled={Boolean(auctionParam) && !auctionReady}
               >
                 Tạo đơn
               </Button>

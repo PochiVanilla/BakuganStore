@@ -3,11 +3,16 @@
    ============================================================ */
 import type {
   Address,
-  Auction,
-  BakuganAttribute,
+  AuctionRecord,
+  BakuganItem,
+  FeedPost,
   Gender,
+  LevelSource,
+  MemberLevel,
+  MembershipRequest,
   Order,
   OrderStatus,
+  ShopBankInfo,
   UserRole,
 } from './index';
 
@@ -23,6 +28,8 @@ export interface AdminCustomerStats {
   lastOrderAt?: string;
   auctionBidCount: number;
   auctionWinCount: number;
+  /** Số Bakugan đã nhận (đơn hoàn tất) — đủ 3 con thì lên Lv2 */
+  purchasedItemCount: number;
 }
 
 /**
@@ -50,6 +57,11 @@ export interface AdminCustomer {
   adminNote: string;
   /** Khách có liên kết ngân hàng hay không — chỉ tên ngân hàng và chủ tài khoản */
   bankLink: { bankName: string; accountHolder: string } | null;
+  memberLevel: MemberLevel;
+  levelSource?: LevelSource;
+  levelUpAt?: string;
+  depositBalance: number;
+  pendingLevelRequest?: MembershipRequest;
   stats: AdminCustomerStats;
 }
 
@@ -61,34 +73,49 @@ export interface AdminCustomerDetail extends AdminCustomer {
     myHighestBid: number;
     bidCount: number;
     isWinning: boolean;
-    status: Auction['status'];
+    status: AuctionRecord['status'];
   }>;
+  levelRequests: MembershipRequest[];
 }
 
-/* ---------- Kho & nhập hàng ---------- */
-export interface StockReceiptItem {
-  productId: string;
-  productName: string;
-  attribute: BakuganAttribute;
-  quantity: number;
-  /** Giá vốn một con */
-  unitCost: number;
+/* ---------- Feed & từng con Bakugan ---------- */
+/** Web chỉ lưu tối đa ngần này feed; đăng feed mới khi đã đủ thì phải xoá feed cũ nhất. */
+export const FEED_LIMIT = 30;
+
+/** Con Bakugan như admin thấy: có thêm thông tin đơn / người mua và giá nhập. */
+export interface AdminItem extends BakuganItem {
+  /** Bán qua đơn trên web / admin tạo, hay admin tự đánh dấu (chốt qua Messenger, bán tại shop) */
+  soldVia?: 'order' | 'manual';
+  orderId?: string;
+  orderCode?: string;
+  buyerName?: string;
+  soldNote?: string;
 }
 
-/** Phiếu nhập kho */
-export interface StockReceipt {
-  id: string;
-  code: string;
-  supplier: string;
-  receivedAt: string;
-  createdBy: string;
-  note?: string;
-  items: StockReceiptItem[];
-  totalQuantity: number;
-  totalCost: number;
+export interface AdminFeed extends Omit<FeedPost, 'items'> {
+  items: AdminItem[];
+  /** Tổng tiền những con đã bán */
+  revenue: number;
+  /** Giá nhập cả lô (tuỳ chọn) — để tính lãi tạm */
+  lotCost?: number;
+  supplier?: string;
 }
 
-export type StockLevel = 'in-stock' | 'low' | 'out';
+/** Feed sẽ bị xoá khi đăng feed thứ 31, kèm những con chưa bán trong đó. */
+export interface FeedLimitCheck {
+  feedCount: number;
+  limit: number;
+  /** Có khi web đã đủ feed: feed cũ nhất sẽ phải xoá để đăng feed mới */
+  oldest?: {
+    id: string;
+    number: number;
+    title: string;
+    publishedAt: string;
+    itemCount: number;
+    soldCount: number;
+    leftovers: Array<Pick<BakuganItem, 'id' | 'code' | 'name' | 'price'>>;
+  };
+}
 
 /* ---------- Sự cố đơn hàng ---------- */
 export const ISSUE_TYPES = [
@@ -140,7 +167,7 @@ export interface AuctionFulfillment {
 }
 
 export interface AdminAuctionRow {
-  auction: Auction;
+  auction: AuctionRecord;
   fulfillment: AuctionFulfillmentStatus;
   orderId?: string;
   orderCode?: string;
@@ -150,8 +177,10 @@ export interface AdminAuctionRow {
 
 /* ---------- Cài đặt ---------- */
 export interface ShopSettings {
-  /** Còn từ ngần này trở xuống thì báo "sắp hết hàng" */
-  lowStockThreshold: number;
+  /** Số tiền khách nạp để lên thành viên Lv2 (được đấu giá) */
+  memberDepositAmount: number;
+  /** Tài khoản nhận chuyển khoản của shop — hiện cho khách khi thanh toán / nạp tiền */
+  bank: ShopBankInfo;
 }
 
 /* ---------- Tổng quan ---------- */
@@ -172,9 +201,25 @@ export interface DashboardStats {
   pendingOrders: number;
   statusCounts: Record<OrderStatus, number>;
   daily: DailyRevenuePoint[];
-  stockUnits: number;
-  lowStockCount: number;
-  outOfStockCount: number;
+  feedCount: number;
+  feedLimit: number;
+  sellingFeeds: number;
+  upcomingFeeds: number;
+  /** Feed đã bán hết con cuối — để admin theo dõi / dọn */
+  soldOutFeeds: Array<{
+    id: string;
+    number: number;
+    title: string;
+    itemCount: number;
+    revenue: number;
+    soldOutAt?: string;
+  }>;
+  availableItems: number;
+  /** Số con bán được trong khoảng thời gian đang xem */
+  soldItems: number;
+  /** Hàng tồn từ feed đã xoá, chưa được đăng lại */
+  leftoverItems: number;
+  pendingLevelRequests: number;
   openIssues: number;
   waitingChats: number;
   awaitingAuctionOrders: number;

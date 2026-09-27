@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
 /** Gallery có zoom: rê chuột để phóng to, bấm mũi tên hoặc thumbnail để đổi ảnh. */
-export function ProductGallery({ images, alt }: { images: string[]; alt: string }) {
+export function ImageGallery({ images, alt }: { images: string[]; alt: string }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isZooming, setIsZooming] = useState(false);
   const [origin, setOrigin] = useState({ x: 50, y: 50 });

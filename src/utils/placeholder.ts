@@ -145,3 +145,81 @@ export function blogPlaceholder(label: string, index = 0): string {
 export function bannerPlaceholder(label: string, index = 0): string {
   return blogPlaceholder(label, index + 7);
 }
+
+function seededRandom(seed: number): () => number {
+  let state = seed || 1;
+  return () => {
+    state = (state * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return state / 2_147_483_648;
+  };
+}
+
+/**
+ * Ảnh minh hoạ cho feed mẫu (tỉ lệ 16:9): các quả cầu Bakugan đóng, tô theo
+ * màu hệ của những con trong lô, bày trên nền thảm xám như ảnh chụp lô hàng.
+ * Feed thật dùng ảnh admin chụp và tải lên.
+ */
+export function lotPlaceholder(seedLabel: string, attributes: readonly BakuganAttribute[]): string {
+  const seed = hashSeed(`lot-${seedLabel}`);
+  const rand = seededRandom(seed);
+  const uid = `l${seed % 99991}`;
+  const colors = attributes.length > 0 ? attributes : (['pyrus', 'aquos', 'ventus'] as const);
+  const count = Math.min(16, Math.max(6, Math.round(colors.length * 1.2)));
+
+  // Lưới 5 cột x 4 hàng, mỗi quả lệch ngẫu nhiên một chút cho giống bày tay.
+  const cells = Array.from({ length: 20 }, (_, index) => index).sort(() => rand() - 0.5);
+  const balls = cells.slice(0, count).map((cell, index) => {
+    const col = cell % 5;
+    const row = Math.floor(cell / 5);
+    const r = 46 + Math.round(rand() * 22);
+    const cx = Math.round(150 + col * 245 + (rand() - 0.5) * 70);
+    const cy = Math.round(110 + row * 165 + (rand() - 0.5) * 50);
+    const [from, to] = ATTRIBUTE_COLORS[colors[index % colors.length]!];
+    const tilt = Math.round((rand() - 0.5) * 70);
+    return `
+    <g transform="rotate(${tilt} ${cx} ${cy})">
+      <ellipse cx="${cx + 10}" cy="${cy + r * 0.85}" rx="${r * 0.95}" ry="${r * 0.28}" fill="#000" opacity="0.28"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#b${uid}${index})"/>
+      <path d="M${cx - r} ${cy} a${r} ${r * 0.32} 0 0 0 ${r * 2} 0" fill="none" stroke="#0A0A12" stroke-opacity="0.55" stroke-width="5"/>
+      <path d="M${cx} ${cy - r} a${r * 0.36} ${r} 0 0 1 0 ${r * 2}" fill="none" stroke="#0A0A12" stroke-opacity="0.35" stroke-width="4"/>
+      <circle cx="${cx}" cy="${cy}" r="${r * 0.3}" fill="#0A0A12" fill-opacity="0.55"/>
+      <circle cx="${cx}" cy="${cy}" r="${r * 0.2}" fill="${to}" fill-opacity="0.9"/>
+      <ellipse cx="${cx - r * 0.35}" cy="${cy - r * 0.45}" rx="${r * 0.32}" ry="${r * 0.16}" fill="#FFF" opacity="0.35"/>
+    </g>
+    <defs>
+      <radialGradient id="b${uid}${index}" cx="38%" cy="32%" r="75%">
+        <stop offset="0%" stop-color="${to}"/>
+        <stop offset="55%" stop-color="${from}"/>
+        <stop offset="100%" stop-color="#1A1A26"/>
+      </radialGradient>
+    </defs>`;
+  });
+
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img">
+  <defs>
+    <filter id="n${uid}" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="${seed % 97}"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="table" tableValues="0 0.22"/></feComponentTransfer>
+    </filter>
+    <radialGradient id="v${uid}" cx="50%" cy="45%" r="75%">
+      <stop offset="60%" stop-color="#000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.35"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="720" fill="#8C8F94"/>
+  <rect width="1280" height="720" filter="url(#n${uid})"/>
+  <g transform="rotate(8 1130 150)">
+    <rect x="1040" y="40" width="170" height="236" rx="12" fill="#232640"/>
+    <rect x="1052" y="52" width="146" height="100" rx="6" fill="#3B2F6B"/>
+    <rect x="1052" y="164" width="146" height="10" rx="4" fill="#F5F5FA" opacity="0.55"/>
+    <rect x="1052" y="182" width="100" height="8" rx="4" fill="#F5F5FA" opacity="0.35"/>
+  </g>
+  ${balls.join('')}
+  <rect width="1280" height="720" fill="url(#v${uid})"/>
+  <text x="36" y="690" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="4"
+        fill="#FFFFFF" opacity="0.55">ẢNH MINH HOẠ · TD BAKUGAN</text>
+</svg>`;
+  return toDataUri(svg);
+}

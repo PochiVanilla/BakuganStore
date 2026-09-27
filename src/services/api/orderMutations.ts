@@ -1,33 +1,49 @@
 import type { CancelReason, OrderEvent, OrderStatus } from '@/types';
-import {
-  createId,
-  listAllProducts,
-  patchProduct,
-  type MockDatabase,
-  type StoredOrder,
-  type StoredOrderItem,
-} from '@/mocks/db';
+import { createId, type MockDatabase, type StoredOrder } from '@/mocks/db';
 
 /* ============================================================
-   Thay đổi đơn hàng dùng chung cho mọi nơi ghi dữ liệu (admin, trợ lý
-   chat…), để kho và lịch sử đơn luôn được cập nhật cùng một cách.
+   Thay đổi đơn hàng dùng chung cho mọi nơi ghi dữ liệu (khách đặt,
+   admin, trợ lý chat…), để trạng thái SOLD của từng con Bakugan và
+   lịch sử đơn luôn được cập nhật cùng một cách.
    Chỉ dùng bên trong tầng "server" mock — người gọi tự kiểm tra quyền.
    ============================================================ */
 
-function isCatalogItem(item: StoredOrderItem): boolean {
-  return !item.productId.startsWith('auction:');
+function isAuctionLine(itemId: string): boolean {
+  return itemId.startsWith('auction:');
 }
 
-/** direction = -1 khi bán ra (trừ kho), +1 khi hàng quay về kho. */
-export function applyStock(db: MockDatabase, items: StoredOrderItem[], direction: 1 | -1): void {
-  const products = listAllProducts(db);
-  items.filter(isCatalogItem).forEach((item) => {
-    const product = products.find((entry) => entry.id === item.productId);
-    if (!product) return;
-    patchProduct(db, product.id, {
-      stock: Math.max(0, product.stock + direction * item.quantity),
-      soldCount: Math.max(0, product.soldCount - direction * item.quantity),
-    });
+/** Những con trong đơn chuyển sang SOLD, gắn với đơn này. */
+export function sellOrderItems(db: MockDatabase, order: StoredOrder, at: string): void {
+  order.items.forEach((line) => {
+    if (isAuctionLine(line.itemId)) return;
+    const item = db.items.find((entry) => entry.id === line.itemId);
+    if (!item) return;
+    const feed = item.feedId ? db.feeds.find((entry) => entry.id === item.feedId) : undefined;
+    item.status = 'sold';
+    item.soldVia = 'order';
+    item.orderId = order.id;
+    item.soldAt = at;
+    delete item.soldNote;
+    delete item.buyerName;
+    if (feed) {
+      item.feedTitle = feed.title;
+      item.feedNumber = feed.number;
+    }
+  });
+}
+
+/**
+ * Trả những con thuộc đơn về trạng thái còn bán (đơn huỷ, hoặc hàng hoàn trả
+ * còn bán lại được). Con đã bị đơn khác hay admin xử lý thì không đụng tới.
+ */
+export function releaseOrderItems(db: MockDatabase, order: StoredOrder): void {
+  order.items.forEach((line) => {
+    const item = db.items.find((entry) => entry.id === line.itemId);
+    if (!item || item.orderId !== order.id) return;
+    item.status = 'available';
+    delete item.soldAt;
+    delete item.soldVia;
+    delete item.orderId;
   });
 }
 
@@ -46,8 +62,8 @@ export function recordStatus(
 }
 
 /**
- * Việc phải làm khi huỷ một đơn chưa rời kho: trả hàng về kho, ghi lý do,
- * và nếu là đơn đấu giá thì đánh dấu phiên bị bỏ cọc.
+ * Việc phải làm khi huỷ một đơn chưa rời shop: những con trong đơn được bán
+ * lại, ghi lý do, và nếu là đơn đấu giá thì đánh dấu phiên bị bỏ cọc.
  */
 export function releaseCancelledOrder(
   db: MockDatabase,
@@ -56,7 +72,7 @@ export function releaseCancelledOrder(
   note: string | undefined,
   at: string,
 ): void {
-  applyStock(db, order.items, 1);
+  releaseOrderItems(db, order);
   order.cancelReason = reason;
   order.cancelNote = note;
   if (order.auctionId) {

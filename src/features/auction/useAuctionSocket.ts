@@ -4,13 +4,17 @@ import { useLatestRef } from '@/hooks/useLatestRef';
 
 export type AuctionSocketStatus = 'connecting' | 'open' | 'closed' | 'error' | 'mock';
 
+/**
+ * Sự kiện realtime không mang danh tính người đặt: chỉ giá cao nhất mới và số
+ * lượt / số người đã đặt. Lượt của chính mình lấy từ phản hồi khi đặt giá.
+ */
 export type AuctionSocketEvent =
   | {
       type: 'bid-placed';
       auctionId: string;
       amount: number;
-      bidderId: string;
-      bidderMaskedName: string;
+      bidCount: number;
+      bidderCount: number;
       at: string;
     }
   | { type: 'auction-ended'; auctionId: string; at: string }
@@ -23,6 +27,8 @@ export interface UseAuctionSocketOptions {
   /** Giá hiện tại, dùng để mock nhịp tăng giá cho hợp lý. */
   currentPrice?: number;
   bidStep?: number;
+  bidCount?: number;
+  bidderCount?: number;
   onEvent?: (event: AuctionSocketEvent) => void;
 }
 
@@ -32,8 +38,6 @@ export interface AuctionSocketResult {
 }
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? '';
-
-const MOCK_BIDDERS = ['Ngu** V** Hùng', 'Tr** G** Bảo', 'Lê H** Phúc', 'Ph** T** Hà', 'Đỗ Q** Huy'];
 
 /**
  * Kênh realtime cho phiên đấu giá.
@@ -48,6 +52,8 @@ export function useAuctionSocket({
   enabled = true,
   currentPrice = 0,
   bidStep = 50_000,
+  bidCount = 0,
+  bidderCount = 0,
   onEvent,
 }: UseAuctionSocketOptions): AuctionSocketResult {
   const isMockMode = USE_MOCK || !WS_URL;
@@ -66,6 +72,7 @@ export function useAuctionSocket({
 
   const onEventRef = useLatestRef(onEvent);
   const priceRef = useLatestRef(currentPrice);
+  const countsRef = useLatestRef({ bidCount, bidderCount });
 
   useEffect(() => {
     if (!enabled) return;
@@ -83,15 +90,16 @@ export function useAuctionSocket({
       const scheduleNext = (): void => {
         const delay = 16_000 + Math.random() * 14_000;
         timeoutId = window.setTimeout(() => {
-          const bidderIndex = Math.floor(Math.random() * MOCK_BIDDERS.length);
           const increment = bidStep * (Math.random() > 0.7 ? 2 : 1);
           simulatedPrice = Math.max(simulatedPrice, priceRef.current) + increment;
+          const { bidCount: bids, bidderCount: bidders } = countsRef.current;
           emit({
             type: 'bid-placed',
             auctionId,
             amount: simulatedPrice,
-            bidderId: `usr-bot-${bidderIndex}`,
-            bidderMaskedName: MOCK_BIDDERS[bidderIndex]!,
+            bidCount: bids + 1,
+            // Thỉnh thoảng có người mới nhảy vào phiên.
+            bidderCount: bidders + (Math.random() < 0.35 ? 1 : 0),
             at: new Date().toISOString(),
           });
           scheduleNext();
@@ -117,7 +125,7 @@ export function useAuctionSocket({
     };
 
     return () => socket.close();
-  }, [auctionId, enabled, bidStep, isMockMode, onEventRef, priceRef]);
+  }, [auctionId, enabled, bidStep, isMockMode, onEventRef, priceRef, countsRef]);
 
   // Trạng thái suy ra hoàn toàn khi render, không cần setState trong effect.
   const status: AuctionSocketStatus = !enabled

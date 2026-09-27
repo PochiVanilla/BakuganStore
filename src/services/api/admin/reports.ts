@@ -8,13 +8,13 @@ import type {
   OrderIssue,
   OrderStatus,
 } from '@/types';
-import { CANCEL_REASONS, ISSUE_TYPES, ORDER_STATUSES } from '@/types';
+import { CANCEL_REASONS, FEED_LIMIT, ISSUE_TYPES, ORDER_STATUSES } from '@/types';
 import { ACTIVE_ORDER_STATUSES } from '@/constants/orders';
-import { createId, hydrateOrder, listAllProducts, readDb, updateDb } from '@/mocks/db';
+import { createId, hydrateOrder, listFeedPosts, readDb, updateDb } from '@/mocks/db';
 import { listAuctionsSnapshot } from '../auctionService';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from '../client';
 import { requireAdmin } from '../mockSession';
-import { DAY_MS, isRevenueOrder, stockLevelOf, vnDateKey, withinDays } from './shared';
+import { DAY_MS, isRevenueOrder, vnDateKey, withinDays } from './shared';
 
 /* ============================================================
    Tổng quan
@@ -61,8 +61,7 @@ export async function getDashboardStats(rangeDays = 30): Promise<DashboardStats>
     };
   });
 
-  const threshold = db.shopSettings.lowStockThreshold;
-  const products = listAllProducts(db);
+  const feeds = listFeedPosts(db);
   const auctions = listAuctionsSnapshot(now);
   const fulfilledIds = new Set(db.auctionFulfillments.map((item) => item.auctionId));
   const customers = db.users.filter((user) => user.role === 'customer');
@@ -82,10 +81,27 @@ export async function getDashboardStats(rangeDays = 30): Promise<DashboardStats>
         .length,
       statusCounts,
       daily,
-      stockUnits: products.reduce((sum, product) => sum + product.stock, 0),
-      lowStockCount: products.filter((product) => stockLevelOf(product, threshold) === 'low')
-        .length,
-      outOfStockCount: products.filter((product) => stockLevelOf(product, threshold) === 'out')
+      feedCount: feeds.length,
+      feedLimit: FEED_LIMIT,
+      sellingFeeds: feeds.filter((feed) => feed.status === 'selling').length,
+      upcomingFeeds: feeds.filter((feed) => feed.status === 'upcoming').length,
+      soldOutFeeds: feeds
+        .filter((feed) => feed.status === 'sold-out')
+        .sort((a, b) => (b.soldOutAt ?? '').localeCompare(a.soldOutAt ?? ''))
+        .map((feed) => ({
+          id: feed.id,
+          number: feed.number,
+          title: feed.title,
+          itemCount: feed.itemCount,
+          revenue: feed.items.reduce((sum, item) => sum + item.price, 0),
+          soldOutAt: feed.soldOutAt,
+        })),
+      availableItems: db.items.filter((item) => item.status === 'available' && item.feedId).length,
+      soldItems: db.items.filter(
+        (item) => item.status === 'sold' && item.soldAt && new Date(item.soldAt).getTime() >= start,
+      ).length,
+      leftoverItems: db.items.filter((item) => item.status === 'available' && !item.feedId).length,
+      pendingLevelRequests: db.membershipRequests.filter((request) => request.status === 'pending')
         .length,
       openIssues: db.issues.filter((issue) => issue.status !== 'resolved').length,
       waitingChats: db.conversations.filter(
@@ -128,7 +144,6 @@ export async function getProblemReport(days = 30): Promise<ProblemReport> {
   }
   requireAdmin();
   const db = readDb();
-  const products = listAllProducts(db);
   const scoped = db.orders.filter((order) => withinDays(order.createdAt, days));
   const cancelled = scoped.filter((order) => order.status === 'cancelled');
   const returned = scoped.filter((order) => order.status === 'returned');
@@ -160,8 +175,8 @@ export async function getProblemReport(days = 30): Promise<ProblemReport> {
     {
       days,
       orderCount: scoped.length,
-      cancelled: [...cancelled].sort(byNewest).map((order) => hydrateOrder(order, products)),
-      returned: [...returned].sort(byNewest).map((order) => hydrateOrder(order, products)),
+      cancelled: [...cancelled].sort(byNewest).map((order) => hydrateOrder(order, db)),
+      returned: [...returned].sort(byNewest).map((order) => hydrateOrder(order, db)),
       cancelRate: scoped.length === 0 ? 0 : cancelled.length / scoped.length,
       lostRevenue: [...cancelled, ...returned].reduce((sum, order) => sum + order.total, 0),
       byReason,
@@ -256,7 +271,12 @@ export async function listIssuesForOrder(orderId: string): Promise<OrderIssue[]>
 export interface AdminBadges {
   activeOrders: number;
   awaitingAuctionOrders: number;
-  stockAlerts: number;
+  /** Feed đã bán hết con cuối — nên gỡ khỏi web để nhường chỗ feed mới */
+  soldOutFeeds: number;
+  /** Web đã đủ 30 feed */
+  feedLimitReached: boolean;
+  leftoverItems: number;
+  levelRequests: number;
   openIssues: number;
   waitingChats: number;
 }
@@ -268,7 +288,6 @@ export async function getAdminBadges(): Promise<AdminBadges> {
   }
   requireAdmin();
   const db = readDb();
-  const threshold = db.shopSettings.lowStockThreshold;
   const fulfilled = new Set(db.auctionFulfillments.map((item) => item.auctionId));
   return mockDelay(
     {
@@ -278,9 +297,10 @@ export async function getAdminBadges(): Promise<AdminBadges> {
         (auction) =>
           auction.status === 'ended' && auction.bids.length > 0 && !fulfilled.has(auction.id),
       ).length,
-      stockAlerts: listAllProducts(db).filter(
-        (product) => stockLevelOf(product, threshold) !== 'in-stock',
-      ).length,
+      soldOutFeeds: listFeedPosts(db).filter((feed) => feed.status === 'sold-out').length,
+      feedLimitReached: db.feeds.length >= FEED_LIMIT,
+      leftoverItems: db.items.filter((item) => item.status === 'available' && !item.feedId).length,
+      levelRequests: db.membershipRequests.filter((request) => request.status === 'pending').length,
       openIssues: db.issues.filter((issue) => issue.status !== 'resolved').length,
       waitingChats: db.conversations.filter(
         (item) => item.status === 'waiting' || (item.status === 'admin' && item.unreadByAdmin > 0),

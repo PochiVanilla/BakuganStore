@@ -105,7 +105,7 @@ export default function AuctionsPage() {
             icon={<Gavel size={26} aria-hidden="true" />}
             title={`Chưa có phiên nào ${TABS.find((item) => item.key === tab)?.label.toLowerCase()}`}
             description="Theo dõi trang này hoặc đăng ký nhận tin để biết ngay khi shop mở phiên mới."
-            action={<ButtonLink to={ROUTES.products}>Xem sản phẩm bán lẻ</ButtonLink>}
+            action={<ButtonLink to={ROUTES.feeds}>Xem feed đang bán</ButtonLink>}
           />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

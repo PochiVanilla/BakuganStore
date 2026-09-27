@@ -1,5 +1,5 @@
 import type {
-  Auction,
+  AuctionRecord,
   AuctionStatus,
   Bid,
   BakuganAttribute,
@@ -8,7 +8,6 @@ import type {
 } from '@/types';
 import { ATTRIBUTE_META, SERIES_META, CONDITION_LABELS } from '@/constants/catalog';
 import { productPlaceholder } from '@/utils/placeholder';
-import { maskName } from '@/utils/format';
 import { slugify } from '@/utils/slugify';
 
 const MINUTE = 60 * 1000;
@@ -206,7 +205,7 @@ function buildBids(auctionId: string, seed: AuctionSeed, endAt: number): Bid[] {
       id: `bid-${auctionId}-${i + 1}`,
       auctionId,
       bidderId: AUCTION_BIDDERS[bidderIndex]!.id,
-      bidderMaskedName: maskName(fullName),
+      bidderName: fullName,
       amount,
       createdAt: new Date(lastBidAt - (seed.bidCount - 1 - i) * spacing).toISOString(),
     });
@@ -215,7 +214,7 @@ function buildBids(auctionId: string, seed: AuctionSeed, endAt: number): Bid[] {
   return bids.reverse();
 }
 
-export const MOCK_AUCTIONS: Auction[] = SEEDS.map((seed, index) => {
+export const MOCK_AUCTIONS: AuctionRecord[] = SEEDS.map((seed, index) => {
   const id = `auc-${(index + 1).toString().padStart(3, '0')}`;
   const startAt = now + seed.startsInHours * HOUR;
   const endAt = now + seed.endsInHours * HOUR;
@@ -256,6 +255,5 @@ export const MOCK_AUCTIONS: Auction[] = SEEDS.map((seed, index) => {
     condition: seed.condition,
     accessories: seed.extras.map((name) => ({ name, included: true })),
     bids,
-    winnerMaskedName: status === 'ended' && bids.length > 0 ? bids[0]!.bidderMaskedName : undefined,
-  } satisfies Auction;
+  } satisfies AuctionRecord;
 });

@@ -9,9 +9,21 @@ export interface Toast {
   variant: ToastVariant;
 }
 
+/** Yêu cầu mở khung chat từ nơi khác (VD nút "Tư vấn chọn Bakugan" ở trang chủ). */
+export interface ChatRequest {
+  id: number;
+  /** Gửi luôn câu này cho trợ lý */
+  send?: string;
+  /** Chỉ điền sẵn vào ô nhập để khách viết tiếp */
+  prefill?: string;
+}
+
 interface UIState {
   toasts: Toast[];
   isMobileMenuOpen: boolean;
+  chatRequest: ChatRequest | null;
+  openChat: (request?: Omit<ChatRequest, 'id'>) => void;
+  clearChatRequest: (id: number) => void;
   pushToast: (toast: Omit<Toast, 'id'>) => string;
   dismissToast: (id: string) => void;
   openMobileMenu: () => void;
@@ -21,6 +33,12 @@ interface UIState {
 export const useUIStore = create<UIState>()((set) => ({
   toasts: [],
   isMobileMenuOpen: false,
+  chatRequest: null,
+
+  openChat: (request = {}) =>
+    set((state) => ({ chatRequest: { ...request, id: (state.chatRequest?.id ?? 0) + 1 } })),
+  clearChatRequest: (id) =>
+    set((state) => (state.chatRequest?.id === id ? { chatRequest: null } : state)),
 
   pushToast: (toast) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;

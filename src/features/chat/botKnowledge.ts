@@ -1,14 +1,33 @@
-import type { BotTopicId, Coupon, Order, OrderStatus, Product } from '@/types';
+import type {
+  BakuganAttribute,
+  BakuganSeries,
+  BotTopicId,
+  ChatLink,
+  Coupon,
+  FeedPost,
+  FeedStatus,
+  MemberLevel,
+  Order,
+  OrderStatus,
+  ProductCondition,
+} from '@/types';
 import { BAKUGAN_ATTRIBUTES, BAKUGAN_SERIES } from '@/types';
-import { FREE_SHIPPING_THRESHOLD, SHIPPING_FEE, SHOP_INFO } from '@/constants/routes';
-import { ATTRIBUTE_META, CONDITION_LABELS, SERIES_META } from '@/constants/catalog';
+import { FREE_SHIPPING_THRESHOLD, ROUTES, SHIPPING_FEE, SHOP_INFO } from '@/constants/routes';
+import {
+  ATTRIBUTE_META,
+  AUCTION_MIN_LEVEL,
+  CONDITION_LABELS,
+  FEED_STATUS_LABELS,
+  PURCHASES_FOR_LV2,
+  SERIES_META,
+} from '@/constants/catalog';
 import {
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
 } from '@/constants/orders';
 import { buildAuctionRules } from '@/features/auction/auctionRuleText';
-import { formatCurrency, formatDate } from '@/utils/format';
+import { formatCurrency, formatDate, formatDateTime } from '@/utils/format';
 
 /* ============================================================
    Những gì trợ lý AI được phép biết.
@@ -25,33 +44,49 @@ export const SHIPPING_POLICY = [
 ];
 
 export const PAYMENT_POLICY = [
-  'Hỗ trợ thanh toán khi nhận hàng (COD), chuyển khoản ngân hàng và ví MoMo.',
-  'Đơn chuyển khoản được xác nhận trong giờ làm việc; quá 24 giờ chưa nhận được tiền thì đơn tự huỷ.',
+  'Hỗ trợ thanh toán khi nhận hàng (COD), chuyển khoản ngân hàng và ví MoMo — chọn ngay lúc chốt đơn trong Giỏ hàng.',
+  'Đơn chuyển khoản được xác nhận trong giờ làm việc; quá 24 giờ chưa nhận được tiền thì đơn tự huỷ và các con Bakugan trong đơn được mở bán lại.',
   'Hàng đấu giá cần thanh toán trong 48 giờ sau khi thắng phiên.',
 ];
 
 export const RETURN_POLICY = [
-  'Đổi trả trong 7 ngày kể từ khi nhận hàng nếu lỗi cơ cấu bung nở, mất từ tính nam châm, giao sai mẫu/hệ/tình trạng hoặc hư hỏng khi vận chuyển (cần ảnh/video mở hộp).',
-  'Không áp dụng cho hàng đã qua sử dụng có va đập do người mua, hàng thắng đấu giá, hoặc quá 7 ngày.',
+  'Đổi trả trong 7 ngày kể từ khi nhận hàng nếu lỗi cơ cấu bung nở, mất từ tính nam châm, giao sai con (sai mã BK) hoặc hư hỏng khi vận chuyển (cần ảnh/video mở hộp).',
+  'Không áp dụng cho tình trạng đã ghi rõ trong feed (trầy, lỏng khớp, thiếu thẻ…), va đập do người mua, hàng thắng đấu giá, hoặc quá 7 ngày.',
   'Shop xác nhận yêu cầu đổi trả trong 24 giờ làm việc; hoàn tiền trong 3 – 5 ngày làm việc.',
 ];
 
 /** Cam kết in trên trang chủ — bot dùng lại đúng nội dung này. */
 export const SHOP_COMMITMENTS = [
-  'Hàng chính hãng: mọi sản phẩm nhập từ nguồn uy tín, kiểm tra mã series và lực nam châm trước khi lên kệ.',
-  'Kiểm tra kỹ từng quả: thử cơ cấu bung nở 10 lần, vệ sinh khoang nam châm và chụp ảnh thực tế cho từng sản phẩm.',
+  'Hàng chính hãng: mọi Bakugan nhập từ nguồn uy tín, có kiểm tra mã series và lực nam châm trước khi đăng feed.',
+  'Kiểm tra kỹ từng quả: thử cơ cấu bung nở 10 lần, vệ sinh khoang nam châm, ghi rõ tình trạng riêng của từng con.',
   'Đóng gói chống sốc: bọc xốp hai lớp, hộp cứng, quay video khi đóng gói cho mọi đơn trên 1 triệu đồng.',
 ];
 
-/** Cách đặt hàng hiện tại (thanh toán online trên web chưa mở). */
+/** Cách shop bán hàng: theo feed, mỗi con là duy nhất. */
+export const FEED_GUIDE = [
+  'Shop bán theo "feed": mỗi feed là một lô Bakugan, có ảnh chụp cả lô và danh sách từng con. Feed mới thường đăng trước rồi mở bán lúc 20:00; trước giờ mở bán khách xem trước được nhưng chưa đặt được.',
+  'Mỗi con Bakugan là duy nhất: có tên và mã riêng (VD: BK-0231), tình trạng riêng; không có nhiều con giống hệt nhau. Con đã có người mua hiện chữ SOLD.',
+  'Shop không nhận đặt trước hay giữ hàng; muốn tìm mẫu nào thì theo dõi mục Feed bán hoặc dùng ô tìm kiếm theo tên / mã BK.',
+];
+
+/** Cách đặt hàng trên web. */
 export const ORDERING_GUIDE =
-  'Đặt hàng: khách nhắn tên mẫu, số lượng và địa chỉ nhận hàng qua chat hoặc Zalo; nhân viên xác nhận còn hàng, báo tổng tiền và cách thanh toán rồi lên đơn.';
+  'Đặt hàng: đăng nhập, mở feed đang bán, bấm "Thêm vào giỏ" ở con muốn mua rồi vào Giỏ hàng chốt đơn (điền địa chỉ, chọn COD / chuyển khoản / MoMo). Mỗi mã chỉ có một con nên ai chốt đơn trước được trước.';
 
 export const CANCEL_GUIDE =
-  'Huỷ đơn: khách đã đăng nhập tự huỷ được đơn còn "Chờ xác nhận" và chưa thanh toán bằng cách nhắn "huỷ đơn" kèm mã đơn; đơn đã xác nhận, đang giao hoặc đã trả tiền cần nhân viên xử lý.';
+  'Huỷ đơn: khách đã đăng nhập tự huỷ được đơn còn "Chờ xác nhận" và chưa thanh toán bằng cách nhắn "huỷ đơn" kèm mã đơn — các con trong đơn được mở bán lại; đơn đã xác nhận, đang giao hoặc đã trả tiền cần nhân viên xử lý.';
 
 export const ACCOUNT_GUIDE =
-  'Tài khoản: đăng ký ở mục Đăng ký (góc phải trên cùng), quên mật khẩu thì bấm "Quên mật khẩu?" ở trang Đăng nhập để nhận link đặt lại qua email. Cần đăng nhập để đặt giá đấu giá và xem đơn hàng.';
+  'Tài khoản: đăng ký ở mục Đăng ký (góc phải trên cùng), quên mật khẩu thì bấm "Quên mật khẩu?" ở trang Đăng nhập để nhận link đặt lại qua email. Cần đăng nhập để đặt hàng, xem đơn và đấu giá.';
+
+/** Luật hạng thành viên (được tham gia đấu giá hay chưa). */
+export function membershipRules(depositAmount: number): string[] {
+  return [
+    `Tài khoản mới là thành viên Lv1: mua hàng bình thường. Muốn đặt giá trong phiên đấu giá phải là thành viên Lv${AUCTION_MIN_LEVEL} trở lên.`,
+    `Lên Lv${AUCTION_MIN_LEVEL} bằng MỘT trong ba cách: (1) nhận đủ ${PURCHASES_FOR_LV2} con Bakugan mua ở TD shop (tính khi đơn đã giao xong) — tự động; (2) nạp ${formatCurrency(depositAmount)} tiền thành viên theo hướng dẫn ở Tài khoản → Hạng thành viên, shop đối soát rồi xác nhận; (3) gửi yêu cầu để admin xét duyệt (khách quen, mua trực tiếp tại shop…).`,
+    'Xem hạng hiện tại và tiến độ ở Tài khoản → Hạng thành viên.',
+  ];
+}
 
 /** Kiến thức chung về Bakugan (không phải thông tin riêng của shop). */
 export const BAKUGAN_BASICS = [
@@ -74,26 +109,34 @@ export function describeSeries(): string {
   }).join(', ');
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const NEW_ARRIVAL_MS = 30 * DAY_MS;
-
-export interface BotProductFact {
+/** Một con Bakugan còn bán trên web (đang mở bán hoặc sắp mở bán). */
+export interface BotItemFact {
+  code: string;
   name: string;
   price: number;
-  originalPrice?: number;
-  stock: number;
+  /** Tên hệ để đọc: "Pyrus" */
   attribute: string;
-  /** Mã hệ (pyrus, aquos…) để lọc chính xác */
-  attributeId: string;
-  series: string;
-  seriesId: string;
+  attributeId: BakuganAttribute;
+  series?: string;
+  seriesId?: BakuganSeries;
   condition: string;
-  gPower: number;
-  soldCount: number;
-  isRare: boolean;
-  isNew: boolean;
-  /** Số ngày kể từ khi lên kệ, để xếp hàng mới về */
-  ageDays: number;
+  conditionId: ProductCondition;
+  conditionNote?: string;
+  gPower?: number;
+  feedNumber: number;
+  /** Đặt mua được ngay; false nghĩa là feed chưa tới giờ mở bán */
+  onSale: boolean;
+  opensAt: string;
+}
+
+export interface BotFeedFact {
+  number: number;
+  title: string;
+  status: FeedStatus;
+  opensAt: string;
+  itemCount: number;
+  availableCount: number;
+  priceRange?: { min: number; max: number };
 }
 
 export interface BotOrderFact {
@@ -107,45 +150,77 @@ export interface BotOrderFact {
   items: string[];
 }
 
+export interface BotMembershipFact {
+  depositAmount: number;
+  /** Shop đã điền số tài khoản trong cài đặt chưa (chưa thì nhân viên gửi qua chat) */
+  bankConfigured: boolean;
+  /** Chỉ có khi khách đã đăng nhập */
+  level?: MemberLevel;
+  purchasedCount?: number;
+  pendingRequest?: 'deposit' | 'review';
+}
+
 export interface BotKnowledge {
   customerName?: string;
   /** Khách đã đăng nhập (mới tra được đơn và tự huỷ đơn) */
   isSignedIn: boolean;
-  products: BotProductFact[];
+  /** Feed trên web, mới nhất trước */
+  feeds: BotFeedFact[];
+  /** Những con còn bán trên các feed (đang mở bán trước) */
+  items: BotItemFact[];
   orders: BotOrderFact[];
   coupons: Array<Pick<Coupon, 'code' | 'label' | 'expiresAt'>>;
+  membership: BotMembershipFact;
 }
 
 export function buildKnowledge(input: {
   customerName?: string;
   isSignedIn: boolean;
-  products: readonly Product[];
+  feeds: readonly FeedPost[];
   orders: readonly Order[];
   coupons: readonly Coupon[];
+  membership: BotMembershipFact;
   now?: number;
 }): BotKnowledge {
   const now = input.now ?? Date.now();
+  const feeds = [...input.feeds].sort((a, b) => b.number - a.number);
+  const items = feeds
+    .flatMap((feed) =>
+      feed.items
+        .filter((item) => item.status === 'available')
+        .map((item): BotItemFact => ({
+          code: item.code,
+          name: item.name,
+          price: item.price,
+          attribute: ATTRIBUTE_META[item.attribute].label,
+          attributeId: item.attribute,
+          series: item.series ? SERIES_META[item.series].label : undefined,
+          seriesId: item.series,
+          condition: CONDITION_LABELS[item.condition],
+          conditionId: item.condition,
+          conditionNote: item.conditionNote,
+          gPower: item.gPower,
+          feedNumber: feed.number,
+          onSale: item.onSale,
+          opensAt: feed.opensAt,
+        })),
+    )
+    // Con mua được ngay lên trước, rồi tới feed mới hơn.
+    .sort((a, b) => Number(b.onSale) - Number(a.onSale) || b.feedNumber - a.feedNumber);
+
   return {
     customerName: input.customerName,
     isSignedIn: input.isSignedIn,
-    products: input.products
-      .filter((product) => !product.isHidden)
-      .map((product) => ({
-        name: product.name,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        stock: product.stock,
-        attribute: ATTRIBUTE_META[product.attribute].label,
-        attributeId: product.attribute,
-        series: SERIES_META[product.series].label,
-        seriesId: product.series,
-        condition: CONDITION_LABELS[product.condition],
-        gPower: product.gPower,
-        soldCount: product.soldCount,
-        isRare: product.isRare,
-        isNew: now - new Date(product.createdAt).getTime() <= NEW_ARRIVAL_MS,
-        ageDays: Math.max(0, Math.floor((now - new Date(product.createdAt).getTime()) / DAY_MS)),
-      })),
+    feeds: feeds.slice(0, 12).map((feed) => ({
+      number: feed.number,
+      title: feed.title,
+      status: feed.status,
+      opensAt: feed.opensAt,
+      itemCount: feed.itemCount,
+      availableCount: feed.itemCount - feed.soldCount,
+      priceRange: feed.priceRange,
+    })),
+    items,
     orders: input.orders.slice(0, 10).map((order) => ({
       code: order.code,
       status: order.status,
@@ -154,21 +229,87 @@ export function buildKnowledge(input: {
       total: order.total,
       payment: PAYMENT_METHOD_LABELS[order.paymentMethod],
       paymentStatus: PAYMENT_STATUS_LABELS[order.paymentStatus],
-      items: order.items.map((item) => `${item.name} ×${item.quantity}`),
+      items: order.items.map((item) => (item.code ? `${item.code} ${item.name}` : item.name)),
     })),
     coupons: input.coupons
       .filter((coupon) => new Date(coupon.expiresAt).getTime() > now)
       .map(({ code, label, expiresAt }) => ({ code, label, expiresAt })),
+    membership: input.membership,
   };
 }
 
-export function describeProduct(product: BotProductFact): string {
-  const sale = product.originalPrice ? ` (giá gốc ${formatCurrency(product.originalPrice)})` : '';
-  const stock = product.stock > 0 ? `còn ${product.stock}` : 'hết hàng';
-  const tags = [product.isRare && 'hàng hiếm', product.isNew && 'hàng mới về']
+/** "mở bán 20:00 27/09" hoặc "đang bán" */
+export function saleState(item: Pick<BotItemFact, 'onSale' | 'opensAt'>): string {
+  return item.onSale ? 'đang bán' : `mở bán ${formatDateTime(item.opensAt)}`;
+}
+
+export function describeItem(item: BotItemFact): string {
+  const details = [
+    `hệ ${item.attribute}`,
+    item.series && `dòng ${item.series}`,
+    `${item.condition}${item.conditionNote ? ` (${item.conditionNote})` : ''}`,
+    item.gPower && `${item.gPower}G`,
+  ]
     .filter(Boolean)
     .join(', ');
-  return `${product.name} — ${formatCurrency(product.price)}${sale} — ${stock} — hệ ${product.attribute}, dòng ${product.series}, ${product.condition}, ${product.gPower}G${tags ? ` (${tags})` : ''}`;
+  return `${item.code} ${item.name} — ${formatCurrency(item.price)} — ${details} — feed #${item.feedNumber}, ${saleState(item)}`;
+}
+
+export function describeFeed(feed: BotFeedFact): string {
+  const state =
+    feed.status === 'upcoming'
+      ? `${FEED_STATUS_LABELS.upcoming.toLowerCase()} lúc ${formatDateTime(feed.opensAt)}`
+      : FEED_STATUS_LABELS[feed.status].toLowerCase();
+  const range = feed.priceRange;
+  const price =
+    range && feed.availableCount > 0
+      ? range.min === range.max
+        ? `, giá ${formatCurrency(range.min)}`
+        : `, giá ${formatCurrency(range.min)} – ${formatCurrency(range.max)}`
+      : '';
+  return `Feed #${feed.number} "${feed.title}": ${state}, còn ${feed.availableCount}/${feed.itemCount} con${price}`;
+}
+
+/** Nút mở đúng con Bakugan trong feed (trang tự cuộn tới và làm nổi con đó). */
+export function itemLink(
+  item: Pick<BotItemFact, 'code' | 'name' | 'price' | 'feedNumber'>,
+): ChatLink {
+  return {
+    label: `${item.code} · ${item.name} · ${formatCurrency(item.price)}`,
+    to: ROUTES.feedDetail(item.feedNumber, item.code),
+  };
+}
+
+export function feedLink(feed: Pick<BotFeedFact, 'number' | 'title'>): ChatLink {
+  return { label: `Feed #${feed.number} · ${feed.title}`, to: ROUTES.feedDetail(feed.number) };
+}
+
+const MAX_LINKS = 4;
+
+/**
+ * Gắn nút bấm cho những mã BK và feed có nhắc tới trong câu trả lời
+ * (câu của Gemini chỉ là chữ, khách bấm nút để mở đúng con đó).
+ */
+export function linksFromText(text: string, knowledge: BotKnowledge): ChatLink[] {
+  const links: ChatLink[] = [];
+  const seen = new Set<string>();
+  for (const match of text.matchAll(/\bBK-?\s?(\d{4})\b/gi)) {
+    const code = `BK-${match[1]}`;
+    const item = knowledge.items.find((entry) => entry.code === code);
+    if (item && !seen.has(code)) {
+      seen.add(code);
+      links.push(itemLink(item));
+    }
+  }
+  for (const match of text.matchAll(/\bfeed\s*#?\s*(\d{1,4})\b/gi)) {
+    const feed = knowledge.feeds.find((entry) => entry.number === Number(match[1]));
+    const key = `feed-${match[1]}`;
+    if (feed && !seen.has(key)) {
+      seen.add(key);
+      links.push(feedLink(feed));
+    }
+  }
+  return links.slice(0, MAX_LINKS);
 }
 
 /** Thời gian giao dự kiến theo trạng thái đơn, dùng khi khách hỏi "bao giờ nhận". */
@@ -188,7 +329,24 @@ export function deliveryHint(status: OrderStatus): string {
 
 export function describeOrder(order: BotOrderFact): string {
   const hint = deliveryHint(order.status);
-  return `Đơn #${order.code}: ${order.statusLabel}, đặt ngày ${formatDate(order.createdAt)}, tổng ${formatCurrency(order.total)}, ${order.payment} (${order.paymentStatus.toLowerCase()}). Gồm: ${order.items.join(', ')}.${hint ? ` ${hint}` : ''}`;
+  const shown = order.items.slice(0, 5).join(', ');
+  const more = order.items.length > 5 ? ` và ${order.items.length - 5} con khác` : '';
+  return `Đơn #${order.code}: ${order.statusLabel}, đặt ngày ${formatDate(order.createdAt)}, tổng ${formatCurrency(order.total)}, ${order.payment} (${order.paymentStatus.toLowerCase()}). Gồm: ${shown}${more}.${hint ? ` ${hint}` : ''}`;
+}
+
+/** Hạng của khách đang chat, để bot nói đúng việc khách còn thiếu. */
+export function describeMembership(membership: BotMembershipFact): string | undefined {
+  if (!membership.level) return undefined;
+  if (membership.level >= AUCTION_MIN_LEVEL) {
+    return `Khách đang là thành viên Lv${membership.level}, đã được đặt giá đấu giá.`;
+  }
+  const pending =
+    membership.pendingRequest === 'deposit'
+      ? ' Khách đã báo nạp tiền, đang chờ shop xác nhận.'
+      : membership.pendingRequest === 'review'
+        ? ' Khách đã gửi yêu cầu xét duyệt, đang chờ admin.'
+        : '';
+  return `Khách đang là thành viên Lv${membership.level}, đã nhận ${membership.purchasedCount ?? 0}/${PURCHASES_FOR_LV2} con Bakugan mua ở shop.${pending}`;
 }
 
 /** Chuyển thành các dòng dữ kiện gửi cho AI — chỉ theo những chủ đề đang bật. */
@@ -216,11 +374,18 @@ export function knowledgeToFacts(knowledge: BotKnowledge, topics: readonly BotTo
   if (on.has('auction-rules')) {
     facts.push(...buildAuctionRules().map((rule) => `[Đấu giá] ${rule.title}: ${rule.text}`));
   }
+  if (on.has('membership')) {
+    facts.push(
+      ...membershipRules(knowledge.membership.depositAmount).map((line) => `[Thành viên] ${line}`),
+    );
+    const mine = describeMembership(knowledge.membership);
+    if (mine) facts.push(`[Hạng của khách] ${mine}`);
+  }
   if (on.has('bakugan-knowledge')) {
     facts.push(
       ...BAKUGAN_BASICS.map((line) => `[Kiến thức] ${line}`),
       `[Kiến thức] 6 hệ: ${describeAttributes()}.`,
-      `[Kiến thức] Các dòng shop đang bán: ${describeSeries()}.`,
+      `[Kiến thức] Các dòng Bakugan: ${describeSeries()}.`,
     );
   }
   if (on.has('promotions')) {
@@ -245,9 +410,22 @@ export function knowledgeToFacts(knowledge: BotKnowledge, topics: readonly BotTo
     );
   }
   if (on.has('product-info')) {
+    facts.push(...FEED_GUIDE.map((line) => `[Cách bán] ${line}`));
     facts.push(
-      ...knowledge.products.slice(0, 60).map((product) => `[Sản phẩm] ${describeProduct(product)}`),
+      ...(knowledge.feeds.length > 0
+        ? knowledge.feeds.slice(0, 10).map((feed) => `[Feed] ${describeFeed(feed)}.`)
+        : ['[Feed] Hiện chưa có feed nào trên web.']),
     );
+    facts.push(
+      ...(knowledge.items.length > 0
+        ? knowledge.items.slice(0, 60).map((item) => `[Bakugan còn bán] ${describeItem(item)}`)
+        : ['[Bakugan còn bán] Hiện tất cả Bakugan trên web đều đã bán (SOLD).']),
+    );
+    if (knowledge.items.length > 60) {
+      facts.push(
+        `[Bakugan còn bán] Còn ${knowledge.items.length - 60} con khác — khách xem đủ ở mục Feed bán.`,
+      );
+    }
   }
   return facts;
 }

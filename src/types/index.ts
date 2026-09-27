@@ -29,72 +29,123 @@ export type BakuganSeries = (typeof BAKUGAN_SERIES)[number];
 export const PRODUCT_CONDITIONS = ['new-sealed', 'like-new', 'used'] as const;
 export type ProductCondition = (typeof PRODUCT_CONDITIONS)[number];
 
-/* ---------- Nhãn trạng thái ---------- */
-export type ProductBadge = 'NEW' | 'HOT' | 'SALE' | 'RARE' | 'OUT_OF_STOCK';
-
+/** Phụ kiện đi kèm (thẻ Gate, thẻ năng lực…) — dùng cho món đấu giá */
 export interface ProductAccessory {
   name: string;
   included: boolean;
 }
 
-export interface ProductSpec {
-  label: string;
-  value: string;
-}
+/* ---------- Feed bán hàng ---------- */
+/*
+ * Shop nhập Bakugan theo lô, không phải hàng sản xuất hàng loạt: mỗi con một
+ * tình trạng riêng nên không có "số lượng". Mỗi lô được đăng thành một feed
+ * (ảnh chụp cả lô + danh sách từng con). Con nào bán rồi hiện SOLD.
+ */
 
-export interface Review {
-  id: string;
-  productId: string;
-  authorName: string;
-  rating: number;
-  title: string;
-  content: string;
-  createdAt: string;
-  verifiedPurchase: boolean;
-}
+export const ITEM_STATUSES = ['available', 'sold'] as const;
+export type ItemStatus = (typeof ITEM_STATUSES)[number];
 
-export interface Product {
+/** Một con Bakugan duy nhất */
+export interface BakuganItem {
   id: string;
-  slug: string;
+  /** Mã Bakugan duy nhất, VD "BK-0231" — phần thứ hai sau tên */
+  code: string;
+  /** Tên do chủ shop đặt */
   name: string;
-  shortDescription: string;
-  description: string;
-  images: string[];
   price: number;
-  /** Giá gốc, chỉ có khi sản phẩm đang giảm giá */
-  originalPrice?: number;
   attribute: BakuganAttribute;
-  series: BakuganSeries;
-  gPower: number;
+  /** Dòng / đời (có thể không rõ với hàng lô) */
+  series?: BakuganSeries;
   condition: ProductCondition;
-  stock: number;
-  soldCount: number;
-  rating: number;
-  reviewCount: number;
-  /** ISO date — dùng để tính nhãn "Hàng mới" (trong 30 ngày) */
+  /** Tình trạng riêng của con này: trầy nhẹ, lỏng khớp, thiếu thẻ… */
+  conditionNote?: string;
+  gPower?: number;
+  /** Ảnh riêng của con này, không có thì là ảnh minh hoạ theo hệ */
+  image: string;
+  hasOwnPhoto: boolean;
+  status: ItemStatus;
+  soldAt?: string;
+  /** Feed đang chứa con này; trống nghĩa là hàng tồn chưa được đăng lại */
+  feedId?: string;
+  feedNumber?: number;
+  feedTitle?: string;
+  /** Giờ mở bán của feed chứa con này */
+  feedOpensAt?: string;
+  /** Còn bán và feed đã tới giờ mở bán — khách đặt được ngay */
+  onSale: boolean;
   createdAt: string;
-  accessories: ProductAccessory[];
-  specs: ProductSpec[];
-  tags: string[];
-  isFeatured: boolean;
-  isBestSeller: boolean;
-  isRare: boolean;
-  /** Admin tạm ẩn khỏi cửa hàng (vẫn giữ trong kho và báo cáo) */
-  isHidden?: boolean;
+}
+
+/**
+ * - `upcoming` : đã đăng nhưng chưa tới giờ mở bán — khách xem trước danh sách
+ * - `selling`  : đang bán, còn ít nhất một con
+ * - `sold-out` : tất cả đã bán
+ */
+export type FeedStatus = 'upcoming' | 'selling' | 'sold-out';
+
+export interface FeedPost {
+  id: string;
+  /** Số thứ tự tăng dần, dùng trong đường dẫn: /feed/28 */
+  number: number;
+  title: string;
+  caption: string;
+  /** Ảnh chụp cả lô; ảnh đầu tiên là ảnh bìa */
+  images: string[];
+  publishedAt: string;
+  /** Giờ mở bán — trước giờ này chưa đặt mua được */
+  opensAt: string;
+  status: FeedStatus;
+  itemCount: number;
+  soldCount: number;
+  /** Lúc con cuối cùng được bán (khi đã bán hết) */
+  soldOutAt?: string;
+  /** Giá thấp nhất – cao nhất của những con còn bán */
+  priceRange?: { min: number; max: number };
+  items: BakuganItem[];
+}
+
+export const FEED_STATUS_FILTERS = ['all', 'selling', 'upcoming', 'sold-out'] as const;
+export type FeedStatusFilter = (typeof FEED_STATUS_FILTERS)[number];
+
+export interface FeedQuery {
+  status?: FeedStatusFilter;
+  /** Tìm theo tên / mã Bakugan hoặc tiêu đề feed */
+  keyword?: string;
+  attribute?: BakuganAttribute;
+  limit?: number;
+}
+
+/** Tìm Bakugan trên toàn bộ feed (ô tìm kiếm, bộ lọc hệ, trợ lý tư vấn) */
+export interface ItemQuery {
+  keyword?: string;
+  attributes?: BakuganAttribute[];
+  conditions?: ProductCondition[];
+  minPrice?: number;
+  maxPrice?: number;
+  /** Mặc định chỉ con còn bán */
+  includeSold?: boolean;
+  limit?: number;
 }
 
 /* ---------- Đấu giá ---------- */
 export type AuctionStatus = 'upcoming' | 'live' | 'ended';
 
+/** Một lượt đặt giá đầy đủ — chỉ server và trang quản trị thấy người đặt là ai. */
 export interface Bid {
   id: string;
   auctionId: string;
-  /** Tên đã ẩn một phần, ví dụ "Ngu**n V**n A" */
-  bidderMaskedName: string;
   bidderId: string;
+  bidderName: string;
   amount: number;
   createdAt: string;
   /** Lượt đặt này có kích hoạt gia hạn chống bắn tỉa hay không */
+  triggeredExtension?: boolean;
+}
+
+/** Lượt đặt của chính người đang xem */
+export interface MyBid {
+  amount: number;
+  createdAt: string;
   triggeredExtension?: boolean;
 }
 
@@ -107,6 +158,10 @@ export interface Bid {
  */
 export type AuctionPriceVisibility = 'open' | 'sealed';
 
+/**
+ * Phiên đấu giá như khách thấy. Không công khai tên hay danh sách người đặt:
+ * chỉ có giá cao nhất, số lượt và số người đã đặt (hình cây búa).
+ */
 export interface Auction {
   id: string;
   slug: string;
@@ -135,14 +190,23 @@ export interface Auction {
   /** Số lần phiên đã được gia hạn */
   extensionCount: number;
   bidCount: number;
+  /** Số người khác nhau đã đặt giá */
+  bidderCount: number;
   watcherCount: number;
   attribute: BakuganAttribute;
   series: BakuganSeries;
   gPower: number;
   condition: ProductCondition;
   accessories: ProductAccessory[];
+  /** Lượt đặt của chính người đang xem (mới nhất trước) */
+  myBids: MyBid[];
+  /** Người đang xem có đang giữ giá cao nhất không */
+  viewerIsLeading: boolean;
+}
+
+/** Bản đầy đủ của phiên — chỉ server và trang quản trị có */
+export interface AuctionRecord extends Omit<Auction, 'myBids' | 'viewerIsLeading' | 'bidderCount'> {
   bids: Bid[];
-  winnerMaskedName?: string;
 }
 
 /* ---------- Người dùng ---------- */
@@ -173,6 +237,58 @@ export interface BankAccount {
   accountHolder: string;
 }
 
+/* ---------- Hạng thành viên ---------- */
+export const MEMBER_LEVELS = [1, 2] as const;
+export type MemberLevel = (typeof MEMBER_LEVELS)[number];
+
+/** Vì sao được lên hạng: mua đủ số Bakugan, nạp tiền, hay admin duyệt */
+export type LevelSource = 'purchases' | 'deposit' | 'admin';
+
+export type MembershipRequestKind = 'deposit' | 'review';
+export type MembershipRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface MembershipRequest {
+  id: string;
+  userId: string;
+  /** `deposit`: đã chuyển khoản nạp tiền · `review`: nhờ admin xét duyệt */
+  kind: MembershipRequestKind;
+  amount?: number;
+  /** Nội dung chuyển khoản để admin đối soát */
+  transferNote?: string;
+  message?: string;
+  status: MembershipRequestStatus;
+  createdAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  adminNote?: string;
+}
+
+export interface ShopBankInfo {
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+}
+
+/** Hạng của khách đang đăng nhập và cách để lên hạng */
+export interface MembershipInfo {
+  level: MemberLevel;
+  source?: LevelSource;
+  levelUpAt?: string;
+  /** Số Bakugan đã nhận (đơn hoàn tất) */
+  purchasedCount: number;
+  /** Mua đủ ngần này con thì tự lên Lv2 */
+  purchaseGoal: number;
+  /** Số tiền nạp để lên Lv2 (admin đặt) */
+  depositAmount: number;
+  /** Tổng tiền đã nạp */
+  depositBalance: number;
+  pendingRequest?: MembershipRequest;
+  /** Nội dung chuyển khoản khách cần ghi khi nạp tiền */
+  transferNote: string;
+  /** Tài khoản nhận tiền của shop — trống nếu admin chưa nhập */
+  bank: ShopBankInfo | null;
+}
+
 export interface User {
   id: string;
   fullName: string;
@@ -186,6 +302,8 @@ export interface User {
   birthday?: string;
   gender?: Gender;
   bankAccount?: BankAccount;
+  /** Thiếu = Lv1 */
+  memberLevel?: MemberLevel;
 }
 
 export interface AuthSession {
@@ -195,18 +313,16 @@ export interface AuthSession {
 }
 
 /* ---------- Giỏ hàng & Đơn hàng ---------- */
+/** Mỗi con Bakugan là duy nhất nên không có số lượng */
 export interface CartItem {
-  productId: string;
-  slug: string;
+  itemId: string;
+  code: string;
   name: string;
   image: string;
   price: number;
-  originalPrice?: number;
   attribute: BakuganAttribute;
   condition: ProductCondition;
-  quantity: number;
-  /** Tồn kho tại thời điểm thêm vào giỏ, dùng để chặn tăng quá số lượng */
-  maxQuantity: number;
+  feedNumber?: number;
 }
 
 export const ORDER_STATUSES = [
@@ -242,12 +358,13 @@ export const CANCEL_REASONS = [
 export type CancelReason = (typeof CANCEL_REASONS)[number];
 
 export interface OrderItem {
-  /** Id sản phẩm, hoặc `auction:<id>` với món thắng đấu giá */
-  productId: string;
+  /** Id con Bakugan, hoặc `auction:<id>` với món thắng đấu giá */
+  itemId: string;
+  /** Mã Bakugan (món đấu giá không có) */
+  code?: string;
   name: string;
   image: string;
   price: number;
-  quantity: number;
 }
 
 /** Một mốc trong lịch sử đơn — ai đổi trạng thái, lúc nào, ghi chú gì */
@@ -318,32 +435,6 @@ export interface BlogPost {
   readingMinutes: number;
   viewCount: number;
   sections: BlogSection[];
-}
-
-/* ---------- Truy vấn danh sách sản phẩm ---------- */
-export const PRODUCT_SORTS = [
-  'newest',
-  'price-asc',
-  'price-desc',
-  'best-selling',
-  'g-power-desc',
-] as const;
-export type ProductSort = (typeof PRODUCT_SORTS)[number];
-
-export interface ProductQuery {
-  keyword?: string;
-  attributes?: BakuganAttribute[];
-  series?: BakuganSeries[];
-  conditions?: ProductCondition[];
-  minPrice?: number;
-  maxPrice?: number;
-  minGPower?: number;
-  maxGPower?: number;
-  inStockOnly?: boolean;
-  onSaleOnly?: boolean;
-  sort?: ProductSort;
-  page?: number;
-  pageSize?: number;
 }
 
 /* ---------- Kiểu phản hồi API chung (khớp với backend tương lai) ---------- */

@@ -1,20 +1,18 @@
 import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './layouts/Layout';
 import { ScrollToTop } from './ScrollToTop';
 import { RouteFallback } from './RouteFallback';
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute';
 import { AdminRoute } from '@/features/admin/AdminRoute';
-import { ADMIN_ROUTES, ROUTES } from '@/constants/routes';
+import { ADMIN_ROUTES, LEGACY_REDIRECTS, ROUTES } from '@/constants/routes';
 
 /* Code-splitting theo route — mỗi trang là một chunk riêng, tải khi cần. */
 const HomePage = lazy(() => import('@/pages/HomePage'));
-const ProductsPage = lazy(() => import('@/pages/ProductsPage'));
-const ProductDetailPage = lazy(() => import('@/pages/ProductDetailPage'));
-const NewArrivalsPage = lazy(() => import('@/pages/NewArrivalsPage'));
+const FeedsPage = lazy(() => import('@/pages/FeedsPage'));
+const FeedDetailPage = lazy(() => import('@/pages/FeedDetailPage'));
 const AuctionsPage = lazy(() => import('@/pages/AuctionsPage'));
 const AuctionDetailPage = lazy(() => import('@/pages/AuctionDetailPage'));
-const AboutPage = lazy(() => import('@/pages/AboutPage'));
 const BlogPage = lazy(() => import('@/pages/BlogPage'));
 const BlogDetailPage = lazy(() => import('@/pages/BlogDetailPage'));
 const ContactPage = lazy(() => import('@/pages/ContactPage'));
@@ -34,8 +32,9 @@ const OrdersPage = lazy(() => import('@/pages/admin/OrdersPage'));
 const OrderDetailPage = lazy(() => import('@/pages/admin/OrderDetailPage'));
 const CreateOrderPage = lazy(() => import('@/pages/admin/CreateOrderPage'));
 const AuctionsAdminPage = lazy(() => import('@/pages/admin/AuctionsAdminPage'));
-const InventoryPage = lazy(() => import('@/pages/admin/InventoryPage'));
-const ReceiptsPage = lazy(() => import('@/pages/admin/ReceiptsPage'));
+const FeedsAdminPage = lazy(() => import('@/pages/admin/FeedsAdminPage'));
+const FeedEditorPage = lazy(() => import('@/pages/admin/FeedEditorPage'));
+const ItemsAdminPage = lazy(() => import('@/pages/admin/ItemsAdminPage'));
 const ProblemsPage = lazy(() => import('@/pages/admin/ProblemsPage'));
 const CustomersPage = lazy(() => import('@/pages/admin/CustomersPage'));
 const CustomerDetailPage = lazy(() => import('@/pages/admin/CustomerDetailPage'));
@@ -61,8 +60,13 @@ export default function App() {
             <Route path={ADMIN_ROUTES.createOrder} element={<CreateOrderPage />} />
             <Route path={`${ADMIN_ROUTES.orders}/:id`} element={<OrderDetailPage />} />
             <Route path={ADMIN_ROUTES.auctions} element={<AuctionsAdminPage />} />
-            <Route path={ADMIN_ROUTES.inventory} element={<InventoryPage />} />
-            <Route path={ADMIN_ROUTES.receipts} element={<ReceiptsPage />} />
+            <Route path={ADMIN_ROUTES.feeds} element={<FeedsAdminPage />} />
+            <Route path={ADMIN_ROUTES.newFeed} element={<FeedEditorPage />} />
+            <Route path={`${ADMIN_ROUTES.feeds}/:id`} element={<FeedEditorPage />} />
+            <Route path={ADMIN_ROUTES.items} element={<ItemsAdminPage />} />
+            {/* Trang cũ của cách bán theo số lượng */}
+            <Route path="/admin/kho-hang" element={<Navigate to={ADMIN_ROUTES.items} replace />} />
+            <Route path="/admin/nhap-hang" element={<Navigate to={ADMIN_ROUTES.feeds} replace />} />
             <Route path={ADMIN_ROUTES.problems} element={<ProblemsPage />} />
             <Route path={ADMIN_ROUTES.customers} element={<CustomersPage />} />
             <Route path={`${ADMIN_ROUTES.customers}/:id`} element={<CustomerDetailPage />} />
@@ -74,12 +78,17 @@ export default function App() {
 
         <Route element={<Layout />}>
           <Route path={ROUTES.home} element={<HomePage />} />
-          <Route path={ROUTES.products} element={<ProductsPage />} />
-          <Route path={`${ROUTES.products}/:slug`} element={<ProductDetailPage />} />
-          <Route path={ROUTES.newArrivals} element={<NewArrivalsPage />} />
+          <Route path={ROUTES.feeds} element={<FeedsPage />} />
+          <Route path={`${ROUTES.feeds}/:number`} element={<FeedDetailPage />} />
           <Route path={ROUTES.auctions} element={<AuctionsPage />} />
           <Route path={`${ROUTES.auctions}/:id`} element={<AuctionDetailPage />} />
-          <Route path={ROUTES.about} element={<AboutPage />} />
+          {LEGACY_REDIRECTS.map((redirect) => (
+            <Route
+              key={redirect.from}
+              path={redirect.from}
+              element={<Navigate to={redirect.to} replace />}
+            />
+          ))}
           <Route path={ROUTES.blog} element={<BlogPage />} />
           <Route path={`${ROUTES.blog}/:slug`} element={<BlogDetailPage />} />
           <Route path={ROUTES.contact} element={<ContactPage />} />

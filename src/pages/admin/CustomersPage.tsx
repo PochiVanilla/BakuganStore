@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Landmark, LockKeyhole, ShieldCheck, Users } from 'lucide-react';
-import type { AccountStatus, UserRole } from '@/types';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Award, Hourglass, Landmark, LockKeyhole, ShieldCheck, Users } from 'lucide-react';
+import type { AccountStatus, AdminCustomer, UserRole } from '@/types';
 import { ADMIN_ROUTES } from '@/constants/routes';
+import { LEVEL_SOURCE_LABELS, PURCHASES_FOR_LV2 } from '@/constants/catalog';
 import { listCustomers, type CustomerQuery } from '@/services/api/admin';
 import { useAsync } from '@/hooks/useAsync';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -36,17 +37,87 @@ const ROLE_OPTIONS: ReadonlyArray<{ value: UserRole | 'all'; label: string }> = 
   { value: 'all', label: 'Mọi vai trò' },
 ];
 
+/** Lọc theo hạng, giữ trên URL (?hang=requests) để trang tổng quan dẫn thẳng tới. */
+type LevelFilter = 'all' | 'lv1' | 'lv2' | 'requests';
+const LEVEL_PARAM = 'hang';
+
+function toLevelQuery(filter: LevelFilter): CustomerQuery['level'] {
+  if (filter === 'lv1') return 1;
+  if (filter === 'lv2') return 2;
+  return filter;
+}
+
+function readLevelFilter(value: string | null): LevelFilter {
+  return value === 'lv1' || value === 'lv2' || value === 'requests' ? value : 'all';
+}
+
+/** Hạng của khách + yêu cầu lên Lv2 đang chờ (nếu có). */
+function LevelCell({ customer }: { customer: AdminCustomer }) {
+  if (customer.role !== 'customer') return <span className="text-xs text-text-muted/60">—</span>;
+  const pending = customer.pendingLevelRequest;
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <span
+        title={customer.levelSource ? LEVEL_SOURCE_LABELS[customer.levelSource] : undefined}
+        className={cn(
+          'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold',
+          customer.memberLevel >= 2
+            ? 'border-gold/40 bg-gold/10 text-gold'
+            : 'border-white/12 bg-white/4 text-text-muted',
+        )}
+      >
+        <Award size={11} aria-hidden="true" /> Lv{customer.memberLevel}
+      </span>
+      {pending ? (
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-warning">
+          <Hourglass size={11} aria-hidden="true" />
+          {pending.kind === 'deposit'
+            ? `Báo nạp ${formatCurrency(pending.amount ?? 0)}`
+            : 'Xin duyệt lên Lv2'}
+        </span>
+      ) : (
+        customer.memberLevel < 2 && (
+          <span className="text-[11px] text-text-muted">
+            Đã mua {customer.stats.purchasedItemCount}/{PURCHASES_FOR_LV2} con
+          </span>
+        )
+      )}
+    </div>
+  );
+}
+
 export default function CustomersPage() {
   const revision = useLiveRevision();
+  const [params, setParams] = useSearchParams();
   const [keyword, setKeyword] = useState('');
   const [status, setStatus] = useState<AccountStatus | 'all'>('all');
   const [role, setRole] = useState<UserRole | 'all'>('customer');
   const [sort, setSort] = useState<NonNullable<CustomerQuery['sort']>>('recent');
   const debouncedKeyword = useDebouncedValue(keyword, 250);
+  const levelFilter = readLevelFilter(params.get(LEVEL_PARAM));
+
+  const setLevelFilter = (next: LevelFilter): void => {
+    setParams(
+      (current) => {
+        const updated = new URLSearchParams(current);
+        if (next === 'all') updated.delete(LEVEL_PARAM);
+        else updated.set(LEVEL_PARAM, next);
+        return updated;
+      },
+      { replace: true },
+    );
+  };
 
   const list = useAsync(
-    () => listCustomers({ keyword: debouncedKeyword, status, role, sort }),
-    [debouncedKeyword, status, role, sort, revision],
+    () =>
+      listCustomers({
+        keyword: debouncedKeyword,
+        status,
+        role,
+        sort,
+        level: toLevelQuery(levelFilter),
+      }),
+    [debouncedKeyword, status, role, sort, levelFilter, revision],
     { keepPreviousData: true },
   );
   // Số liệu tổng không phụ thuộc bộ lọc
@@ -56,6 +127,8 @@ export default function CustomersPage() {
 
   const customers = list.data ?? [];
   const everyone = all.data ?? [];
+  const members = everyone.filter((item) => item.memberLevel >= 2).length;
+  const waiting = everyone.filter((item) => item.pendingLevelRequest).length;
 
   return (
     <>
@@ -83,14 +156,24 @@ export default function CustomersPage() {
       <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
         {all.data ? (
           <>
-            <StatCard label="Tổng khách hàng" value={everyone.length} icon={<Users size={16} />} />
             <StatCard
-              label="Đăng ký 30 ngày qua"
-              value={everyone.filter((item) => isWithinDays(item.createdAt, 30)).length}
+              label="Tổng khách hàng"
+              value={everyone.length}
+              icon={<Users size={16} />}
+              hint={`+${everyone.filter((item) => isWithinDays(item.createdAt, 30)).length} đăng ký trong 30 ngày`}
             />
             <StatCard
-              label="Khách VIP"
-              value={everyone.filter((item) => item.tags.includes('VIP')).length}
+              label="Thành viên Lv2"
+              value={members}
+              icon={<Award size={16} />}
+              hint="Được tham gia đấu giá"
+            />
+            <StatCard
+              label="Chờ duyệt lên Lv2"
+              value={waiting}
+              icon={<Hourglass size={16} />}
+              tone={waiting > 0 ? 'warning' : 'default'}
+              hint={waiting > 0 ? 'Bấm tab “Chờ duyệt Lv2” để xử lý' : 'Không có yêu cầu mới'}
             />
             <StatCard
               label="Đang bị khoá"
@@ -106,6 +189,21 @@ export default function CustomersPage() {
       </div>
 
       <div className="mb-4 flex flex-col gap-3">
+        <FilterTabs
+          label="Lọc theo hạng thành viên"
+          value={levelFilter}
+          onChange={setLevelFilter}
+          tabs={[
+            { value: 'all', label: 'Mọi hạng' },
+            {
+              value: 'lv1',
+              label: 'Lv1',
+              count: all.data ? everyone.length - members : undefined,
+            },
+            { value: 'lv2', label: 'Lv2', count: all.data ? members : undefined },
+            { value: 'requests', label: 'Chờ duyệt Lv2', count: all.data ? waiting : undefined },
+          ]}
+        />
         <FilterTabs
           label="Lọc theo trạng thái"
           value={status}
@@ -159,7 +257,11 @@ export default function CustomersPage() {
           <div className="p-5">
             <EmptyState
               icon={<Users size={26} aria-hidden="true" />}
-              title="Không tìm thấy khách hàng nào"
+              title={
+                levelFilter === 'requests'
+                  ? 'Không có yêu cầu lên Lv2 nào đang chờ'
+                  : 'Không tìm thấy khách hàng nào'
+              }
             />
           </div>
         ) : (
@@ -167,6 +269,7 @@ export default function CustomersPage() {
             <thead>
               <tr>
                 <th className={th}>Khách hàng</th>
+                <th className={th}>Hạng</th>
                 <th className={th}>Điện thoại</th>
                 <th className={cn(th, 'text-right')}>Đơn</th>
                 <th className={cn(th, 'text-right')}>Tổng chi tiêu</th>
@@ -217,6 +320,9 @@ export default function CustomersPage() {
                         ))}
                       </div>
                     )}
+                  </td>
+                  <td className={td}>
+                    <LevelCell customer={customer} />
                   </td>
                   <td className={cn(td, 'whitespace-nowrap text-text-muted')}>
                     {customer.phone || '—'}

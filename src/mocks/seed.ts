@@ -5,25 +5,40 @@ import type {
   ChatConversation,
   ChatMessage,
   Gender,
+  MembershipRequest,
   OrderEvent,
   OrderIssue,
   OrderSource,
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
-  Product,
-  StockReceipt,
+  ProductCondition,
 } from '@/types';
 import { FREE_SHIPPING_THRESHOLD, SHIPPING_FEE } from '@/constants/routes';
-import { MOCK_PRODUCTS } from './products';
-import { MOCK_AUCTIONS } from './auctions';
-import { ADMIN_ACCOUNT, MOCK_USER } from './users';
-import type { MockDatabase, StoredOrder, StoredOrderItem, UserRecord } from './db';
+import { PURCHASES_FOR_LV2 } from '@/constants/catalog';
+import { formatItemCode } from '@/utils/itemCode';
+import { BAKUGAN_MODELS, type BakuganModel } from './models';
+import { AUCTION_BIDDERS, MOCK_AUCTIONS } from './auctions';
+import { ADMIN_ACCOUNT, DEMO_NEW_ACCOUNT, MOCK_USER } from './users';
+import type {
+  MockDatabase,
+  StoredFeed,
+  StoredItem,
+  StoredOrder,
+  StoredOrderItem,
+  UserRecord,
+} from './db';
 
 /* ============================================================
-   Bộ dữ liệu mẫu cho trang quản trị. Sinh bằng bộ số ngẫu nhiên
-   có hạt giống cố định nên lần seed nào cũng ra cùng một kết quả,
-   chỉ có mốc thời gian là tính theo lúc seed.
+   Bộ dữ liệu mẫu. Sinh bằng bộ số ngẫu nhiên có hạt giống cố định
+   nên lần seed nào cũng ra cùng một kết quả, chỉ có mốc thời gian
+   là tính theo lúc seed.
+
+   Cách bán mô phỏng: shop nhập Bakugan theo lô, mỗi lô đăng thành
+   một feed (ảnh cả lô + từng con có mã riêng). Đơn hàng lấy đúng
+   những con đang còn trong feed lúc khách đặt; con nào bán rồi thì
+   SOLD. Web giữ tối đa 30 feed nên các feed cũ nhất đã được xoá,
+   con chưa bán trong đó thành "hàng tồn" chờ đăng lại.
    ============================================================ */
 
 const MINUTE = 60_000;
@@ -79,6 +94,19 @@ interface CustomerSeed {
 
 /** Id trùng với người đặt giá trong mocks/auctions.ts để nối được lịch sử đấu giá. */
 const CUSTOMER_SEEDS: CustomerSeed[] = [
+  {
+    id: 'usr-002',
+    fullName: 'Trần Bảo Anh',
+    email: DEMO_NEW_ACCOUNT.email,
+    phone: '0901234987',
+    gender: 'male',
+    birthday: '2004-05-19',
+    joinedDaysAgo: 18,
+    lastLoginDaysAgo: 1,
+    address: ['TP. Hồ Chí Minh', 'Quận 6', 'Phường 6', '15 Hậu Giang'],
+    tags: ['Khách mới'],
+    note: 'Tài khoản demo khách mới (Lv1) — để thử luồng lên hạng.',
+  },
   {
     id: 'usr-011',
     fullName: 'Trần Gia Bảo',
@@ -465,21 +493,15 @@ function addressLine(address: Address): string {
   return `${address.street}, ${address.ward}, ${address.district}, ${address.province}`;
 }
 
-function itemsFrom(products: Product[], quantities: number[]): StoredOrderItem[] {
-  return products.map((product, index) => ({
-    productId: product.id,
-    name: product.name,
-    price: product.price,
-    quantity: quantities[index] ?? 1,
-  }));
-}
-
 interface OrderDraft {
   id: string;
   code: string;
   customer: UserRecord;
   address: Address;
-  items: StoredOrderItem[];
+  /** Số con Bakugan khách mua — lấy từ những feed đang mở lúc đặt */
+  itemCount: number;
+  /** Món đã định sẵn (đơn cho người thắng đấu giá) */
+  fixedItems?: StoredOrderItem[];
   createdAt: number;
   status: OrderStatus;
   method: PaymentMethod;
@@ -490,10 +512,15 @@ interface OrderDraft {
   note?: string;
 }
 
-function finalizeOrder(draft: OrderDraft, now: number, rand: () => number): StoredOrder {
-  const subtotal = draft.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+function finalizeOrder(
+  draft: OrderDraft,
+  items: StoredOrderItem[],
+  now: number,
+  rand: () => number,
+): StoredOrder {
+  const subtotal = items.reduce((sum, item) => sum + item.price, 0);
   const shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
-  const discount = draft.discount ?? 0;
+  const discount = Math.min(draft.discount ?? 0, subtotal);
   const timeline = buildTimeline(
     draft.id,
     statusPath(draft.status, rand),
@@ -506,7 +533,7 @@ function finalizeOrder(draft: OrderDraft, now: number, rand: () => number): Stor
   return {
     id: draft.id,
     code: draft.code,
-    items: draft.items,
+    items,
     subtotal,
     shippingFee,
     discount,
@@ -533,45 +560,20 @@ function finalizeOrder(draft: OrderDraft, now: number, rand: () => number): Stor
   };
 }
 
-/**
- * Đơn "Chờ xác nhận", chưa thanh toán của tài khoản demo — để thử tính năng
- * trợ lý tự huỷ đơn. Dùng cả khi seed mới lẫn khi nâng cấp dữ liệu cũ.
- */
-export function createDemoPendingOrder(demo: UserRecord, now: number): StoredOrder {
-  const createdAt = now - 3 * HOUR;
-  const address =
-    demo.addresses.find((item) => item.isDefault) ?? demo.addresses[0] ?? MOCK_USER.addresses[0]!;
-  return finalizeOrder(
-    {
-      id: 'ord-demo-pending',
-      code: orderCode(createdAt, 81),
-      customer: demo,
-      address,
-      items: itemsFrom([MOCK_PRODUCTS[9]!], [1]),
-      createdAt,
-      status: 'pending',
-      method: 'cod',
-      source: 'web',
-    },
-    now,
-    createRandom(81),
-  );
-}
-
-function buildOrders(users: UserRecord[], now: number, rand: () => number): StoredOrder[] {
+function buildOrderDrafts(users: UserRecord[], now: number, rand: () => number): OrderDraft[] {
   const byId = new Map(users.map((user) => [user.id, user]));
   const demo = byId.get('usr-001')!;
+  const newcomer = byId.get('usr-002')!;
   const [home, office] = [demo.addresses[0]!, demo.addresses[1] ?? demo.addresses[0]!];
-  const P = MOCK_PRODUCTS;
 
-  // Bốn đơn quen thuộc của tài khoản demo (giữ nguyên mã để khớp bản cũ).
+  // Các đơn quen thuộc của tài khoản demo (giữ nguyên mã để khớp tin nhắn mẫu).
   const drafts: OrderDraft[] = [
     {
       id: 'ord-001',
       code: 'TD2609A17',
       customer: demo,
       address: home,
-      items: itemsFrom([P[0]!, P[1]!], [1, 1]),
+      itemCount: 2,
       createdAt: now - 2 * DAY,
       status: 'shipping',
       method: 'cod',
@@ -583,7 +585,7 @@ function buildOrders(users: UserRecord[], now: number, rand: () => number): Stor
       code: 'TD2508B04',
       customer: demo,
       address: home,
-      items: itemsFrom([P[5]!, P[6]!], [1, 1]),
+      itemCount: 2,
       createdAt: now - 28 * DAY,
       status: 'completed',
       method: 'bank-transfer',
@@ -594,7 +596,7 @@ function buildOrders(users: UserRecord[], now: number, rand: () => number): Stor
       code: 'TD2507C22',
       customer: demo,
       address: office,
-      items: itemsFrom([P[20]!, P[21]!], [2, 2]),
+      itemCount: 2,
       createdAt: now - 63 * DAY,
       status: 'completed',
       method: 'momo',
@@ -605,17 +607,43 @@ function buildOrders(users: UserRecord[], now: number, rand: () => number): Stor
       code: 'TD2506D09',
       customer: demo,
       address: home,
-      items: itemsFrom([P[12]!], [1]),
+      itemCount: 1,
       createdAt: now - 94 * DAY,
       status: 'cancelled',
       method: 'cod',
       source: 'web',
       cancelReason: 'customer-request',
     },
+    // Đơn "Chờ xác nhận", chưa thanh toán — để thử tính năng trợ lý tự huỷ đơn.
+    {
+      id: 'ord-demo-pending',
+      code: orderCode(now - 3 * HOUR, 81),
+      customer: demo,
+      address: home,
+      itemCount: 1,
+      createdAt: now - 3 * HOUR,
+      status: 'pending',
+      method: 'cod',
+      source: 'web',
+    },
+    // Khách mới (Lv1): mới nhận 1 con, còn thiếu 2 con nữa để lên Lv2.
+    {
+      id: 'ord-new-001',
+      code: orderCode(now - 9 * DAY, 82),
+      customer: newcomer,
+      address: newcomer.addresses[0]!,
+      itemCount: 1,
+      createdAt: now - 9 * DAY,
+      status: 'completed',
+      method: 'cod',
+      source: 'web',
+    },
   ];
 
+  // Khách mới (usr-002, usr-020, usr-023) chỉ có đơn riêng bên dưới, để còn ở Lv1.
+  const NEWCOMERS = new Set(['usr-001', 'usr-002', 'usr-020', 'usr-023']);
   const buyers = users.filter(
-    (user) => user.role === 'customer' && user.status === 'active' && user.id !== 'usr-001',
+    (user) => user.role === 'customer' && user.status === 'active' && !NEWCOMERS.has(user.id),
   );
   const TOTAL = 72;
 
@@ -627,26 +655,19 @@ function buildOrders(users: UserRecord[], now: number, rand: () => number): Stor
     // Chỉ khách đã đăng ký trước ngày đặt mới có thể có đơn này.
     const eligible = buyers.filter((user) => new Date(user.createdAt).getTime() < createdAt);
     const customer = pick(eligible.length > 0 ? eligible : buyers, rand);
-    const itemCount = pickWeighted(
-      [
-        [1, 6],
-        [2, 3],
-        [3, 1],
-      ] as const,
-      rand,
-    );
-    const chosen = new Set<Product>();
-    while (chosen.size < itemCount) chosen.add(pick(P, rand));
-    const products = [...chosen];
 
     drafts.push({
       id: `ord-${String(index + 5).padStart(3, '0')}`,
       code: orderCode(createdAt, index + 4),
       customer,
       address: customer.addresses[0]!,
-      items: itemsFrom(
-        products,
-        products.map(() => (rand() < 0.85 ? 1 : 2)),
+      itemCount: pickWeighted(
+        [
+          [1, 7],
+          [2, 2.5],
+          [3, 0.5],
+        ] as const,
+        rand,
       ),
       createdAt,
       status,
@@ -677,6 +698,34 @@ function buildOrders(users: UserRecord[], now: number, rand: () => number): Stor
     });
   }
 
+  // Hai khách mới: mới mua một con, đang xin lên Lv2 (xem buildMembershipRequests).
+  const duyen = byId.get('usr-020')!;
+  const truong = byId.get('usr-023')!;
+  drafts.push(
+    {
+      id: 'ord-new-002',
+      code: orderCode(now - 16 * DAY, 83),
+      customer: duyen,
+      address: duyen.addresses[0]!,
+      itemCount: 1,
+      createdAt: now - 16 * DAY,
+      status: 'completed',
+      method: 'bank-transfer',
+      source: 'web',
+    },
+    {
+      id: 'ord-new-003',
+      code: orderCode(now - 1.5 * DAY, 84),
+      customer: truong,
+      address: truong.addresses[0]!,
+      itemCount: 1,
+      createdAt: now - 1.5 * DAY,
+      status: 'shipping',
+      method: 'cod',
+      source: 'web',
+    },
+  );
+
   // Khách bị khoá: ba đơn COD liên tiếp không nhận.
   const locked = byId.get('usr-022')!;
   [52, 37, 21].forEach((ago, index) => {
@@ -686,7 +735,7 @@ function buildOrders(users: UserRecord[], now: number, rand: () => number): Stor
       code: orderCode(createdAt, 60 + index),
       customer: locked,
       address: locked.addresses[0]!,
-      items: itemsFrom([P[(index * 7 + 3) % P.length]!], [1]),
+      itemCount: 1,
       createdAt,
       status: 'cancelled',
       method: 'cod',
@@ -705,13 +754,9 @@ function buildOrders(users: UserRecord[], now: number, rand: () => number): Stor
       code: orderCode(createdAt, 70),
       customer: preyasWinner,
       address: preyasWinner.addresses[0]!,
-      items: [
-        {
-          productId: `auction:${preyas.id}`,
-          name: preyas.title,
-          price: preyas.currentPrice,
-          quantity: 1,
-        },
+      itemCount: 0,
+      fixedItems: [
+        { itemId: `auction:${preyas.id}`, name: preyas.title, price: preyas.currentPrice },
       ],
       createdAt,
       status: 'packing',
@@ -722,15 +767,53 @@ function buildOrders(users: UserRecord[], now: number, rand: () => number): Stor
     });
   }
 
-  return [
-    ...drafts.map((draft) => finalizeOrder(draft, now, rand)),
-    createDemoPendingOrder(demo, now),
-  ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return drafts;
 }
 
-/* ---------------- Phiếu nhập ---------------- */
+/* ---------------- Feed & từng con Bakugan ---------------- */
 
-const SUPPLIERS = [
+/** Tổng số feed shop từng đăng trong bộ mẫu. */
+const FEED_TOTAL = 36;
+/**
+ * Web chỉ giữ tối đa 30 feed. Bộ mẫu để sẵn 28 feed (8 feed cũ nhất đã xoá)
+ * để admin đăng thêm vài feed là gặp bước xác nhận xoá feed cũ.
+ */
+const FEEDS_ON_WEB = 28;
+
+interface FeedTheme {
+  title: string;
+  series?: BakuganModel['series'][];
+  attributes?: BakuganModel['attribute'][];
+  cheap?: boolean;
+  rare?: boolean;
+}
+
+const FEED_THEMES: readonly FeedTheme[] = [
+  { title: 'Lô Battle Brawlers đời đầu', series: ['battle-brawlers'] },
+  { title: 'Lô Battle Planet đủ hệ', series: ['battle-planet'] },
+  { title: 'Lô New Vestroia & Gundalian', series: ['new-vestroia', 'gundalian-invaders'] },
+  { title: 'Lô hàng Nhật tuyển chọn', rare: true },
+  { title: 'Lô Mechtanium Surge', series: ['mechtanium-surge', 'gundalian-invaders'] },
+  { title: 'Lô Geogan Rising', series: ['geogan-rising'] },
+  { title: 'Lô ký gửi của khách' },
+  { title: 'Lô giá mềm cho người mới chơi', cheap: true },
+  { title: 'Lô tổng hợp nhiều đời' },
+  { title: 'Lô hệ Pyrus & Darkus', attributes: ['pyrus', 'darkus'] },
+  { title: 'Lô hệ Aquos & Ventus', attributes: ['aquos', 'ventus'] },
+  { title: 'Lô sưu tầm hàng hiếm', rare: true },
+];
+
+const FEED_CAPTIONS = [
+  'Lô {n} con vừa về, shop đã test bung và nam châm từng con. Giá ghi theo từng mã bên dưới — ai chốt trước được trước.',
+  '{n} con tuyển từ lô nhập tuần này, tình trạng ghi rõ từng con. Chốt đơn trên web hoặc nhắn shop kèm mã Bakugan.',
+  'Mở bán {n} con, ảnh thật cả lô. Con nào có người mua sẽ hiện SOLD ngay trên feed.',
+  'Lô {n} con nhiều đời, có vài con hiếm. Mỗi con một mã riêng, bấm vào mã để xem tình trạng chi tiết.',
+] as const;
+
+const NEWEST_FEED_CAPTION =
+  'Shop vừa nhập về một lô tổng hợp nhiều đời (ảnh chụp cả lô). Đợt 1 mở bán 14 con bên dưới, các con còn lại sẽ lên feed sau. Mỗi con một mã riêng, ai chốt trước được trước — xem giờ mở bán ở trên và đặt báo thức kẻo lỡ nhé!';
+
+const LOT_SUPPLIERS = [
   'Đại lý Toys Sài Gòn',
   'Lô nhập Nhật Bản (JP)',
   'Nhà sưu tầm Hà Nội',
@@ -738,36 +821,352 @@ const SUPPLIERS = [
   'Kho sỉ Chợ Lớn',
 ] as const;
 
-function buildReceipts(now: number, rand: () => number): StockReceipt[] {
-  const ages = [86, 74, 61, 52, 40, 31, 19, 9, 3];
-  return ages
-    .map((ago, index) => {
-      const receivedAt = now - ago * DAY - rand() * 6 * HOUR;
-      const count = 3 + Math.floor(rand() * 3);
-      const chosen = new Set<Product>();
-      while (chosen.size < count) chosen.add(pick(MOCK_PRODUCTS, rand));
-      const items = [...chosen].map((product) => ({
-        productId: product.id,
-        productName: product.name,
-        attribute: product.attribute,
-        quantity: 2 + Math.floor(rand() * 7),
-        unitCost: Math.round((product.price * (0.48 + rand() * 0.18)) / 10_000) * 10_000,
-      }));
-      const date = new Date(receivedAt);
-      const stamp = `${String(date.getFullYear()).slice(2)}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
-      return {
-        id: `rcp-${String(index + 1).padStart(3, '0')}`,
-        code: `PN${stamp}-${String(index + 1).padStart(2, '0')}`,
-        supplier: SUPPLIERS[index % SUPPLIERS.length]!,
-        receivedAt: iso(receivedAt),
-        createdBy: ADMIN_DISPLAY_NAME,
-        note: index % 3 === 0 ? 'Đã kiểm tra nam châm và cơ cấu bung từng con.' : undefined,
-        items,
-        totalQuantity: items.reduce((sum, item) => sum + item.quantity, 0),
-        totalCost: items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0),
-      } satisfies StockReceipt;
-    })
-    .reverse();
+const CONDITION_NOTES: Record<ProductCondition, readonly string[]> = {
+  'new-sealed': [
+    'Nguyên seal, hộp đẹp',
+    'Nguyên seal, hộp móp nhẹ một góc',
+    'Seal zin, kèm thẻ Gate',
+  ],
+  'like-new': [
+    'Bung mượt, nam châm khoẻ',
+    'Đã mở hộp, như mới',
+    'Trầy rất nhẹ ở lưng, bung tốt',
+    'Đủ thẻ năng lực đi kèm',
+  ],
+  used: [
+    'Trầy nhẹ, bung tốt',
+    'Phai màu nhẹ ở cánh',
+    'Lò xo hơi yếu, vẫn bung được',
+    'Thiếu thẻ Gate, còn lại ổn',
+    'Bung chậm, giá mềm cho người mới',
+  ],
+};
+
+const CONDITION_PRICE_FACTOR: Record<ProductCondition, number> = {
+  'new-sealed': 1.3,
+  'like-new': 1,
+  used: 0.62,
+};
+
+const MANUAL_SALE_NOTES = [
+  'Khách chốt qua Messenger',
+  'Bán trực tiếp tại shop',
+  'Chốt trong buổi livestream',
+  'Khách quen đặt qua Zalo',
+] as const;
+
+const WALK_IN_BUYERS = [
+  'Anh Tùng',
+  'Chị Mai',
+  'Bạn Khoa',
+  'Anh Phong',
+  'Bạn Nhi',
+  'Anh Đạt',
+] as const;
+
+/** Feed số n được đăng cách đây bao nhiêu ngày (feed mới nhất: 2 giờ trước). */
+function feedAgeDays(number: number): number {
+  if (number === FEED_TOTAL) return 2 / 24;
+  return 1 + (FEED_TOTAL - 1 - number) * 3.1 + ((number * 37) % 10) / 20;
+}
+
+/** 20:00 tối nay giờ Việt Nam; nếu đã quá giờ đó thì 4 tiếng nữa. */
+function nextOpeningTime(now: number): number {
+  const VN_OFFSET = 7 * HOUR;
+  const vnMidnight = Math.floor((now + VN_OFFSET) / DAY) * DAY - VN_OFFSET;
+  const tonight = vnMidnight + 20 * HOUR;
+  return tonight - now > 30 * MINUTE ? tonight : now + 4 * HOUR;
+}
+
+function roundPrice(value: number): number {
+  return Math.max(150_000, Math.round(value / 10_000) * 10_000);
+}
+
+function pickModel(theme: FeedTheme, rand: () => number): BakuganModel {
+  let pool = BAKUGAN_MODELS.filter(
+    (model) =>
+      (!theme.series || theme.series.includes(model.series)) &&
+      (!theme.attributes || theme.attributes.includes(model.attribute)) &&
+      (!theme.cheap || model.basePrice <= 700_000),
+  );
+  if (theme.rare) {
+    const rare = pool.filter((model) => model.rare || model.basePrice >= 1_300_000);
+    if (rare.length > 0 && rand() < 0.7) pool = rare;
+  }
+  return pick(pool.length > 0 ? pool : BAKUGAN_MODELS, rand);
+}
+
+function buildFeeds(
+  now: number,
+  rand: () => number,
+): { feeds: StoredFeed[]; items: StoredItem[]; nextItemNumber: number } {
+  const feeds: StoredFeed[] = [];
+  const items: StoredItem[] = [];
+  let sequence = 1;
+
+  for (let number = 1; number <= FEED_TOTAL; number += 1) {
+    const newest = number === FEED_TOTAL;
+    const publishedAt = now - feedAgeDays(number) * DAY;
+    const theme: FeedTheme = newest
+      ? { title: 'Lô tổng hợp mới về' }
+      : FEED_THEMES[(number * 7) % FEED_THEMES.length]!;
+    const count = newest ? 14 : 8 + Math.floor(rand() * 7);
+    const id = `feed-${String(number).padStart(3, '0')}`;
+    let lotValue = 0;
+
+    for (let index = 0; index < count; index += 1) {
+      const model = pickModel(theme, rand);
+      const condition = pickWeighted<ProductCondition>(
+        theme.cheap
+          ? [
+              ['new-sealed', 5],
+              ['like-new', 30],
+              ['used', 65],
+            ]
+          : [
+              ['new-sealed', 15],
+              ['like-new', 45],
+              ['used', 40],
+            ],
+        rand,
+      );
+      const price = roundPrice(
+        model.basePrice * CONDITION_PRICE_FACTOR[condition] * (0.85 + rand() * 0.3),
+      );
+      lotValue += price;
+      items.push({
+        id: `itm-${String(sequence).padStart(4, '0')}`,
+        code: formatItemCode(sequence),
+        name: model.name,
+        price,
+        attribute: model.attribute,
+        series: model.series,
+        condition,
+        conditionNote: pick(CONDITION_NOTES[condition], rand),
+        gPower: model.gPower,
+        status: 'available',
+        feedId: id,
+        position: index + 1,
+        createdAt: iso(publishedAt),
+      });
+      sequence += 1;
+    }
+
+    feeds.push({
+      id,
+      number,
+      title: newest ? `${theme.title} — đợt 1: ${count} con` : `${theme.title} — ${count} con`,
+      caption: newest
+        ? NEWEST_FEED_CAPTION
+        : pick(FEED_CAPTIONS, rand).replace('{n}', String(count)),
+      images: newest ? ['/feeds/lo-mau-01.webp'] : [`lot:${number}`],
+      publishedAt: iso(publishedAt),
+      opensAt: iso(newest ? nextOpeningTime(now) : publishedAt + 2 * HOUR),
+      lotCost: Math.round((lotValue * (0.45 + rand() * 0.12)) / 100_000) * 100_000,
+      supplier: pick(LOT_SUPPLIERS, rand),
+      createdBy: ADMIN_DISPLAY_NAME,
+    });
+  }
+  return { feeds, items, nextItemNumber: sequence };
+}
+
+/**
+ * Gắn cho mỗi đơn những con đang còn bán trong các feed đã mở lúc khách đặt
+ * (ưu tiên feed mở trong 2 tuần trước đó). Đơn còn hiệu lực làm con đó SOLD;
+ * đơn huỷ / hoàn trả thì con đó quay lại bán tiếp.
+ */
+function fulfilOrders(
+  drafts: OrderDraft[],
+  feeds: readonly StoredFeed[],
+  items: StoredItem[],
+  now: number,
+  rand: () => number,
+): StoredOrder[] {
+  const feedById = new Map(feeds.map((feed) => [feed.id, feed]));
+  const opensAt = (item: StoredItem): number =>
+    new Date(feedById.get(item.feedId!)!.opensAt).getTime();
+
+  const orders: StoredOrder[] = [];
+  [...drafts]
+    .sort((a, b) => a.createdAt - b.createdAt)
+    .forEach((draft) => {
+      if (draft.fixedItems) {
+        orders.push(finalizeOrder(draft, draft.fixedItems, now, rand));
+        return;
+      }
+      const opened = items.filter(
+        (item) => item.status === 'available' && item.feedId && opensAt(item) <= draft.createdAt,
+      );
+      const fresh = opened.filter((item) => draft.createdAt - opensAt(item) <= 14 * DAY);
+      const pool = [...(fresh.length >= draft.itemCount ? fresh : opened)];
+      const chosen: StoredItem[] = [];
+      while (chosen.length < draft.itemCount && pool.length > 0) {
+        chosen.push(pool.splice(Math.floor(rand() * pool.length), 1)[0]!);
+      }
+      if (chosen.length === 0) return;
+
+      if (draft.status !== 'cancelled' && draft.status !== 'returned') {
+        chosen.forEach((item) => {
+          const feed = feedById.get(item.feedId!)!;
+          item.status = 'sold';
+          item.soldVia = 'order';
+          item.orderId = draft.id;
+          item.soldAt = iso(draft.createdAt);
+          item.feedTitle = feed.title;
+          item.feedNumber = feed.number;
+        });
+      }
+      orders.push(
+        finalizeOrder(
+          draft,
+          chosen.map((item) => ({
+            itemId: item.id,
+            code: item.code,
+            name: item.name,
+            price: item.price,
+          })),
+          now,
+          rand,
+        ),
+      );
+    });
+  return orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/**
+ * Nhiều con được chốt ngoài web (Messenger, livestream, bán tại shop): feed càng
+ * cũ càng bán gần hết, vài feed cũ còn sót 1–2 con.
+ */
+function sellOutsideWeb(
+  feeds: readonly StoredFeed[],
+  items: StoredItem[],
+  now: number,
+  rand: () => number,
+): void {
+  feeds.forEach((feed) => {
+    const opened = new Date(feed.opensAt).getTime();
+    if (opened > now) return;
+    const ageDays = (now - opened) / DAY;
+    const chance = ageDays > 24 ? 0.9 : ageDays > 12 ? 0.5 : ageDays > 5 ? 0.22 : 0.04;
+    items
+      .filter((item) => item.feedId === feed.id && item.status === 'available')
+      .forEach((item) => {
+        if (rand() >= chance) return;
+        item.status = 'sold';
+        item.soldVia = 'manual';
+        item.soldAt = iso(Math.min(now - HOUR, opened + rand() * Math.min(ageDays, 6) * DAY));
+        item.soldNote = pick(MANUAL_SALE_NOTES, rand);
+        item.buyerName = pick(WALK_IN_BUYERS, rand);
+        item.feedTitle = feed.title;
+        item.feedNumber = feed.number;
+      });
+  });
+}
+
+/** Giữ lại các feed mới nhất; con chưa bán của feed đã xoá thành hàng tồn chờ đăng lại. */
+function retireOldFeeds(feeds: StoredFeed[], items: StoredItem[]): StoredFeed[] {
+  const keep = [...feeds].sort((a, b) => b.number - a.number).slice(0, FEEDS_ON_WEB);
+  const kept = new Set(keep.map((feed) => feed.id));
+  items.forEach((item) => {
+    if (!item.feedId || kept.has(item.feedId)) return;
+    const feed = feeds.find((entry) => entry.id === item.feedId)!;
+    item.feedTitle = feed.title;
+    item.feedNumber = feed.number;
+    item.feedId = undefined;
+  });
+  return keep.sort((a, b) => a.number - b.number);
+}
+
+/* ---------------- Hạng thành viên ---------------- */
+
+export const DEFAULT_MEMBER_DEPOSIT = 500_000;
+
+function assignMemberships(users: UserRecord[], orders: readonly StoredOrder[], now: number): void {
+  const bidders = new Set(AUCTION_BIDDERS.map((bidder) => bidder.id));
+  users.forEach((user) => {
+    if (user.role !== 'customer') return;
+    const completed = orders
+      .filter((order) => order.userId === user.id && order.status === 'completed')
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    let count = 0;
+    let reachedAt: string | undefined;
+    completed.forEach((order) => {
+      count += order.items.length;
+      if (!reachedAt && count >= PURCHASES_FOR_LV2) reachedAt = order.updatedAt;
+    });
+
+    if (reachedAt) {
+      user.memberLevel = 2;
+      user.levelSource = 'purchases';
+      user.levelUpAt = reachedAt;
+    } else if (bidders.has(user.id)) {
+      // Khách đã tham gia đấu giá từ trước khi có luật Lv2 — admin duyệt lên.
+      user.memberLevel = 2;
+      user.levelSource = 'admin';
+      user.levelUpAt = iso(now - 45 * DAY);
+    } else {
+      user.memberLevel = 1;
+    }
+  });
+
+  // Khách VIP nạp tiền cọc để đấu giá.
+  const vip = users.find((user) => user.id === 'usr-014');
+  if (vip) {
+    vip.depositBalance = DEFAULT_MEMBER_DEPOSIT;
+    if (vip.levelSource !== 'purchases') {
+      vip.memberLevel = 2;
+      vip.levelSource = 'deposit';
+      vip.levelUpAt = iso(now - 60 * DAY);
+    }
+  }
+}
+
+function buildMembershipRequests(users: readonly UserRecord[], now: number): MembershipRequest[] {
+  const waiting = users.filter(
+    (user) =>
+      user.role === 'customer' &&
+      user.status === 'active' &&
+      user.memberLevel === 1 &&
+      user.id !== 'usr-002',
+  );
+  const requests: MembershipRequest[] = [];
+  const depositor = waiting.find((user) => user.id === 'usr-020') ?? waiting[0];
+  const reviewer = waiting.find((user) => user.id === 'usr-023') ?? waiting[1];
+  if (depositor) {
+    requests.push({
+      id: 'mbr-002',
+      userId: depositor.id,
+      kind: 'deposit',
+      amount: DEFAULT_MEMBER_DEPOSIT,
+      transferNote: `TDLV2 ${depositor.phone}`,
+      message: 'Mình đã chuyển khoản 500.000₫ để lên Lv2, shop kiểm tra giúp nhé.',
+      status: 'pending',
+      createdAt: iso(now - 3 * HOUR),
+    });
+  }
+  if (reviewer) {
+    requests.push({
+      id: 'mbr-003',
+      userId: reviewer.id,
+      kind: 'review',
+      message: 'Mình hay mua trực tiếp ở shop (đã mua 4 con), admin duyệt giúp mình lên Lv2 với.',
+      status: 'pending',
+      createdAt: iso(now - 26 * HOUR),
+    });
+  }
+  requests.push({
+    id: 'mbr-001',
+    userId: 'usr-014',
+    kind: 'deposit',
+    amount: DEFAULT_MEMBER_DEPOSIT,
+    transferNote: 'TDLV2 0914567230',
+    status: 'approved',
+    createdAt: iso(now - 61 * DAY),
+    resolvedAt: iso(now - 60 * DAY),
+    resolvedBy: ADMIN_DISPLAY_NAME,
+    adminNote: 'Đã nhận đủ tiền.',
+  });
+  return requests;
 }
 
 /* ---------------- Sự cố ---------------- */
@@ -876,7 +1275,7 @@ function buildIssues(orders: StoredOrder[], users: UserRecord[], now: number): O
 export const DEFAULT_BOT_SETTINGS: Omit<BotSettings, 'updatedAt'> = {
   enabled: true,
   greeting:
-    'Chào bạn! Mình là trợ lý AI của TD Bakugan. Mình tra được đơn hàng, huỷ đơn chưa xác nhận, báo phí ship, tư vấn mẫu và luật đấu giá… Việc nào cần nhân viên, mình chuyển ngay nhé.',
+    'Chào bạn! Mình là trợ lý AI của TD Bakugan. Mình tư vấn chọn Bakugan trong feed, tra đơn, huỷ đơn chưa xác nhận, giải thích cách lên Lv2 để đấu giá… Việc nào cần nhân viên, mình chuyển ngay nhé.',
   topics: {
     'order-status': true,
     'order-cancel': true,
@@ -886,11 +1285,12 @@ export const DEFAULT_BOT_SETTINGS: Omit<BotSettings, 'updatedAt'> = {
     'auction-rules': true,
     'product-info': true,
     'bakugan-knowledge': true,
+    membership: true,
     'store-info': true,
     promotions: true,
   },
   extraKnowledge:
-    'Tuần này shop đang có phiên đấu giá Titanium Dragonoid mạ vàng. Hàng hiếm không nhận giữ quá 24 giờ.',
+    'Feed mới thường mở bán lúc 20:00. Tuần này có phiên đấu giá Titanium Dragonoid mạ vàng. Hàng hiếm không nhận giữ quá 24 giờ.',
   handoffMessage:
     'Mình đã chuyển cuộc trò chuyện cho nhân viên TD Bakugan. Bạn chờ chút nhé — giờ làm việc 09:00–21:00 hằng ngày.',
 };
@@ -1048,9 +1448,13 @@ function buildConversations(now: number): ChatConversation[] {
 
 export function createSeedDatabase(version: number): MockDatabase {
   const now = Date.now();
-  const rand = createRandom(20_260_926);
+  const rand = createRandom(20_260_927);
   const users = buildUsers(now);
-  const orders = buildOrders(users, now, rand);
+  const { feeds, items, nextItemNumber } = buildFeeds(now, rand);
+  const orders = fulfilOrders(buildOrderDrafts(users, now, rand), feeds, items, now, rand);
+  sellOutsideWeb(feeds, items, now, rand);
+  const webFeeds = retireOldFeeds(feeds, items);
+  assignMemberships(users, orders, now);
 
   // Khách đặt đơn trên web thì chắc chắn đã đăng nhập ít nhất lúc đó.
   users.forEach((user) => {
@@ -1070,9 +1474,11 @@ export function createSeedDatabase(version: number): MockDatabase {
     seededAt: iso(now),
     users,
     orders,
-    productPatches: {},
-    customProducts: [],
-    receipts: buildReceipts(now, rand),
+    feeds: webFeeds,
+    items,
+    nextFeedNumber: FEED_TOTAL + 1,
+    nextItemNumber,
+    membershipRequests: buildMembershipRequests(users, now),
     issues: buildIssues(orders, users, now),
     auctionFulfillments: orders
       .filter((order) => order.source === 'auction' && order.auctionId)
@@ -1084,6 +1490,10 @@ export function createSeedDatabase(version: number): MockDatabase {
       })),
     conversations: buildConversations(now),
     botSettings: { ...DEFAULT_BOT_SETTINGS, updatedAt: iso(now) },
-    shopSettings: { lowStockThreshold: 3 },
+    shopSettings: {
+      memberDepositAmount: DEFAULT_MEMBER_DEPOSIT,
+      // Để trống: admin tự nhập tài khoản nhận tiền thật trong trang Cài đặt.
+      bank: { bankName: '', accountNumber: '', accountHolder: '' },
+    },
   };
 }

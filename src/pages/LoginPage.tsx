@@ -7,7 +7,7 @@ import { ADMIN_ROUTES, ROUTES } from '@/constants/routes';
 import { loginSchema, type LoginFormValues } from '@/features/auth/schemas';
 import { login } from '@/services/api/authService';
 import { getApiErrorMessage, USE_MOCK } from '@/services/api/client';
-import { ADMIN_ACCOUNT, DEMO_ACCOUNT } from '@/mocks';
+import { ADMIN_ACCOUNT, DEMO_ACCOUNT, DEMO_NEW_ACCOUNT } from '@/mocks';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/uiStore';
 import { Button, Input, PasswordInput, Seo } from '@/components/ui';
@@ -171,7 +171,14 @@ export default function LoginPage() {
                   onClick={() => fillAccount(DEMO_ACCOUNT)}
                   className="text-xs font-semibold text-accent-cyan underline-offset-2 hover:underline"
                 >
-                  Điền tài khoản khách demo
+                  Điền tài khoản khách demo (Lv2)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillAccount(DEMO_NEW_ACCOUNT)}
+                  className="text-xs font-semibold text-primary-soft underline-offset-2 hover:underline"
+                >
+                  Khách mới (Lv1)
                 </button>
                 <button
                   type="button"

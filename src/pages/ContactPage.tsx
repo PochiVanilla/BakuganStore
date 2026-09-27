@@ -251,8 +251,8 @@ export default function ContactPage() {
             <div className="mt-5 rounded-2xl border border-gold/25 bg-gold/8 p-5">
               <h3 className="font-display text-sm font-bold text-gold">Mẹo nhỏ</h3>
               <p className="mt-2 text-sm leading-relaxed text-text-muted">
-                Khi hỏi về một sản phẩm cụ thể, gửi kèm link sản phẩm giúp shop trả lời nhanh hơn
-                nhiều.
+                Khi hỏi về một con Bakugan cụ thể, gửi kèm mã của con đó (VD: BK-0231) hoặc số feed
+                giúp shop trả lời nhanh hơn nhiều.
               </p>
             </div>
           </aside>

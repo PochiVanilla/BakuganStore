@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  Boxes,
+  Award,
   Gavel,
+  ImagePlus,
   MessagesSquare,
   PlusCircle,
   ShoppingBag,
@@ -13,7 +14,7 @@ import {
 import { ORDER_STATUSES } from '@/types';
 import { ADMIN_ROUTES } from '@/constants/routes';
 import { ORDER_STATUS_LABELS } from '@/constants/orders';
-import { getDashboardStats, listInventory, listOrders } from '@/services/api/admin';
+import { getDashboardStats, listOrders } from '@/services/api/admin';
 import { useAsync } from '@/hooks/useAsync';
 import { useLiveRevision } from '@/hooks/useLiveRevision';
 import { formatCurrency, formatNumber, formatRelativeTime } from '@/utils/format';
@@ -97,12 +98,7 @@ export default function DashboardPage() {
   const recent = useAsync(() => listOrders({ pageSize: 6 }), [revision], {
     keepPreviousData: true,
   });
-  const stock = useAsync(() => listInventory({ sort: 'stock-asc' }), [revision], {
-    keepPreviousData: true,
-  });
-
   const data = stats.data;
-  const lowStock = (stock.data?.rows ?? []).filter((row) => row.level !== 'in-stock').slice(0, 6);
 
   return (
     <>
@@ -125,8 +121,16 @@ export default function DashboardPage() {
               onChange={setRange}
             />
             <ButtonLink
+              to={ADMIN_ROUTES.newFeed}
+              size="sm"
+              leftIcon={<ImagePlus size={15} aria-hidden="true" />}
+            >
+              Đăng feed
+            </ButtonLink>
+            <ButtonLink
               to={ADMIN_ROUTES.createOrder}
               size="sm"
+              variant="secondary"
               leftIcon={<PlusCircle size={15} aria-hidden="true" />}
             >
               Tạo đơn
@@ -210,11 +214,11 @@ export default function DashboardPage() {
           hint="Mở báo cáo sự cố"
         />
         <TodoTile
-          to={`${ADMIN_ROUTES.inventory}?level=low`}
-          icon={Boxes}
-          label="Mẫu sắp hết / hết hàng"
-          count={(data?.lowStockCount ?? 0) + (data?.outOfStockCount ?? 0)}
-          hint="Mở kho hàng"
+          to={`${ADMIN_ROUTES.customers}?hang=requests`}
+          icon={Award}
+          label="Yêu cầu lên Lv2 chờ duyệt"
+          count={data?.pendingLevelRequests ?? 0}
+          hint="Mở danh sách khách chờ duyệt"
         />
       </div>
 
@@ -309,50 +313,76 @@ export default function DashboardPage() {
           )}
         </Panel>
 
+        {/* Giám sát feed: sức chứa, hàng đang bán / đã bán, feed đã bán hết */}
         <Panel
-          title="Sắp hết hàng"
-          description={
-            stock.data ? `Còn từ ${stock.data.summary.threshold} con trở xuống` : undefined
-          }
+          title="Feed bán"
+          description={data ? `${data.feedCount}/${data.feedLimit} feed trên web` : undefined}
           bodyClassName="p-0"
           actions={
             <Link
-              to={`${ADMIN_ROUTES.inventory}?level=low`}
+              to={ADMIN_ROUTES.feeds}
               className="text-xs font-medium text-accent-cyan hover:underline"
             >
-              Mở kho
+              Quản lý feed
             </Link>
           }
         >
-          {stock.data ? (
-            lowStock.length > 0 ? (
-              <ul className="divide-y divide-white/5">
-                {lowStock.map(({ product, level }) => (
-                  <li key={product.id} className="flex items-center gap-3 px-5 py-2.5">
-                    <img
-                      src={product.images[0]}
-                      alt=""
-                      className="h-9 w-9 shrink-0 rounded-lg object-cover"
-                    />
-                    <span className="min-w-0 flex-1 truncate text-sm text-text">
-                      {product.name}
-                    </span>
-                    <span
-                      className={cn(
-                        'text-xs font-semibold tabular-nums',
-                        level === 'out' ? 'text-danger' : 'text-warning',
-                      )}
-                    >
-                      {level === 'out' ? 'Hết hàng' : `Còn ${product.stock}`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="px-5 py-8 text-center text-sm text-text-muted">
-                Không có mẫu nào sắp hết.
+          {data ? (
+            <>
+              <dl className="grid grid-cols-3 gap-2 border-b border-white/6 px-5 py-4 text-center">
+                <div>
+                  <dt className="text-[11px] text-text-muted">Đang bán</dt>
+                  <dd className="text-lg font-semibold text-success tabular-nums">
+                    {data.availableItems}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] text-text-muted">Bán {days} ngày</dt>
+                  <dd className="text-lg font-semibold text-text tabular-nums">{data.soldItems}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] text-text-muted">Hàng tồn</dt>
+                  <dd
+                    className={cn(
+                      'text-lg font-semibold tabular-nums',
+                      data.leftoverItems > 0 ? 'text-warning' : 'text-text',
+                    )}
+                  >
+                    {data.leftoverItems}
+                  </dd>
+                </div>
+              </dl>
+              {data.feedCount >= data.feedLimit && (
+                <p className="flex items-start gap-2 border-b border-white/6 bg-warning/8 px-5 py-2.5 text-xs text-warning">
+                  <TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                  Web đã đủ {data.feedLimit} feed — feed tiếp theo sẽ cần xoá feed cũ nhất.
+                </p>
+              )}
+              <p className="px-5 pt-3 text-xs font-semibold text-text-muted">
+                Feed đã bán hết ({data.soldOutFeeds.length})
               </p>
-            )
+              {data.soldOutFeeds.length > 0 ? (
+                <ul className="divide-y divide-white/5">
+                  {data.soldOutFeeds.slice(0, 5).map((feed) => (
+                    <li key={feed.id}>
+                      <Link
+                        to={ADMIN_ROUTES.editFeed(feed.id)}
+                        className="flex items-center gap-3 px-5 py-2.5 transition hover:bg-white/3"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-sm text-text">
+                          #{feed.number} · {feed.title}
+                        </span>
+                        <span className="text-xs text-text-muted">
+                          {formatCurrency(feed.revenue)}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="px-5 pt-1 pb-4 text-sm text-text-muted">Chưa có feed nào bán hết.</p>
+              )}
+            </>
           ) : (
             <div className="space-y-2 p-5">
               {Array.from({ length: 5 }, (_, index) => (

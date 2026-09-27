@@ -4,11 +4,12 @@ import {
   Boxes,
   ExternalLink,
   Gavel,
+  ImagePlus,
   LayoutDashboard,
   LogOut,
   Menu,
   MessagesSquare,
-  PackagePlus,
+  Newspaper,
   PlusCircle,
   Settings,
   ShoppingBag,
@@ -24,14 +25,16 @@ import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/uiStore';
 import { cn } from '@/utils/cn';
 import { Drawer, ToastViewport } from '@/components/ui';
-import { DragonMark } from '@/components/layout/DragonMark';
+import { BrandMark } from '@/components/layout/BrandMark';
 import { RouteFallback } from '@/app/RouteFallback';
+
+type CountBadge = Exclude<keyof AdminBadges, 'feedLimitReached'>;
 
 interface NavEntry {
   to: string;
   label: string;
   icon: LucideIcon;
-  badge?: keyof AdminBadges;
+  badge?: CountBadge;
   /** Chỉ sáng khi đúng đường dẫn (không sáng cho trang con) */
   end?: boolean;
 }
@@ -64,16 +67,28 @@ const NAV_GROUPS: ReadonlyArray<{ title: string; items: readonly NavEntry[] }> =
     ],
   },
   {
-    title: 'Hàng hoá',
+    title: 'Feed bán',
     items: [
-      { to: ADMIN_ROUTES.inventory, label: 'Kho hàng', icon: Boxes, badge: 'stockAlerts' },
-      { to: ADMIN_ROUTES.receipts, label: 'Nhập hàng', icon: PackagePlus },
+      {
+        to: ADMIN_ROUTES.feeds,
+        label: 'Feed bán',
+        icon: Newspaper,
+        badge: 'soldOutFeeds',
+        end: true,
+      },
+      { to: ADMIN_ROUTES.newFeed, label: 'Đăng feed mới', icon: ImagePlus },
+      { to: ADMIN_ROUTES.items, label: 'Từng con Bakugan', icon: Boxes, badge: 'leftoverItems' },
     ],
   },
   {
     title: 'Khách hàng',
     items: [
-      { to: ADMIN_ROUTES.customers, label: 'Khách hàng', icon: Users },
+      {
+        to: ADMIN_ROUTES.customers,
+        label: 'Khách hàng',
+        icon: Users,
+        badge: 'levelRequests',
+      },
       { to: ADMIN_ROUTES.chat, label: 'Tin nhắn', icon: MessagesSquare, badge: 'waitingChats' },
     ],
   },
@@ -131,7 +146,7 @@ function SidebarNav({ badges, onNavigate }: { badges?: AdminBadges; onNavigate?:
 function Brand() {
   return (
     <Link to={ADMIN_ROUTES.dashboard} className="flex items-center gap-2.5 px-5 py-4">
-      <DragonMark size={36} />
+      <BrandMark size={36} priority />
       <span className="leading-tight">
         <span className="block font-display text-sm font-black tracking-wider text-text">
           TD BAKUGAN

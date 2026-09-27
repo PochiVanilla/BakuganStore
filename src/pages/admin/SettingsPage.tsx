@@ -5,17 +5,18 @@ import {
   CircleDashed,
   CircleX,
   FlaskConical,
+  Landmark,
   RotateCcw,
   Save,
 } from 'lucide-react';
-import type { BotReply, BotSettings, BotTopicId } from '@/types';
+import type { BotReply, BotSettings, BotTopicId, ShopSettings } from '@/types';
 import { BOT_TOPIC_IDS } from '@/types';
 import { ADMIN_ROUTES } from '@/constants/routes';
-import { MOCK_COUPONS } from '@/mocks';
+import { CONSULT_STARTER } from '@/constants/chat';
+import { PURCHASES_FOR_LV2 } from '@/constants/catalog';
 import {
   getBotSettings,
   getShopSettings,
-  listProductOptions,
   resetDemoData,
   updateBotSettings,
   updateShopSettings,
@@ -26,16 +27,18 @@ import {
   FALLBACK_REASON_TEXT,
   testBotConnection,
 } from '@/services/api/botService';
+import { previewBotKnowledge } from '@/services/api/chatService';
 import { getApiErrorMessage, USE_MOCK } from '@/services/api/client';
 import { useAsync } from '@/hooks/useAsync';
 import { useLiveRevision } from '@/hooks/useLiveRevision';
 import { toast } from '@/store/uiStore';
-import { formatDateTime } from '@/utils/format';
+import { formatCurrency, formatDateTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
 import { Button, Input, Modal, Seo, Skeleton, Textarea } from '@/components/ui';
 import { AdminPageHeader, ErrorBox, Panel } from '@/features/admin/adminUi';
 import { BOT_TOPIC_META } from '@/features/chat/botTopics';
-import { buildKnowledge } from '@/features/chat/botKnowledge';
+import { linksFromText } from '@/features/chat/botKnowledge';
+import { runConsult } from '@/features/chat/consultFlow';
 
 type EditableBotSettings = Omit<BotSettings, 'updatedAt'>;
 
@@ -115,30 +118,46 @@ function ConnectionStatus() {
   );
 }
 
+const PLAYGROUND_SAMPLES = [
+  'Còn con Dragonoid nào không shop?',
+  CONSULT_STARTER,
+  'Feed sau mở bán lúc mấy giờ?',
+  'Làm sao lên Lv2 để đấu giá?',
+];
+
 function BotPlayground({ settings }: { settings: EditableBotSettings }) {
-  const [question, setQuestion] = useState('Còn con Dragonoid nào không shop?');
+  const [question, setQuestion] = useState(PLAYGROUND_SAMPLES[0]!);
   const [answer, setAnswer] = useState<BotReply | null>(null);
   const [isAsking, setIsAsking] = useState(false);
-  const products = useAsync(() => listProductOptions(), []);
+  const knowledge = useAsync(() => previewBotKnowledge(), []);
 
   const ask = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
-    if (!question.trim()) return;
+    if (!question.trim() || !knowledge.data) return;
     setIsAsking(true);
     try {
+      const topics = BOT_TOPIC_IDS.filter((topic) => settings.topics[topic]);
+      // Câu mở đầu phần tư vấn chọn Bakugan chạy bằng luật cố định, như trong khung chat thật.
+      const consult = runConsult({
+        message: question.trim(),
+        knowledge: knowledge.data,
+        enabled: topics.includes('product-info'),
+      });
+      if (consult.kind === 'reply') {
+        setAnswer(consult.reply);
+        return;
+      }
       const reply = await askBot({
         messages: [{ role: 'customer', text: question.trim() }],
-        topics: BOT_TOPIC_IDS.filter((topic) => settings.topics[topic]),
+        topics,
         extraKnowledge: settings.extraKnowledge,
-        knowledge: buildKnowledge({
-          customerName: 'Khách thử nghiệm',
-          isSignedIn: false,
-          products: products.data ?? [],
-          orders: [],
-          coupons: MOCK_COUPONS,
-        }),
+        knowledge: knowledge.data,
       });
-      setAnswer(reply);
+      setAnswer(
+        reply.links?.length
+          ? reply
+          : { ...reply, links: linksFromText(reply.reply, knowledge.data) },
+      );
     } catch (error) {
       toast.error('Không thử được bot', getApiErrorMessage(error));
     } finally {
@@ -156,20 +175,56 @@ function BotPlayground({ settings }: { settings: EditableBotSettings }) {
         onChange={(event) => setQuestion(event.target.value)}
         hint="Dùng cài đặt đang sửa (chưa cần lưu). Khách thử nghiệm không có đơn hàng."
       />
+      <div className="flex flex-wrap gap-1.5">
+        {PLAYGROUND_SAMPLES.map((sample) => (
+          <button
+            key={sample}
+            type="button"
+            onClick={() => setQuestion(sample)}
+            className="rounded-full border border-white/12 px-2.5 py-1 text-[11px] text-text-muted transition hover:border-accent-cyan/40 hover:text-accent-cyan"
+          >
+            {sample}
+          </button>
+        ))}
+      </div>
       <Button
         type="submit"
         variant="outline"
         size="sm"
         className="self-start"
         isLoading={isAsking}
-        disabled={!products.data}
+        disabled={!knowledge.data}
         leftIcon={<FlaskConical size={15} aria-hidden="true" />}
       >
         Hỏi thử
       </Button>
+      {knowledge.error && <p className="text-xs text-danger">{knowledge.error}</p>}
       {answer && (
         <div className="rounded-xl border border-accent-cyan/25 bg-accent-cyan/6 p-3.5">
           <p className="text-sm whitespace-pre-line text-text">{answer.reply}</p>
+          {(answer.links?.length || answer.quickReplies?.length) && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {answer.links?.map((link) => (
+                <a
+                  key={link.to}
+                  href={link.to}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-lg border border-accent-cyan/30 bg-surface-2 px-2 py-1 text-[11px] font-medium text-accent-cyan hover:underline"
+                >
+                  {link.label}
+                </a>
+              ))}
+              {answer.quickReplies?.map((chip) => (
+                <span
+                  key={chip}
+                  className="rounded-full border border-white/12 px-2 py-1 text-[11px] text-text-muted"
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
+          )}
           <p className="mt-2 flex flex-wrap gap-x-3 text-[11px] text-text-muted">
             <span>
               Nguồn:{' '}
@@ -358,22 +413,33 @@ function BotSettingsForm({ initial }: { initial: BotSettings }) {
   );
 }
 
-function ShopSettingsPanel() {
-  const { data, error } = useAsync(() => getShopSettings(), []);
-  const [threshold, setThreshold] = useState<string | null>(null);
+function MembershipSettingsForm({ initial }: { initial: ShopSettings }) {
+  const [amount, setAmount] = useState(String(initial.memberDepositAmount));
+  const [bank, setBank] = useState(initial.bank);
+  const [errors, setErrors] = useState<Partial<Record<'amount' | 'accountNumber', string>>>({});
   const [isSaving, setIsSaving] = useState(false);
-  const value = threshold ?? String(data?.lowStockThreshold ?? '');
 
-  const save = async (): Promise<void> => {
-    const parsed = Number(value);
-    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 100) {
-      toast.error('Ngưỡng không hợp lệ', 'Nhập số nguyên từ 0 đến 100.');
-      return;
+  const save = async (event: FormEvent): Promise<void> => {
+    event.preventDefault();
+    const parsed = Number(amount.replace(/[.\s₫]/g, ''));
+    const accountNumber = bank.accountNumber.replace(/\s+/g, '');
+    const nextErrors: typeof errors = {};
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 50_000_000) {
+      nextErrors.amount = 'Nhập số tiền từ 0 đến 50.000.000.';
     }
+    if (accountNumber && !/^\d{6,20}$/.test(accountNumber)) {
+      nextErrors.accountNumber = 'Số tài khoản chỉ gồm 6–20 chữ số.';
+    }
+    if (accountNumber && (!bank.bankName.trim() || !bank.accountHolder.trim())) {
+      nextErrors.accountNumber = 'Điền đủ tên ngân hàng và chủ tài khoản.';
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     setIsSaving(true);
     try {
-      await updateShopSettings({ lowStockThreshold: parsed });
-      toast.success('Đã lưu ngưỡng sắp hết hàng');
+      await updateShopSettings({ memberDepositAmount: parsed, bank: { ...bank, accountNumber } });
+      toast.success('Đã lưu cài đặt thành viên & thanh toán');
     } catch (saveError) {
       toast.error('Không lưu được', getApiErrorMessage(saveError));
     } finally {
@@ -381,34 +447,82 @@ function ShopSettingsPanel() {
     }
   };
 
+  const preview = Number(amount.replace(/[.\s₫]/g, ''));
   return (
-    <Panel title="Kho hàng">
+    <form onSubmit={(event) => void save(event)} className="flex flex-col gap-4" noValidate>
+      <Input
+        label="Số tiền nạp để lên Lv2"
+        name="member-deposit"
+        inputMode="numeric"
+        value={amount}
+        onChange={(event) => setAmount(event.target.value)}
+        error={errors.amount}
+        hint={
+          Number.isFinite(preview) && preview > 0
+            ? `${formatCurrency(preview)} · là một trong ba cách lên Lv2 (cùng với mua đủ ${PURCHASES_FOR_LV2} con hoặc admin duyệt).`
+            : 'Đặt 0 nếu không muốn nhận cách nạp tiền.'
+        }
+      />
+      <fieldset className="grid gap-3 rounded-xl border border-white/8 p-3.5 sm:grid-cols-3">
+        <legend className="flex items-center gap-1.5 px-1 text-sm font-semibold text-text">
+          <Landmark size={14} aria-hidden="true" /> Tài khoản nhận tiền của shop
+        </legend>
+        <Input
+          label="Ngân hàng"
+          name="bank-name"
+          value={bank.bankName}
+          maxLength={60}
+          placeholder="VD: Vietcombank"
+          onChange={(event) => setBank({ ...bank, bankName: event.target.value })}
+        />
+        <Input
+          label="Số tài khoản"
+          name="bank-account"
+          inputMode="numeric"
+          value={bank.accountNumber}
+          maxLength={24}
+          error={errors.accountNumber}
+          onChange={(event) => setBank({ ...bank, accountNumber: event.target.value })}
+        />
+        <Input
+          label="Chủ tài khoản"
+          name="bank-holder"
+          value={bank.accountHolder}
+          maxLength={60}
+          placeholder="VIẾT HOA KHÔNG DẤU"
+          onChange={(event) => setBank({ ...bank, accountHolder: event.target.value })}
+        />
+        <p className="text-xs text-text-muted sm:col-span-3">
+          Hiện cho khách ở trang xác nhận đơn chuyển khoản và mục “Hạng thành viên”. Để trống thì
+          web nhắc khách nhắn shop để nhận số tài khoản.
+        </p>
+      </fieldset>
+      <Button
+        type="submit"
+        variant="secondary"
+        className="self-start"
+        isLoading={isSaving}
+        leftIcon={<Save size={15} aria-hidden="true" />}
+      >
+        Lưu
+      </Button>
+    </form>
+  );
+}
+
+function ShopSettingsPanel() {
+  const { data, error, reload } = useAsync(() => getShopSettings(), []);
+  return (
+    <Panel
+      title="Thành viên & thanh toán"
+      description="Số tiền nạp để lên Lv2 (được đấu giá) và tài khoản ngân hàng khách chuyển tiền vào."
+    >
       {error ? (
-        <ErrorBox message={error} />
+        <ErrorBox message={error} onRetry={reload} />
       ) : !data ? (
-        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-48 w-full" />
       ) : (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <Input
-            label="Báo “sắp hết hàng” khi còn từ"
-            name="low-stock-threshold"
-            type="number"
-            min={0}
-            max={100}
-            value={value}
-            onChange={(event) => setThreshold(event.target.value)}
-            hint="con trở xuống"
-            containerClassName="sm:w-64"
-          />
-          <Button
-            variant="secondary"
-            isLoading={isSaving}
-            onClick={() => void save()}
-            className="sm:mb-6"
-          >
-            Lưu
-          </Button>
-        </div>
+        <MembershipSettingsForm initial={data} />
       )}
     </Panel>
   );
@@ -434,8 +548,8 @@ function DemoDataPanel() {
   return (
     <Panel title="Dữ liệu demo" description="Chỉ có ở bản chạy thử, chưa nối backend.">
       <p className="text-sm text-text-muted">
-        Đơn, khách, phiếu nhập và tin nhắn đang lưu trong trình duyệt này. Khôi phục sẽ xoá mọi thay
-        đổi và nạp lại bộ dữ liệu mẫu ban đầu.
+        Feed, đơn, khách và tin nhắn đang lưu trong trình duyệt này. Khôi phục sẽ xoá mọi thay đổi
+        và nạp lại bộ dữ liệu mẫu ban đầu.
       </p>
       <Button
         variant="danger"
@@ -462,8 +576,8 @@ function DemoDataPanel() {
           </div>
         }
       >
-        Mọi đơn bạn tạo, phiếu nhập, chỉnh sửa khách hàng và tin nhắn trong bản demo sẽ bị xoá.
-        Không thể hoàn tác.
+        Mọi feed, đơn bạn tạo, chỉnh sửa khách hàng và tin nhắn trong bản demo sẽ bị xoá. Ảnh đã tải
+        lên vẫn nằm trong trình duyệt. Không thể hoàn tác.
       </Modal>
     </Panel>
   );

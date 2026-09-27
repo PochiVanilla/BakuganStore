@@ -99,7 +99,7 @@ export default function OrdersPage() {
           'Khách nhận',
           'Điện thoại',
           'Địa chỉ',
-          'Sản phẩm',
+          'Bakugan',
           'Tạm tính',
           'Phí ship',
           'Giảm giá',
@@ -115,7 +115,9 @@ export default function OrdersPage() {
           order.receiverName,
           order.phone,
           order.addressLine,
-          order.items.map((item) => `${item.name} x${item.quantity}`).join('; '),
+          order.items
+            .map((item) => (item.code ? `${item.code} ${item.name}` : item.name))
+            .join('; '),
           order.subtotal,
           order.shippingFee,
           order.discount,
@@ -189,7 +191,7 @@ export default function OrdersPage() {
               setKeyword(value);
               updateParams({ q: value, page: null });
             }}
-            placeholder="Mã đơn, tên khách, số điện thoại, tên sản phẩm…"
+            placeholder="Mã đơn, tên khách, số điện thoại, tên / mã Bakugan…"
             className="flex-1"
           />
           <CompactSelect
@@ -243,7 +245,7 @@ export default function OrdersPage() {
               <tr>
                 <th className={th}>Mã đơn</th>
                 <th className={th}>Khách nhận</th>
-                <th className={th}>Sản phẩm</th>
+                <th className={th}>Bakugan</th>
                 <th className={cn(th, 'text-right')}>Tổng tiền</th>
                 <th className={th}>Thanh toán</th>
                 <th className={th}>Nguồn</th>

@@ -42,11 +42,11 @@ export default function NotFoundPage() {
             Về trang chủ
           </Link>
           <Link
-            to={ROUTES.products}
+            to={ROUTES.feeds}
             className="inline-flex h-12 items-center gap-2 rounded-xl border border-accent-cyan/50 bg-accent-cyan/5 px-6 text-sm font-semibold text-accent-cyan transition hover:bg-accent-cyan/15"
           >
             <Search size={17} aria-hidden="true" />
-            Xem sản phẩm
+            Xem feed bán
           </Link>
           <Link
             to={ROUTES.auctions}

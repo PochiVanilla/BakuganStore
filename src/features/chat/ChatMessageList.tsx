@@ -1,7 +1,52 @@
 import { useEffect, useRef } from 'react';
-import { Bot, Headset } from 'lucide-react';
-import type { ChatMessage } from '@/types';
+import { Link } from 'react-router-dom';
+import { ArrowUpRight, Bot, Headset } from 'lucide-react';
+import type { ChatLink, ChatMessage } from '@/types';
 import { cn } from '@/utils/cn';
+
+const LINK_CLASS =
+  'flex items-center justify-between gap-2 rounded-xl border border-accent-cyan/30 bg-surface-2 px-3 py-2 text-left text-xs font-medium text-accent-cyan transition hover:border-accent-cyan/60 hover:bg-accent-cyan/10';
+
+/** Nút mở trang trong web mà bot gợi ý (VD một con Bakugan trong feed). */
+function MessageLinks({
+  links,
+  viewer,
+  onLinkClick,
+}: {
+  links: readonly ChatLink[];
+  viewer: 'customer' | 'admin';
+  onLinkClick?: () => void;
+}) {
+  return (
+    <div className="flex w-full min-w-56 flex-col gap-1.5">
+      {links.map((link, index) =>
+        viewer === 'customer' ? (
+          <Link
+            key={`${link.to}-${index}`}
+            to={link.to}
+            onClick={onLinkClick}
+            className={LINK_CLASS}
+          >
+            <span className="min-w-0 truncate">{link.label}</span>
+            <ArrowUpRight size={14} className="shrink-0" aria-hidden="true" />
+          </Link>
+        ) : (
+          // Trong hộp thư admin: mở trang khách ở tab mới để không rời cuộc trò chuyện.
+          <a
+            key={`${link.to}-${index}`}
+            href={link.to}
+            target="_blank"
+            rel="noreferrer"
+            className={LINK_CLASS}
+          >
+            <span className="min-w-0 truncate">{link.label}</span>
+            <ArrowUpRight size={14} className="shrink-0" aria-hidden="true" />
+          </a>
+        ),
+      )}
+    </div>
+  );
+}
 
 function timeOf(iso: string): string {
   return new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(
@@ -18,11 +63,14 @@ export function ChatMessageList({
   viewer,
   isTyping = false,
   className,
+  onLinkClick,
 }: {
   messages: readonly ChatMessage[];
   viewer: 'customer' | 'admin';
   isTyping?: boolean;
   className?: string;
+  /** Khách bấm một nút gợi ý của bot (khung chat đóng lại trên điện thoại) */
+  onLinkClick?: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastId = messages[messages.length - 1]?.id;
@@ -92,6 +140,9 @@ export function ChatMessageList({
             >
               {message.text}
             </div>
+            {message.links && message.links.length > 0 && (
+              <MessageLinks links={message.links} viewer={viewer} onLinkClick={onLinkClick} />
+            )}
             <time dateTime={message.createdAt} className="text-[10px] text-text-muted/70">
               {timeOf(message.createdAt)}
             </time>

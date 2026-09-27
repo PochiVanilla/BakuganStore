@@ -5,18 +5,33 @@ import type {
   BotTopicId,
   ChatConversation,
   ChatMessage,
+  ConsultState,
   ConversationStatus,
   PendingBotAction,
 } from '@/types';
 import { BOT_TOPIC_IDS } from '@/types';
 import { MOCK_COUPONS } from '@/mocks';
-import { createId, hydrateOrder, listAllProducts, readDb, updateDb } from '@/mocks/db';
+import {
+  createId,
+  hydrateOrder,
+  listFeedPosts,
+  readDb,
+  updateDb,
+  type MockDatabase,
+} from '@/mocks/db';
 import { DEFAULT_BOT_SETTINGS } from '@/mocks/seed';
-import { buildKnowledge } from '@/features/chat/botKnowledge';
+import {
+  buildKnowledge,
+  linksFromText,
+  type BotKnowledge,
+  type BotMembershipFact,
+} from '@/features/chat/botKnowledge';
 import { decideBotAction, isCancellable } from '@/features/chat/botActions';
+import { runConsult } from '@/features/chat/consultFlow';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from './client';
 import { requireAdmin } from './mockSession';
 import { askBot } from './botService';
+import { membershipInfoOf } from './membershipRules';
 import { recordStatus, releaseCancelledOrder } from './orderMutations';
 
 /* ============================================================
@@ -29,13 +44,20 @@ import { recordStatus, releaseCancelledOrder } from './orderMutations';
 
 const MAX_MESSAGE_LENGTH = 1_000;
 
-function message(sender: ChatMessage['sender'], text: string, authorName?: string): ChatMessage {
+function message(
+  sender: ChatMessage['sender'],
+  text: string,
+  authorName?: string,
+  extra: Pick<ChatMessage, 'quickReplies' | 'links'> = {},
+): ChatMessage {
   return {
     id: createId('msg'),
     sender,
     text,
     createdAt: new Date().toISOString(),
     authorName,
+    ...(extra.quickReplies?.length ? { quickReplies: extra.quickReplies.slice(0, 8) } : {}),
+    ...(extra.links?.length ? { links: extra.links.slice(0, 6) } : {}),
   };
 }
 
@@ -62,6 +84,52 @@ function enabledTopics(settings: BotSettings): BotTopicId[] {
   return BOT_TOPIC_IDS.filter(
     (topic) => settings.topics[topic] ?? DEFAULT_BOT_SETTINGS.topics[topic],
   );
+}
+
+function membershipFactOf(db: Readonly<MockDatabase>, customerId?: string): BotMembershipFact {
+  const base: BotMembershipFact = {
+    depositAmount: db.shopSettings.memberDepositAmount,
+    bankConfigured: Boolean(db.shopSettings.bank.accountNumber.trim()),
+  };
+  const customer = customerId ? db.users.find((user) => user.id === customerId) : undefined;
+  if (!customer || customer.role !== 'customer') return base;
+  const info = membershipInfoOf(db, customer);
+  return {
+    ...base,
+    level: info.level,
+    purchasedCount: info.purchasedCount,
+    pendingRequest: info.pendingRequest?.kind,
+  };
+}
+
+/** Những gì bot được biết khi trả lời cuộc trò chuyện này (đơn chỉ của chính khách). */
+function knowledgeFor(
+  db: Readonly<MockDatabase>,
+  conversation: Pick<ChatConversation, 'customerId' | 'customerName'>,
+): BotKnowledge {
+  const orders = conversation.customerId
+    ? db.orders
+        .filter((order) => order.userId === conversation.customerId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    : [];
+  return buildKnowledge({
+    customerName: conversation.customerName,
+    isSignedIn: Boolean(conversation.customerId),
+    feeds: listFeedPosts(db),
+    orders: orders.map((order) => hydrateOrder(order, db)),
+    coupons: MOCK_COUPONS,
+    membership: membershipFactOf(db, conversation.customerId),
+  });
+}
+
+/** Trang cài đặt (ô "Thử bot"): dữ liệu bot thấy khi một khách vãng lai hỏi. */
+export async function previewBotKnowledge(): Promise<BotKnowledge> {
+  if (!USE_MOCK) {
+    const { data } = await apiClient.get<ApiResponse<BotKnowledge>>('/admin/chat/bot-knowledge');
+    return data.data;
+  }
+  requireAdmin();
+  return mockDelay(knowledgeFor(readDb(), { customerName: 'Khách thử nghiệm' }), 120);
 }
 
 /* ---------------- Phía khách ---------------- */
@@ -194,7 +262,8 @@ export async function sendCustomerMessage(
 /**
  * Lượt trả lời của bot cho tin nhắn mới nhất của khách:
  * 1. Việc bot được tự làm (huỷ đơn, xác nhận huỷ) — xử lý bằng luật cố định.
- * 2. Còn lại hỏi Gemini; không được thì bộ trả lời theo từ khoá.
+ * 2. Tư vấn chọn Bakugan: hỏi từng câu rồi gợi ý con phù hợp — luật cố định.
+ * 3. Còn lại hỏi Gemini; không được thì bộ trả lời theo từ khoá.
  *
  * Khi có backend thật, backend chạy đúng các bước này và phải lấy danh tính
  * khách từ token đăng nhập — không tin `customerId` do trình duyệt gửi lên.
@@ -221,7 +290,7 @@ export async function requestBotReply(
   }
 
   const topics = enabledTopics(settings);
-  const products = listAllProducts(db);
+  const knowledge = knowledgeFor(db, current);
   const customerOrders = current.customerId
     ? db.orders
         .filter((order) => order.userId === current.customerId)
@@ -239,37 +308,52 @@ export async function requestBotReply(
       status: order.status,
       paymentStatus: order.paymentStatus,
       total: order.total,
-      itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+      itemCount: order.items.length,
     })),
   });
 
   let botReply: BotReply | null = null;
   /** undefined = giữ nguyên, null = xoá, còn lại = đặt mới */
   let nextPending: PendingBotAction | null | undefined;
+  let nextConsult: ConsultState | null | undefined;
   if (decision.kind === 'reply') {
     botReply = { reply: decision.reply, handoff: decision.handoff, source: 'action' };
     nextPending = decision.pendingAction;
+    // Khách chuyển sang việc huỷ đơn -> bỏ phần tư vấn đang dở.
+    if (current.consult) nextConsult = null;
   } else if (decision.kind === 'none') {
     nextPending = decision.clearPending ? null : undefined;
-    botReply = await askBot({
-      messages: current.messages
-        .filter((item) => item.sender !== 'system')
-        .map((item) => ({
-          role: item.sender === 'customer' ? ('customer' as const) : ('assistant' as const),
-          text: item.text,
-        })),
-      topics,
-      extraKnowledge: settings.extraKnowledge,
-      knowledge: buildKnowledge({
-        customerName: current.customerName,
-        isSignedIn: Boolean(current.customerId),
-        products,
-        orders: customerOrders.map((order) => hydrateOrder(order, products)),
-        coupons: MOCK_COUPONS,
-      }),
+    const consult = runConsult({
+      message: lastCustomerMessage.text,
+      state: current.consult,
+      knowledge,
+      enabled: topics.includes('product-info'),
     });
+    if (consult.kind === 'reply') {
+      botReply = consult.reply;
+      nextConsult = consult.next;
+    } else {
+      if (consult.kind === 'exit') nextConsult = null;
+      botReply = await askBot({
+        messages: current.messages
+          .filter((item) => item.sender !== 'system')
+          .map((item) => ({
+            role: item.sender === 'customer' ? ('customer' as const) : ('assistant' as const),
+            text: item.text,
+          })),
+        topics,
+        extraKnowledge: settings.extraKnowledge,
+        knowledge,
+      });
+      // Câu trả lời có nhắc mã BK / feed nào thì gắn nút mở đúng chỗ đó.
+      if (!botReply.links?.length) {
+        const links = linksFromText(botReply.reply, knowledge);
+        if (links.length > 0) botReply = { ...botReply, links };
+      }
+    }
   } else {
     nextPending = null;
+    if (current.consult) nextConsult = null;
   }
 
   let finalReply: BotReply | null = botReply;
@@ -303,7 +387,7 @@ export async function requestBotReply(
           'Khách tự huỷ qua chat.',
         );
         finalReply = {
-          reply: `Mình đã huỷ đơn #${order.code} theo yêu cầu của bạn. Hàng đã được trả lại kho; nếu muốn đặt lại, bạn cứ nhắn mình nhé!`,
+          reply: `Mình đã huỷ đơn #${order.code} theo yêu cầu của bạn. Các con Bakugan trong đơn đã được mở bán lại — muốn mua lại thì bạn nhanh tay thêm vào giỏ nhé!`,
           handoff: false,
           source: 'action',
         };
@@ -318,9 +402,16 @@ export async function requestBotReply(
 
     if (nextPending === null) delete target.pendingAction;
     else if (nextPending) target.pendingAction = nextPending;
+    if (nextConsult === null) delete target.consult;
+    else if (nextConsult) target.consult = nextConsult;
 
     if (!finalReply) return target;
-    target.messages.push(message('bot', finalReply.reply));
+    target.messages.push(
+      message('bot', finalReply.reply, undefined, {
+        quickReplies: finalReply.quickReplies,
+        links: finalReply.links,
+      }),
+    );
     // Chỉ báo "đã chuyển nhân viên" một lần; đang chờ sẵn thì không nhắc lại.
     if (finalReply.handoff && target.status === 'bot') {
       target.status = 'waiting';
@@ -466,6 +557,9 @@ export async function resolveConversation(conversationId: string): Promise<ChatC
   const conversation = adminUpdate(conversationId, (target) => {
     target.status = 'resolved';
     target.unreadByAdmin = 0;
+    // Xong việc thì bỏ luôn phần tư vấn / lời xác nhận huỷ đang dở.
+    delete target.consult;
+    delete target.pendingAction;
     target.messages.push(
       message('system', 'Cuộc trò chuyện đã hoàn tất. Bạn nhắn tiếp bất cứ lúc nào nhé!'),
     );

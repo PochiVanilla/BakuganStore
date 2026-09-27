@@ -142,7 +142,7 @@ function reply(text: string, handoff: boolean, pendingAction: PendingBotAction |
 
 function askToConfirm(order: CancelCandidate, now: number): BotActionDecision {
   return reply(
-    `Bạn muốn huỷ đơn #${order.code} (${order.itemCount} sản phẩm, tổng ${formatCurrency(order.total)}) đúng không? Nhắn "Đồng ý" để mình huỷ, hoặc "Không" để giữ đơn.`,
+    `Bạn muốn huỷ đơn #${order.code} (${order.itemCount} con Bakugan, tổng ${formatCurrency(order.total)}) đúng không? Nhắn "Đồng ý" để mình huỷ, hoặc "Không" để giữ đơn.`,
     false,
     {
       type: 'cancel-order',

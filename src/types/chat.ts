@@ -1,8 +1,16 @@
 /* ============================================================
    Chat giữa khách và shop, có trợ lý AI trả lời các câu đơn giản
    ============================================================ */
+import type { BakuganAttribute, ProductCondition } from './index';
 
 export type ChatSender = 'customer' | 'bot' | 'admin' | 'system';
+
+/** Nút dẫn tới một trang trong web, hiện dưới tin nhắn của bot (VD: Bakugan được gợi ý). */
+export interface ChatLink {
+  label: string;
+  /** Đường dẫn nội bộ, VD /feed/28#BK-0231 */
+  to: string;
+}
 
 export interface ChatMessage {
   id: string;
@@ -11,6 +19,9 @@ export interface ChatMessage {
   createdAt: string;
   /** Tên người gửi hiển thị (nhân viên nào trả lời) */
   authorName?: string;
+  /** Câu trả lời nhanh bot gợi ý (khách bấm là gửi luôn) */
+  quickReplies?: string[];
+  links?: ChatLink[];
 }
 
 /**
@@ -32,6 +43,27 @@ export interface PendingBotAction {
   expiresAt: string;
 }
 
+export type ConsultPurpose = 'play' | 'collect' | 'gift' | 'unsure';
+export type ConsultStep = 'purpose' | 'attribute' | 'budget' | 'condition';
+
+/** Câu trả lời của khách trong luồng "tư vấn chọn Bakugan". Chưa có = chưa hỏi tới. */
+export interface ConsultAnswers {
+  purpose?: ConsultPurpose;
+  /** Mảng rỗng = hệ nào cũng được */
+  attributes?: BakuganAttribute[];
+  budget?: { min: number; max: number } | 'any';
+  condition?: ProductCondition | 'any';
+}
+
+/** Trợ lý đang hỏi khách từng câu để gợi ý Bakugan phù hợp */
+export interface ConsultState {
+  step: ConsultStep;
+  answers: ConsultAnswers;
+  startedAt: string;
+  /** Số lần khách trả lời mà bot chưa hiểu ở câu hiện tại */
+  retries?: number;
+}
+
 export interface ChatConversation {
   id: string;
   /** Khách chưa đăng nhập thì không có */
@@ -48,6 +80,7 @@ export interface ChatConversation {
   unreadByCustomer: number;
   messages: ChatMessage[];
   pendingAction?: PendingBotAction;
+  consult?: ConsultState;
 }
 
 /* ---------- Trợ lý AI ---------- */
@@ -62,6 +95,7 @@ export const BOT_TOPIC_IDS = [
   'auction-rules',
   'product-info',
   'bakugan-knowledge',
+  'membership',
   'store-info',
   'promotions',
 ] as const;
@@ -102,6 +136,8 @@ export type BotFallbackReason =
 
 export interface BotReply {
   reply: string;
+  quickReplies?: string[];
+  links?: ChatLink[];
   /** Bot tự thấy cần chuyển cho nhân viên */
   handoff: boolean;
   /** Nguồn câu trả lời: AI thật, bộ trả lời dự phòng, hay thao tác tự động (huỷ đơn…) */

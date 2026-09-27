@@ -1,26 +1,30 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/utils/cn';
-import type { BakuganAttribute, ProductBadge } from '@/types';
+import type { BakuganAttribute } from '@/types';
 import { ATTRIBUTE_META } from '@/constants/catalog';
 import { AttributeIcon } from './AttributeIcon';
 
-const STATUS_STYLES: Record<ProductBadge, string> = {
+export type StatusBadgeType = 'NEW' | 'RARE' | 'SOLD' | 'SELLING' | 'UPCOMING' | 'SOLD_OUT';
+
+const STATUS_STYLES: Record<StatusBadgeType, string> = {
   NEW: 'bg-accent-cyan/15 text-accent-cyan border-accent-cyan/50 shadow-glow-cyan',
-  HOT: 'bg-accent-pink/15 text-accent-pink border-accent-pink/50 shadow-glow-pink',
-  SALE: 'bg-gold/15 text-gold border-gold/50 shadow-glow-gold',
   RARE: 'bg-primary/20 text-primary-soft border-primary/60 shadow-glow-purple',
-  OUT_OF_STOCK: 'bg-white/5 text-text-muted border-white/15',
+  SOLD: 'bg-danger/15 text-danger border-danger/50',
+  SELLING: 'bg-success/12 text-success border-success/45',
+  UPCOMING: 'bg-gold/15 text-gold border-gold/50 shadow-glow-gold',
+  SOLD_OUT: 'bg-white/5 text-text-muted border-white/15',
 };
 
-const STATUS_LABELS: Record<ProductBadge, string> = {
-  NEW: 'NEW',
-  HOT: 'HOT',
-  SALE: 'SALE',
+const STATUS_LABELS: Record<StatusBadgeType, string> = {
+  NEW: 'MỚI',
   RARE: 'HÀNG HIẾM',
-  OUT_OF_STOCK: 'HẾT HÀNG',
+  SOLD: 'SOLD',
+  SELLING: 'ĐANG BÁN',
+  UPCOMING: 'SẮP MỞ BÁN',
+  SOLD_OUT: 'ĐÃ BÁN HẾT',
 };
 
-export function StatusBadge({ type, className }: { type: ProductBadge; className?: string }) {
+export function StatusBadge({ type, className }: { type: StatusBadgeType; className?: string }) {
   return (
     <span
       className={cn(

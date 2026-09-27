@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { DragonMark } from './DragonMark';
+import { BrandMark } from './BrandMark';
 
 const SESSION_KEY = 'td-bakugan:intro-played';
-const DURATION_MS = 3400;
+const DURATION_MS = 2800;
 
 /** Đã chiếu intro trong phiên làm việc này chưa. */
 function hasPlayed(): boolean {
@@ -25,10 +25,11 @@ function markPlayed(): void {
 }
 
 /**
- * Màn mở đầu: quả cầu Bakugan bung ra rồi chữ TD BAKUGAN SHOP hiện lên.
+ * Màn mở đầu: logo TD Bakugan hiện ra cùng quầng sáng, rồi vào thẳng trang.
  *
  * - Chỉ chiếu một lần mỗi phiên trình duyệt, không cản trở người quay lại.
- * - Bấm phím bất kỳ, chạm màn hình hoặc nút "Bỏ qua" là tắt ngay.
+ * - Chạm / bấm vào bất kỳ đâu trên màn hình, bấm phím bất kỳ hay cuộn chuột là
+ *   vào thẳng trang ngay (có dòng nhắc "Chạm vào bất kỳ đâu để vào shop").
  * - Người bật "giảm chuyển động" trong hệ điều hành sẽ không thấy intro.
  */
 export function BrandIntro() {
@@ -67,17 +68,16 @@ export function BrandIntro() {
     };
   }, [isVisible, dismiss]);
 
-  const word = 'BAKUGAN';
-
   return createPortal(
     <AnimatePresence>
       {isVisible && (
         <motion.div
           key="brand-intro"
           initial={{ opacity: 1 }}
-          exit={{ opacity: 0, filter: 'blur(8px)' }}
-          transition={{ duration: 0.55, ease: 'easeInOut' }}
-          className="fixed inset-0 z-[300] flex flex-col items-center justify-center overflow-hidden bg-background"
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          onClick={dismiss}
+          className="fixed inset-0 z-[300] flex cursor-pointer flex-col items-center justify-center overflow-hidden bg-background"
           role="presentation"
         >
           {/* Nền tinh vân toả ra từ tâm */}
@@ -117,88 +117,74 @@ export function BrandIntro() {
             ))}
           </div>
 
-          {/* Huy hiệu rồng hiện ra */}
+          {/* Logo hiện ra */}
           <motion.div
             aria-hidden="true"
-            className="relative mb-8"
-            initial={{ scale: 0.3, opacity: 0, rotate: -25 }}
+            className="relative mb-7"
+            initial={{ scale: 0.4, opacity: 0, rotate: -18 }}
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           >
-            {/* Quầng sáng loé ra phía sau rồng */}
+            {/* Quầng sáng loé ra phía sau logo */}
             <motion.span
               className="absolute inset-0 rounded-full"
               initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: [0, 2.2, 1.5], opacity: [0, 0.9, 0.35] }}
-              transition={{ duration: 1.2, delay: 0.35, ease: 'easeOut' }}
+              animate={{ scale: [0, 2.1, 1.45], opacity: [0, 0.9, 0.4] }}
+              transition={{ duration: 1.1, delay: 0.3, ease: 'easeOut' }}
               style={{
                 background:
                   'radial-gradient(circle, rgba(233,64,210,0.55), rgba(123,75,232,0.25) 45%, transparent 70%)',
               }}
             />
-            <DragonMark size={132} framed={false} className="relative" />
+            <BrandMark
+              size={168}
+              priority
+              className="relative shadow-[0_0_40px_rgba(63,227,245,0.35)]"
+            />
           </motion.div>
 
-          {/* Chữ TD */}
           <motion.p
-            className="font-display text-5xl font-black tracking-[0.2em] text-primary-soft neon-text-pink sm:text-6xl"
-            initial={{ opacity: 0, y: 24, letterSpacing: '0.6em' }}
-            animate={{ opacity: 1, y: 0, letterSpacing: '0.2em' }}
-            transition={{ duration: 0.75, delay: 1.15, ease: 'easeOut' }}
-          >
-            TD
-          </motion.p>
-
-          {/* Chữ BAKUGAN hiện từng ký tự */}
-          <p className="mt-2 flex" aria-label="BAKUGAN">
-            {word.split('').map((letter, index) => (
-              <motion.span
-                key={`${letter}-${index}`}
-                aria-hidden="true"
-                className="font-display text-2xl font-extrabold tracking-[0.34em] text-accent-cyan neon-text sm:text-3xl"
-                initial={{ opacity: 0, y: 16, scale: 0.8 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{
-                  duration: 0.45,
-                  delay: 1.5 + index * 0.075,
-                  ease: 'easeOut',
-                }}
-              >
-                {letter}
-              </motion.span>
-            ))}
-          </p>
-
-          {/* Vạch sáng quét ngang */}
-          <motion.span
-            aria-hidden="true"
-            className="mt-5 block h-px bg-gradient-to-r from-transparent via-accent-cyan to-transparent"
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 240, opacity: 1 }}
-            transition={{ duration: 0.7, delay: 2.05, ease: 'easeOut' }}
-          />
-
-          <motion.p
-            className="mt-4 font-display text-[11px] font-bold tracking-[0.45em] text-gold"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 2.3 }}
+            className="font-display text-[11px] font-bold tracking-[0.45em] text-gold"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.95 }}
           >
             SHOP
           </motion.p>
 
+          {/* Vạch sáng quét ngang */}
+          <motion.span
+            aria-hidden="true"
+            className="mt-4 block h-px bg-gradient-to-r from-transparent via-accent-cyan to-transparent"
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 240, opacity: 1 }}
+            transition={{ duration: 0.7, delay: 1.1, ease: 'easeOut' }}
+          />
+
           <motion.p
-            className="mt-3 text-xs text-text-muted"
+            className="mt-4 px-6 text-center text-xs text-text-muted"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 2.5 }}
+            transition={{ duration: 0.5, delay: 1.35 }}
           >
-            Chiến binh Bakugan chính hãng — Sưu tầm &amp; Đấu giá
+            Chiến binh Bakugan chính hãng — Feed bán mỗi tuần &amp; Đấu giá
+          </motion.p>
+
+          <motion.p
+            className="absolute inset-x-0 bottom-20 text-center text-xs font-semibold text-accent-cyan sm:bottom-24"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 0.45, 1] }}
+            transition={{ duration: 1.6, delay: 0.6, repeat: Infinity, repeatType: 'mirror' }}
+          >
+            Chạm vào bất kỳ đâu để vào shop
           </motion.p>
 
           <motion.button
             type="button"
-            onClick={dismiss}
+            onClick={(event) => {
+              event.stopPropagation();
+              dismiss();
+            }}
             className="absolute right-5 bottom-6 rounded-lg border border-white/12 px-3.5 py-2 text-xs font-semibold text-text-muted transition hover:border-accent-cyan/50 hover:text-accent-cyan sm:right-8"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

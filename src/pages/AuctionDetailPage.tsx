@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, Check, Eye, Gavel, Radio, ShieldCheck, Users, Zap } from 'lucide-react';
+import { ChevronRight, Check, EyeOff, Eye, Gavel, Radio, ShieldCheck, Zap } from 'lucide-react';
 import type { Auction } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { AUCTION_STATUS_LABELS, CONDITION_LABELS, SERIES_META } from '@/constants/catalog';
@@ -16,10 +16,10 @@ import {
   Container,
   Countdown,
   EmptyState,
+  ImageGallery,
   Seo,
   Skeleton,
 } from '@/components/ui';
-import { ProductGallery } from '@/features/products/ProductGallery';
 import { BidForm } from '@/features/auction/BidForm';
 import { useAuctionSocket, type AuctionSocketEvent } from '@/features/auction/useAuctionSocket';
 import {
@@ -69,49 +69,41 @@ export default function AuctionDetailPage() {
 
   const auction = liveAuction;
 
-  /** Người khác đặt giá qua kênh realtime → cập nhật giá và cảnh báo nếu ta bị vượt. */
-  const handleSocketEvent = useCallback(
-    (event: AuctionSocketEvent) => {
-      if (event.type !== 'bid-placed') return;
+  /**
+   * Người khác đặt giá qua kênh realtime → cập nhật giá cao nhất, số lượt, số
+   * người, và cảnh báo nếu ta đang dẫn đầu mà bị vượt. Không có tên người đặt.
+   */
+  const handleSocketEvent = useCallback((event: AuctionSocketEvent) => {
+    if (event.type !== 'bid-placed') return;
 
-      setLiveAuction((current) => {
-        if (!current || event.amount <= current.currentPrice) return current;
-
-        const wasLeading = current.bids[0]?.bidderId === user?.id;
-        if (wasLeading && event.bidderId !== user?.id) {
-          setIsOutbid(true);
-          toast.error(
-            'Bạn đã bị vượt giá!',
-            `${event.bidderMaskedName} vừa đặt ${formatCurrency(event.amount)}.`,
-          );
-        }
-
-        return {
-          ...current,
-          currentPrice: event.amount,
-          bidCount: current.bidCount + 1,
-          bids: [
-            {
-              id: `bid-live-${event.at}`,
-              auctionId: current.id,
-              bidderId: event.bidderId,
-              bidderMaskedName: event.bidderMaskedName,
-              amount: event.amount,
-              createdAt: event.at,
-            },
-            ...current.bids,
-          ],
-        };
-      });
-    },
-    [user?.id],
-  );
+    setLiveAuction((current) => {
+      if (!current || event.amount <= current.currentPrice) return current;
+      if (current.viewerIsLeading) {
+        setIsOutbid(true);
+        toast.error(
+          'Bạn đã bị vượt giá!',
+          current.priceVisibility === 'open'
+            ? `Giá cao nhất mới là ${formatCurrency(event.amount)}.`
+            : 'Có người vừa đặt cao hơn bạn.',
+        );
+      }
+      return {
+        ...current,
+        currentPrice: event.amount,
+        bidCount: Math.max(current.bidCount + 1, event.bidCount),
+        bidderCount: Math.max(current.bidderCount, event.bidderCount),
+        viewerIsLeading: false,
+      };
+    });
+  }, []);
 
   const { status: socketStatus } = useAuctionSocket({
     auctionId: id,
     enabled: auction?.status === 'live',
     currentPrice: auction?.currentPrice ?? 0,
     bidStep: auction?.bidStep ?? 50_000,
+    bidCount: auction?.bidCount ?? 0,
+    bidderCount: auction?.bidderCount ?? 0,
     onEvent: handleSocketEvent,
   });
 
@@ -135,13 +127,8 @@ export default function AuctionDetailPage() {
   const isEnded = auction.status === 'ended';
   /** Phiên kín chỉ lộ giá sau khi đã kết thúc. */
   const showPrice = !isSealed || isEnded;
-  const myHighestBid = user
-    ? Math.max(
-        0,
-        ...auction.bids.filter((bid) => bid.bidderId === user.id).map((bid) => bid.amount),
-      )
-    : 0;
-  const isLeading = user ? auction.bids[0]?.bidderId === user.id : false;
+  const myHighestBid = Math.max(0, ...auction.myBids.map((bid) => bid.amount));
+  const isLeading = auction.viewerIsLeading;
 
   return (
     <>
@@ -170,7 +157,7 @@ export default function AuctionDetailPage() {
 
         <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
           <div>
-            <ProductGallery images={auction.images} alt={auction.title} />
+            <ImageGallery images={auction.images} alt={auction.title} />
 
             <section className="mt-8 rounded-2xl border border-white/8 bg-surface/60 p-6">
               <h2 className="mb-3 font-display text-base font-bold text-text">Mô tả sản phẩm</h2>
@@ -252,7 +239,7 @@ export default function AuctionDetailPage() {
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <p className="text-xs tracking-wider text-text-muted uppercase">
-                    {isEnded ? 'Giá chốt' : isSealed ? 'Giá được giấu' : 'Giá hiện tại'}
+                    {isEnded ? 'Giá chốt' : isSealed ? 'Giá được giấu' : 'Giá cao nhất'}
                   </p>
                   {showPrice ? (
                     <p className="mt-1 font-display text-3xl font-black text-gold neon-text-gold">
@@ -267,10 +254,17 @@ export default function AuctionDetailPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="inline-flex items-center gap-1.5 text-xs text-text-muted">
-                    <Gavel size={12} aria-hidden="true" />
-                    {auction.bidCount} lượt đặt
+                  <p
+                    className="inline-flex items-center gap-2 rounded-xl border border-gold/30 bg-background/40 px-3 py-2 text-gold"
+                    title="Số người đã đặt giá (không công khai tên)"
+                  >
+                    <Gavel size={18} aria-hidden="true" />
+                    <span className="font-display text-xl font-black tabular-nums">
+                      {auction.bidderCount}
+                    </span>
+                    <span className="text-xs text-text-muted">người đã đặt</span>
                   </p>
+                  <p className="mt-1 text-xs text-text-muted">{auction.bidCount} lượt đặt</p>
                   {auction.buyNowPrice && auction.status !== 'ended' && (
                     <p className="mt-1 text-xs text-text-muted">
                       Mua ngay:{' '}
@@ -335,75 +329,47 @@ export default function AuctionDetailPage() {
               />
             </div>
 
-            {/* Lịch sử đặt giá */}
+            {/* Lượt đặt của chính mình — không có danh sách người khác */}
             <section className="mt-6 rounded-2xl border border-white/8 bg-surface/60 p-5">
-              <h2 className="mb-4 inline-flex items-center gap-2 font-display text-base font-bold text-text">
-                <Users size={17} className="text-accent-cyan" aria-hidden="true" />
-                Lịch sử đặt giá ({auction.bids.length})
+              <h2 className="mb-3 inline-flex items-center gap-2 font-display text-base font-bold text-text">
+                <Gavel size={17} className="text-accent-cyan" aria-hidden="true" />
+                Lượt đặt của bạn ({auction.myBids.length})
               </h2>
-
-              {auction.bids.length === 0 ? (
-                <p className="py-5 text-center text-sm text-text-muted">
-                  Chưa có lượt đặt giá nào. Hãy là người đầu tiên!
+              {auction.myBids.length === 0 ? (
+                <p className="py-3 text-sm text-text-muted">
+                  {user ? 'Bạn chưa đặt giá ở phiên này.' : 'Đăng nhập để xem lượt đặt của bạn.'}
                 </p>
               ) : (
-                <ol className="max-h-80 divide-y divide-white/6 overflow-y-auto">
-                  {auction.bids.map((bid, index) => {
-                    const isMine = user ? bid.bidderId === user.id : false;
-                    return (
-                      <li
-                        key={bid.id}
+                <ol className="max-h-64 divide-y divide-white/6 overflow-y-auto">
+                  {auction.myBids.map((bid, index) => (
+                    <li
+                      key={`${bid.createdAt}-${bid.amount}`}
+                      className="flex items-center justify-between gap-3 py-2.5"
+                    >
+                      <span className="text-[11px] text-text-muted">
+                        {formatRelativeTime(bid.createdAt)}
+                        {bid.triggeredExtension && ' · đã gia hạn phiên'}
+                      </span>
+                      <span
                         className={cn(
-                          'flex items-center justify-between gap-3 py-2.5',
-                          index === 0 && 'font-semibold',
+                          'font-display text-sm tabular-nums',
+                          index === 0 && isLeading ? 'text-gold' : 'text-text',
                         )}
                       >
-                        <span className="flex min-w-0 items-center gap-2">
-                          {index === 0 && (
-                            <span
-                              className="rounded bg-gold px-1.5 py-0.5 text-[9px] font-bold text-background"
-                              aria-label="Đang dẫn đầu"
-                            >
-                              CAO NHẤT
-                            </span>
-                          )}
-                          <span
-                            className={cn(
-                              'truncate text-sm',
-                              isMine ? 'text-accent-cyan' : 'text-text-muted',
-                            )}
-                          >
-                            {isMine ? 'Bạn' : bid.bidderMaskedName}
-                          </span>
-                        </span>
-                        <span className="flex shrink-0 items-center gap-3">
-                          <span className="text-[11px] text-text-muted">
-                            {formatRelativeTime(bid.createdAt)}
-                          </span>
-                          {showPrice || isMine ? (
-                            <span
-                              className={cn(
-                                'font-display text-sm tabular-nums',
-                                index === 0 ? 'text-gold' : 'text-text',
-                              )}
-                            >
-                              {formatCurrency(bid.amount)}
-                            </span>
-                          ) : (
-                            <HiddenPrice className="text-sm" />
-                          )}
-                        </span>
-                      </li>
-                    );
-                  })}
+                        {formatCurrency(bid.amount)}
+                      </span>
+                    </li>
+                  ))}
                 </ol>
               )}
-
-              <p className="mt-4 border-t border-white/6 pt-3 text-[11px] leading-relaxed text-text-muted">
-                Tên người đặt giá được ẩn một phần để bảo vệ quyền riêng tư. Toàn bộ lượt đặt đều
-                được ghi nhận và không thể chỉnh sửa.
-                {isSealed &&
-                  ' Đây là phiên kín nên số tiền của người khác được giấu cho tới khi phiên kết thúc — bạn vẫn thấy lượt đặt của chính mình.'}
+              <p className="mt-4 inline-flex items-start gap-2 border-t border-white/6 pt-3 text-[11px] leading-relaxed text-text-muted">
+                <EyeOff size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+                <span>
+                  Sàn không công khai người đặt giá: mọi người chỉ thấy giá cao nhất và số người đã
+                  đặt. Toàn bộ lượt đặt vẫn được hệ thống ghi nhận và không chỉnh sửa được.
+                  {isSealed &&
+                    ' Đây là phiên kín nên cả giá cao nhất cũng được giấu tới khi phiên kết thúc.'}
+                </span>
               </p>
             </section>
 

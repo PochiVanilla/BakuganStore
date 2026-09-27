@@ -4,6 +4,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   ArrowLeft,
+  Award,
+  CircleCheck,
+  CircleX,
+  Hourglass,
   KeyRound,
   Landmark,
   LockKeyhole,
@@ -13,13 +17,16 @@ import {
   ShieldCheck,
   UnlockKeyhole,
 } from 'lucide-react';
-import type { AdminCustomerDetail, Gender } from '@/types';
+import type { AdminCustomerDetail, Gender, MembershipRequest } from '@/types';
 import { ADMIN_ROUTES, ROUTES } from '@/constants/routes';
+import { LEVEL_SOURCE_LABELS, PURCHASES_FOR_LV2 } from '@/constants/catalog';
 import {
   getCustomer,
+  resolveLevelRequest,
   sendPasswordReset,
   setCustomerRole,
   setCustomerStatus,
+  setMemberLevel,
   updateCustomer,
 } from '@/services/api/admin';
 import { getApiErrorMessage } from '@/services/api/client';
@@ -149,6 +156,272 @@ function EditCustomerModal({
         </div>
       </form>
     </Modal>
+  );
+}
+
+const REQUEST_STATUS_TEXT: Record<MembershipRequest['status'], { label: string; tone: string }> = {
+  pending: { label: 'Chờ duyệt', tone: 'text-warning' },
+  approved: { label: 'Đã duyệt', tone: 'text-success' },
+  rejected: { label: 'Từ chối', tone: 'text-danger' },
+};
+
+function requestTitle(request: MembershipRequest): string {
+  return request.kind === 'deposit'
+    ? `Báo đã nạp ${formatCurrency(request.amount ?? 0)}`
+    : 'Nhờ admin xét duyệt';
+}
+
+/**
+ * Hạng thành viên của khách: duyệt / từ chối yêu cầu lên Lv2, cấp hoặc hạ hạng trực tiếp.
+ * Lv2 mới được đặt giá đấu giá.
+ */
+function MembershipPanel({ customer }: { customer: AdminCustomerDetail }) {
+  const [note, setNote] = useState('');
+  const [noteError, setNoteError] = useState<string>();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirmLevel, setConfirmLevel] = useState<1 | 2 | null>(null);
+  const pending = customer.pendingLevelRequest;
+  const history = customer.levelRequests.filter((request) => request.id !== pending?.id);
+  const isMember = customer.memberLevel >= 2;
+  const purchased = customer.stats.purchasedItemCount;
+
+  const run = async (key: string, action: () => Promise<void>): Promise<void> => {
+    setBusy(key);
+    try {
+      await action();
+      setNote('');
+      setNoteError(undefined);
+    } catch (error) {
+      toast.error('Không thực hiện được', getApiErrorMessage(error));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const resolve = (approve: boolean): void => {
+    if (!pending) return;
+    if (!approve && note.trim().length < 5) {
+      setNoteError('Ghi lý do từ chối (ít nhất 5 ký tự) để khách biết cần làm gì tiếp.');
+      return;
+    }
+    void run(approve ? 'approve' : 'reject', async () => {
+      await resolveLevelRequest(pending.id, approve, note);
+      toast.success(
+        approve ? 'Đã duyệt lên Lv2' : 'Đã từ chối yêu cầu',
+        approve && pending.kind === 'deposit'
+          ? `Ghi nhận ${formatCurrency(pending.amount ?? 0)} tiền thành viên.`
+          : customer.fullName,
+      );
+    });
+  };
+
+  const changeLevel = (level: 1 | 2): void => {
+    void run(`level-${level}`, async () => {
+      await setMemberLevel(customer.id, level, note);
+      toast.success(level === 2 ? 'Đã cấp Lv2' : 'Đã hạ về Lv1', customer.fullName);
+      setConfirmLevel(null);
+    });
+  };
+
+  return (
+    <Panel
+      title="Hạng thành viên"
+      description="Lv2 mới được đặt giá đấu giá. Lên Lv2 bằng một trong ba cách: mua đủ 3 con, nạp tiền, hoặc admin duyệt."
+      actions={
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-bold',
+            isMember
+              ? 'border-gold/40 bg-gold/10 text-gold'
+              : 'border-white/12 bg-white/4 text-text-muted',
+          )}
+        >
+          <Award size={13} aria-hidden="true" /> Lv{customer.memberLevel}
+        </span>
+      }
+    >
+      <dl className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-white/8 bg-surface-2/50 p-3">
+          <dt className="text-xs text-text-muted">Đã mua (đơn hoàn tất)</dt>
+          <dd className="mt-1 font-display text-lg font-bold text-text">
+            {purchased}/{PURCHASES_FOR_LV2} con
+          </dd>
+        </div>
+        <div className="rounded-xl border border-white/8 bg-surface-2/50 p-3">
+          <dt className="text-xs text-text-muted">Tiền thành viên đã nạp</dt>
+          <dd className="mt-1 font-display text-lg font-bold text-text">
+            {formatCurrency(customer.depositBalance)}
+          </dd>
+        </div>
+        <div className="rounded-xl border border-white/8 bg-surface-2/50 p-3">
+          <dt className="text-xs text-text-muted">Lên Lv2</dt>
+          <dd className="mt-1 text-sm font-semibold text-text">
+            {isMember
+              ? `${customer.levelSource ? LEVEL_SOURCE_LABELS[customer.levelSource] : 'Admin cấp'}${
+                  customer.levelUpAt ? ` · ${formatDate(customer.levelUpAt)}` : ''
+                }`
+              : 'Chưa'}
+          </dd>
+        </div>
+      </dl>
+
+      {pending && (
+        <div className="mt-4 rounded-xl border border-warning/35 bg-warning/8 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-warning">
+            <Hourglass size={15} aria-hidden="true" /> {requestTitle(pending)} ·{' '}
+            {formatRelativeTime(pending.createdAt)}
+          </p>
+          {pending.kind === 'deposit' && (
+            <p className="mt-1.5 text-sm text-text-muted">
+              Đối soát sao kê trước khi duyệt: số tiền{' '}
+              <span className="font-semibold text-text">{formatCurrency(pending.amount ?? 0)}</span>
+              , nội dung{' '}
+              <span className="font-mono font-semibold text-gold">
+                {pending.transferNote ?? '—'}
+              </span>
+              .
+            </p>
+          )}
+          {pending.message && (
+            <p className="mt-1.5 rounded-lg bg-background/40 p-2.5 text-sm text-text">
+              “{pending.message}”
+            </p>
+          )}
+          <div className="mt-3">
+            <Textarea
+              label="Ghi chú cho khách (bắt buộc khi từ chối)"
+              name="level-note"
+              rows={2}
+              className="min-h-16"
+              maxLength={300}
+              value={note}
+              error={noteError}
+              onChange={(event) => setNote(event.target.value)}
+            />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              isLoading={busy === 'approve'}
+              disabled={Boolean(busy)}
+              leftIcon={<CircleCheck size={15} aria-hidden="true" />}
+              onClick={() => resolve(true)}
+            >
+              {pending.kind === 'deposit' ? 'Đã nhận tiền — duyệt Lv2' : 'Duyệt lên Lv2'}
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              isLoading={busy === 'reject'}
+              disabled={Boolean(busy)}
+              leftIcon={<CircleX size={15} aria-hidden="true" />}
+              onClick={() => resolve(false)}
+            >
+              Từ chối
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {isMember ? (
+          <Button size="sm" variant="ghost" onClick={() => setConfirmLevel(1)}>
+            Hạ về Lv1
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="secondary"
+            leftIcon={<Award size={15} aria-hidden="true" />}
+            onClick={() => setConfirmLevel(2)}
+          >
+            Cấp Lv2 ngay
+          </Button>
+        )}
+        <span className="text-xs text-text-muted">
+          {isMember
+            ? 'Hạ hạng thì khách không đặt giá được nữa.'
+            : `Còn ${Math.max(0, PURCHASES_FOR_LV2 - purchased)} con nữa là khách tự lên Lv2.`}
+        </span>
+      </div>
+
+      {history.length > 0 && (
+        <div className="mt-4">
+          <p className="mb-2 text-xs font-semibold tracking-wide text-text-muted uppercase">
+            Yêu cầu trước đây
+          </p>
+          <ul className="flex flex-col gap-2">
+            {history.map((request) => (
+              <li
+                key={request.id}
+                className="rounded-xl border border-white/8 bg-surface-2/40 p-3 text-sm"
+              >
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="font-medium text-text">{requestTitle(request)}</span>
+                  <span
+                    className={cn(
+                      'text-xs font-semibold',
+                      REQUEST_STATUS_TEXT[request.status].tone,
+                    )}
+                  >
+                    {REQUEST_STATUS_TEXT[request.status].label}
+                  </span>
+                  <span className="text-xs text-text-muted">
+                    {formatDateTime(request.createdAt)}
+                  </span>
+                </p>
+                {(request.resolvedBy || request.adminNote) && (
+                  <p className="mt-1 text-xs text-text-muted">
+                    {request.resolvedBy && `Xử lý: ${request.resolvedBy}. `}
+                    {request.adminNote}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <Modal
+        isOpen={confirmLevel !== null}
+        onClose={() => setConfirmLevel(null)}
+        title={confirmLevel === 2 ? 'Cấp Lv2 cho khách này?' : 'Hạ khách về Lv1?'}
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setConfirmLevel(null)}>
+              Huỷ
+            </Button>
+            <Button
+              variant={confirmLevel === 2 ? 'primary' : 'danger'}
+              isLoading={busy === `level-${confirmLevel}`}
+              onClick={() => confirmLevel && changeLevel(confirmLevel)}
+            >
+              {confirmLevel === 2 ? 'Cấp Lv2' : 'Hạ về Lv1'}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-text-muted">
+          {confirmLevel === 2
+            ? `${customer.fullName} sẽ đặt giá được trong mọi phiên đấu giá.`
+            : `${customer.fullName} sẽ không đặt giá được nữa.${
+                purchased >= PURCHASES_FOR_LV2
+                  ? ' Lưu ý: khách đã mua đủ 3 con nên sẽ tự lên lại Lv2 khi có đơn mới hoàn tất.'
+                  : ''
+              }`}
+        </p>
+        <Textarea
+          label="Ghi chú (lưu lại lịch sử)"
+          name="level-change-note"
+          rows={2}
+          className="mt-3 min-h-16"
+          maxLength={300}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </Modal>
+    </Panel>
   );
 }
 
@@ -459,6 +732,7 @@ export default function CustomerDetailPage() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-4 xl:col-span-2">
+          {customer.role === 'customer' && <MembershipPanel customer={customer} />}
           <Panel title={`Đơn hàng (${customer.orders.length})`} bodyClassName="p-0">
             {customer.orders.length === 0 ? (
               <p className="px-5 py-8 text-center text-sm text-text-muted">
@@ -469,7 +743,7 @@ export default function CustomerDetailPage() {
                 <thead>
                   <tr>
                     <th className={th}>Mã đơn</th>
-                    <th className={th}>Sản phẩm</th>
+                    <th className={th}>Bakugan</th>
                     <th className={cn(th, 'text-right')}>Tổng tiền</th>
                     <th className={th}>Trạng thái</th>
                     <th className={th}>Ngày đặt</th>

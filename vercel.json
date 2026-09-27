@@ -11,7 +11,7 @@
   },
   "rewrites": [
     {
-      "source": "/((?!api/|assets/|brand/|favicon).*)",
+      "source": "/((?!api/|assets/|brand/|feeds/|favicon|apple-touch-icon|site\\.webmanifest).*)",
       "destination": "/index.html"
     }
   ],

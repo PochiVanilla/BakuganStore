@@ -11,7 +11,7 @@ import { ButtonLink, EmptyState, Skeleton } from '@/components/ui';
 
 export function BidHistoryTab() {
   const user = useAuthStore((state) => state.user);
-  const { data, isLoading } = useAsync(() => fetchMyBids(user?.id ?? ''), [user?.id], {
+  const { data, isLoading } = useAsync(() => fetchMyBids(), [user?.id], {
     enabled: Boolean(user?.id),
   });
 

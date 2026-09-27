@@ -1,29 +1,46 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Gavel, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, Gavel, MessagesSquare, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
+import type { FeedPost } from '@/types';
 import { ROUTES } from '@/constants/routes';
-import { Container } from '@/components/ui';
-import { GalaxyDragonOrb } from './GalaxyDragonOrb';
-import { formatNumber } from '@/utils/format';
-
-const STATS = [
-  { value: '2.400+', label: 'Đơn hàng đã giao' },
-  { value: '150+', label: 'Mẫu Bakugan' },
-  { value: '4,9/5', label: 'Đánh giá trung bình' },
-];
+import { CONSULT_STARTER } from '@/constants/chat';
+import { formatNumber, formatTime } from '@/utils/format';
+import { useUIStore } from '@/store/uiStore';
+import { Container, FeedCardSkeleton } from '@/components/ui';
+import { FeedCard } from '@/features/feed/FeedCard';
 
 export function Hero({
-  productCount,
+  latestFeed,
+  isLoading,
+  availableCount,
+  feedCount,
   liveAuctions,
 }: {
-  productCount: number;
+  latestFeed?: FeedPost;
+  isLoading: boolean;
+  availableCount: number;
+  feedCount: number;
   liveAuctions: number;
 }) {
+  const openChat = useUIStore((state) => state.openChat);
+
+  const eyebrow =
+    latestFeed?.status === 'upcoming'
+      ? `Feed #${latestFeed.number} mở bán lúc ${formatTime(latestFeed.opensAt)}`
+      : liveAuctions > 0
+        ? `${liveAuctions} phiên đấu giá đang diễn ra`
+        : 'Feed mới lên mỗi tuần';
+
+  const stats = [
+    { value: formatNumber(availableCount), label: 'Con đang bán' },
+    { value: formatNumber(feedCount), label: 'Feed trên web' },
+    { value: formatNumber(liveAuctions), label: 'Phiên đấu giá mở' },
+  ];
+
   return (
-    <section className="relative overflow-hidden pt-10 pb-16 sm:pt-14 sm:pb-20">
-      {/* Mặt trăng khuyết vàng */}
+    <section className="relative overflow-hidden pt-8 pb-14 sm:pt-14 sm:pb-20">
       <div
-        className="pointer-events-none absolute top-0 -right-20 h-72 w-72 rounded-full bg-gold/15 blur-3xl sm:h-96 sm:w-96"
+        className="pointer-events-none absolute top-0 -right-20 h-72 w-72 rounded-full bg-gold/12 blur-3xl sm:h-96 sm:w-96"
         aria-hidden="true"
       />
       <div
@@ -32,7 +49,7 @@ export function Hero({
       />
 
       <Container>
-        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -40,9 +57,7 @@ export function Hero({
           >
             <span className="inline-flex items-center gap-2 rounded-full border border-accent-cyan/40 bg-accent-cyan/10 px-3.5 py-1.5 text-xs font-semibold text-accent-cyan">
               <Sparkles size={13} aria-hidden="true" />
-              {liveAuctions > 0
-                ? `${liveAuctions} phiên đấu giá đang diễn ra`
-                : 'Sàn đấu giá mở mỗi tuần'}
+              {eyebrow}
             </span>
 
             <h1 className="mt-5 font-display text-4xl leading-[1.1] font-black sm:text-5xl lg:text-6xl">
@@ -53,31 +68,37 @@ export function Hero({
             </h1>
 
             <p className="mt-5 max-w-lg text-base leading-relaxed text-text-muted sm:text-lg">
-              Hơn {formatNumber(productCount)} mẫu Bakugan chính hãng, hàng sưu tầm hiếm và sàn đấu
-              giá dành riêng cho cộng đồng người chơi Việt Nam. Kiểm tra kỹ từng sản phẩm, đóng gói
-              chống sốc, giao nhanh toàn quốc.
+              Mỗi tuần TD Bakugan đăng feed mới theo lô: ảnh thật cả lô, mỗi con một mã riêng, con
+              nào có người chốt là hiện SOLD. Thành viên Lv2 được vào sàn đấu giá hàng hiếm.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                to={ROUTES.products}
-                className="inline-flex h-13 items-center gap-2.5 rounded-xl gradient-cta px-7 font-display text-sm font-bold text-white transition hover:shadow-glow-pink hover:brightness-110"
+                to={latestFeed ? ROUTES.feedDetail(latestFeed.number) : ROUTES.feeds}
+                className="inline-flex h-13 items-center gap-2.5 rounded-xl gradient-cta px-6 font-display text-sm font-bold text-white transition hover:shadow-glow-pink hover:brightness-110"
               >
-                <Zap size={18} aria-hidden="true" />
-                Khám phá bộ sưu tập
+                Xem feed mới nhất
                 <ArrowRight size={17} aria-hidden="true" />
               </Link>
-              <Link
-                to={ROUTES.auctions}
-                className="inline-flex h-13 items-center gap-2.5 rounded-xl border border-accent-cyan/50 bg-accent-cyan/5 px-7 font-display text-sm font-bold text-accent-cyan transition hover:bg-accent-cyan/15 hover:shadow-glow-cyan"
+              <button
+                type="button"
+                onClick={() => openChat({ send: CONSULT_STARTER })}
+                className="inline-flex h-13 items-center gap-2.5 rounded-xl border border-accent-cyan/50 bg-accent-cyan/5 px-6 font-display text-sm font-bold text-accent-cyan transition hover:bg-accent-cyan/15 hover:shadow-glow-cyan"
               >
-                <Gavel size={18} aria-hidden="true" />
-                Vào sàn đấu giá
-              </Link>
+                <MessagesSquare size={17} aria-hidden="true" />
+                Tư vấn chọn Bakugan
+              </button>
             </div>
+            <Link
+              to={ROUTES.auctions}
+              className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-text-muted transition hover:text-gold"
+            >
+              <Gavel size={15} aria-hidden="true" />
+              Vào sàn đấu giá
+            </Link>
 
-            <dl className="mt-10 grid max-w-md grid-cols-3 gap-4">
-              {STATS.map((stat) => (
+            <dl className="mt-8 grid max-w-md grid-cols-3 gap-4">
+              {stats.map((stat) => (
                 <div key={stat.label}>
                   <dt className="sr-only">{stat.label}</dt>
                   <dd>
@@ -91,16 +112,22 @@ export function Hero({
             </dl>
           </motion.div>
 
-          {/* Quả cầu Bakugan galaxy có rồng neon */}
+          {/* Feed mới nhất thay cho hình minh hoạ: khách thấy ngay lô hàng sắp / đang bán. */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.15, ease: 'easeOut' }}
-            className="relative mx-auto aspect-square w-full max-w-sm lg:max-w-md"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.1, ease: 'easeOut' }}
+            className="relative"
           >
-            <div className="h-full w-full animate-float">
-              <GalaxyDragonOrb />
-            </div>
+            <div
+              className="pointer-events-none absolute -inset-3 rounded-3xl bg-gradient-to-br from-accent-cyan/20 via-primary/10 to-accent-pink/20 blur-2xl"
+              aria-hidden="true"
+            />
+            {isLoading ? (
+              <FeedCardSkeleton />
+            ) : latestFeed ? (
+              <FeedCard feed={latestFeed} priority className="relative" />
+            ) : null}
           </motion.div>
         </div>
       </Container>

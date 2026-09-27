@@ -37,7 +37,7 @@ import { useLiveRevision } from '@/hooks/useLiveRevision';
 import { toast } from '@/store/uiStore';
 import { formatCurrency, formatDateTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
-import { Button, Checkbox, Modal, Seo, Skeleton, Textarea } from '@/components/ui';
+import { Button, Checkbox, Modal, RefImage, Seo, Skeleton, Textarea } from '@/components/ui';
 import {
   AdminPageHeader,
   ErrorBox,
@@ -53,8 +53,8 @@ const ACTION_COPY: Partial<Record<OrderStatus, { label: string; hint: string }>>
   packing: { label: 'Bắt đầu đóng gói', hint: 'Lấy hàng khỏi kệ, kiểm tra và đóng gói.' },
   shipping: { label: 'Giao cho vận chuyển', hint: 'Ghi mã vận đơn vào ghi chú nếu có.' },
   completed: { label: 'Khách đã nhận', hint: 'Đơn COD sẽ tự chuyển sang "Đã thanh toán".' },
-  cancelled: { label: 'Huỷ đơn', hint: 'Hàng được trả lại kho.' },
-  returned: { label: 'Khách hoàn hàng', hint: 'Chọn có nhập lại kho hay không.' },
+  cancelled: { label: 'Huỷ đơn', hint: 'Những con trong đơn được mở bán lại trên feed.' },
+  returned: { label: 'Khách hoàn hàng', hint: 'Chọn có mở bán lại những con này không.' },
 };
 
 function StatusActions({ order }: { order: Order }) {
@@ -146,7 +146,7 @@ function StatusActions({ order }: { order: Order }) {
         isOpen={dialog === 'cancelled'}
         onClose={() => setDialog(null)}
         title={`Huỷ đơn #${order.code}`}
-        description="Hàng trong đơn sẽ được trả lại tồn kho. Lý do huỷ được đưa vào báo cáo."
+        description="Những con Bakugan trong đơn được mở bán lại (bỏ SOLD). Lý do huỷ được đưa vào báo cáo."
         size="sm"
         footer={
           <div className="flex justify-end gap-2">
@@ -207,7 +207,7 @@ function StatusActions({ order }: { order: Order }) {
         }
       >
         <Checkbox
-          label="Hàng còn nguyên vẹn — nhập lại vào kho để bán tiếp"
+          label="Hàng còn nguyên vẹn — mở bán lại những con này (feed đã gỡ thì vào hàng tồn)"
           name="restock"
           checked={restock}
           onChange={(event) => setRestock(event.target.checked)}
@@ -507,23 +507,29 @@ export default function OrderDetailPage() {
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-4 xl:col-span-2">
-          <Panel title={`Sản phẩm (${order.items.length})`} bodyClassName="p-0">
+          <Panel title={`Bakugan trong đơn (${order.items.length})`} bodyClassName="p-0">
             <ul className="divide-y divide-white/5">
               {order.items.map((item) => (
-                <li key={item.productId} className="flex items-center gap-3 px-5 py-3">
-                  <img
+                <li key={item.itemId} className="flex items-center gap-3 px-5 py-3">
+                  <RefImage
                     src={item.image}
                     alt=""
+                    width={48}
+                    height={48}
                     className="h-12 w-12 shrink-0 rounded-lg object-cover"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-text">{item.name}</p>
                     <p className="text-xs text-text-muted">
-                      {formatCurrency(item.price)} × {item.quantity}
+                      {item.code ? (
+                        <span className="font-mono text-accent-cyan">{item.code}</span>
+                      ) : (
+                        'Hàng đấu giá'
+                      )}
                     </p>
                   </div>
                   <p className="text-sm font-semibold text-text tabular-nums">
-                    {formatCurrency(item.price * item.quantity)}
+                    {formatCurrency(item.price)}
                   </p>
                 </li>
               ))}

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { cn } from '@/utils/cn';
-import { DragonMark } from './DragonMark';
+import { BrandMark } from './BrandMark';
 
 /**
  * Logo TD Bakugan: chữ "TD" tím viền hồng/cyan, "BAKUGAN" cyan phát sáng,
@@ -26,11 +26,12 @@ export function Logo({
       className={cn('group flex shrink-0 items-center gap-2.5', className)}
       aria-label="TD Bakugan — về trang chủ"
     >
-      <DragonMark
+      <BrandMark
         size={size === 'lg' ? 56 : size === 'md' ? 44 : 36}
+        priority={size !== 'lg'}
         className={cn(
           'transition-transform duration-300 group-hover:scale-105',
-          size === 'lg' ? 'drop-shadow-[0_0_14px_rgba(233,64,210,0.6)]' : '',
+          size === 'lg' ? 'shadow-[0_0_22px_rgba(233,64,210,0.45)]' : '',
         )}
       />
 

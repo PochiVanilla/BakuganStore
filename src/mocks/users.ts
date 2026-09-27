@@ -10,6 +10,12 @@ export const DEMO_ACCOUNT = {
   password: 'Bakugan123',
 } as const;
 
+/** Khách mới (thành viên Lv1) — để thử luồng lên hạng trước khi được đấu giá. */
+export const DEMO_NEW_ACCOUNT = {
+  email: 'khachmoi@tdbakugan.vn',
+  password: 'Bakugan123',
+} as const;
+
 /**
  * Tài khoản quản trị của bản demo. Khác tài khoản khách, tài khoản này bắt
  * buộc đúng mật khẩu. Khi có backend thật, xoá hằng số này.

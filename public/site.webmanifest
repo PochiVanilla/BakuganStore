@@ -1,0 +1,14 @@
+{
+  "name": "TD Bakugan",
+  "short_name": "TD Bakugan",
+  "description": "Shop Bakugan chính hãng: feed bán theo lô và sàn đấu giá.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0A12",
+  "theme_color": "#0A0A12",
+  "lang": "vi",
+  "icons": [
+    { "src": "/brand/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/brand/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

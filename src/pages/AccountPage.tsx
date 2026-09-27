@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Gavel, KeyRound, LogOut, MapPin, Package, UserCircle2 } from 'lucide-react';
+import { Award, Gavel, KeyRound, LogOut, MapPin, Package, UserCircle2 } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/uiStore';
@@ -9,12 +9,14 @@ import { ProfileTab } from '@/features/account/ProfileTab';
 import { AddressTab } from '@/features/account/AddressTab';
 import { OrdersTab } from '@/features/account/OrdersTab';
 import { BidHistoryTab } from '@/features/account/BidHistoryTab';
+import { MembershipTab } from '@/features/account/MembershipTab';
 import { ChangePasswordTab } from '@/features/account/ChangePasswordTab';
 
 const TABS = [
   { key: 'profile', label: 'Thông tin cá nhân', icon: UserCircle2 },
   { key: 'addresses', label: 'Sổ địa chỉ', icon: MapPin },
   { key: 'orders', label: 'Đơn hàng của tôi', icon: Package },
+  { key: 'membership', label: 'Hạng thành viên', icon: Award },
   { key: 'bids', label: 'Lịch sử đấu giá', icon: Gavel },
   { key: 'password', label: 'Đổi mật khẩu', icon: KeyRound },
 ] as const;
@@ -48,7 +50,7 @@ export default function AccountPage() {
     <>
       <Seo
         title="Tài khoản của tôi"
-        description="Quản lý thông tin cá nhân, sổ địa chỉ, đơn hàng và lịch sử đấu giá tại TD Bakugan."
+        description="Quản lý thông tin cá nhân, sổ địa chỉ, đơn hàng, hạng thành viên và lịch sử đấu giá tại TD Bakugan."
         path={ROUTES.account}
         noIndex
       />
@@ -106,6 +108,7 @@ export default function AccountPage() {
             {activeTab === 'profile' && <ProfileTab />}
             {activeTab === 'addresses' && <AddressTab />}
             {activeTab === 'orders' && <OrdersTab />}
+            {activeTab === 'membership' && <MembershipTab />}
             {activeTab === 'bids' && <BidHistoryTab />}
             {activeTab === 'password' && <ChangePasswordTab />}
           </div>

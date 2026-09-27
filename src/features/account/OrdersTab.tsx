@@ -8,19 +8,22 @@ import {
 } from '@/constants/orders';
 import { fetchMyOrders } from '@/services/api/authService';
 import { useAsync } from '@/hooks/useAsync';
+import { useLiveRevision } from '@/hooks/useLiveRevision';
 import { useAuthStore } from '@/store/authStore';
 import { formatCurrency, formatDateTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
-import { ButtonLink, EmptyState, Skeleton } from '@/components/ui';
+import { ButtonLink, EmptyState, RefImage, Skeleton } from '@/components/ui';
 
 export function OrdersTab() {
   const userId = useAuthStore((state) => state.user?.id);
-  const { data, isLoading } = useAsync(() => fetchMyOrders(userId ?? ''), [userId], {
+  const revision = useLiveRevision();
+  const { data, isLoading } = useAsync(() => fetchMyOrders(userId ?? ''), [userId, revision], {
     enabled: Boolean(userId),
+    keepPreviousData: true,
   });
   const orders = data ?? [];
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className="space-y-4">
         {Array.from({ length: 3 }, (_, index) => (
@@ -43,7 +46,7 @@ export function OrdersTab() {
             icon={<Package size={26} aria-hidden="true" />}
             title="Bạn chưa có đơn hàng nào"
             description="Khi bạn đặt hàng, trạng thái và mã vận đơn sẽ hiện ở đây."
-            action={<ButtonLink to={ROUTES.products}>Bắt đầu mua sắm</ButtonLink>}
+            action={<ButtonLink to={ROUTES.feeds}>Xem feed đang bán</ButtonLink>}
           />
         </div>
       ) : (
@@ -69,8 +72,8 @@ export function OrdersTab() {
 
               <ul className="divide-y divide-white/6 py-2">
                 {order.items.map((item) => (
-                  <li key={item.productId} className="flex items-center gap-3 py-2.5">
-                    <img
+                  <li key={item.itemId} className="flex items-center gap-3 py-2.5">
+                    <RefImage
                       src={item.image}
                       alt=""
                       loading="lazy"
@@ -83,11 +86,15 @@ export function OrdersTab() {
                         {item.name}
                       </span>
                       <span className="text-xs text-text-muted">
-                        {formatCurrency(item.price)} × {item.quantity}
+                        {item.code ? (
+                          <span className="font-mono text-accent-cyan">{item.code}</span>
+                        ) : (
+                          'Hàng đấu giá'
+                        )}
                       </span>
                     </span>
                     <span className="shrink-0 font-display text-sm font-bold text-gold">
-                      {formatCurrency(item.price * item.quantity)}
+                      {formatCurrency(item.price)}
                     </span>
                   </li>
                 ))}

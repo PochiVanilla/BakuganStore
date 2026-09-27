@@ -23,7 +23,7 @@ export async function listAdminAuctions(): Promise<AdminAuctionRow[]> {
       auction.status === 'ended' && top
         ? {
             id: top.bidderId,
-            fullName: winnerRecord?.fullName ?? top.bidderMaskedName,
+            fullName: winnerRecord?.fullName ?? top.bidderName,
             email: winnerRecord?.email ?? '',
             phone: winnerRecord?.phone ?? '',
             amount: top.amount,

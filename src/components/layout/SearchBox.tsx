@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, LoaderCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { Product } from '@/types';
+import type { BakuganItem } from '@/types';
 import { ROUTES } from '@/constants/routes';
-import { searchSuggestions } from '@/services/api/productService';
+import { searchSuggestions } from '@/services/api/feedService';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { formatCurrency } from '@/utils/format';
 import { cn } from '@/utils/cn';
+import { RefImage } from '@/components/ui';
 
 interface SearchBoxProps {
   onNavigate?: () => void;
@@ -20,7 +21,7 @@ const MIN_KEYWORD_LENGTH = 2;
 export function SearchBox({ onNavigate, className }: SearchBoxProps) {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
-  const [result, setResult] = useState<{ query: string; items: Product[] }>({
+  const [result, setResult] = useState<{ query: string; items: BakuganItem[] }>({
     query: '',
     items: [],
   });
@@ -42,7 +43,7 @@ export function SearchBox({ onNavigate, className }: SearchBoxProps) {
 
     let cancelled = false;
     searchSuggestions(trimmed)
-      .then((items) => {
+      .then(({ items }) => {
         if (cancelled) return;
         setResult({ query: trimmed, items });
         setIsOpen(true);
@@ -59,13 +60,17 @@ export function SearchBox({ onNavigate, className }: SearchBoxProps) {
 
   const goToSearch = (): void => {
     if (!keyword.trim()) return;
-    navigate(`${ROUTES.products}?q=${encodeURIComponent(keyword.trim())}`);
+    navigate(`${ROUTES.feeds}?q=${encodeURIComponent(keyword.trim())}`);
     setIsOpen(false);
     onNavigate?.();
   };
 
-  const goToProduct = (product: Product): void => {
-    navigate(ROUTES.productDetail(product.slug));
+  const goToItem = (item: BakuganItem): void => {
+    navigate(
+      item.feedNumber
+        ? ROUTES.feedDetail(item.feedNumber, item.code)
+        : `${ROUTES.feeds}?q=${encodeURIComponent(item.code)}`,
+    );
     setIsOpen(false);
     setKeyword('');
     onNavigate?.();
@@ -81,7 +86,7 @@ export function SearchBox({ onNavigate, className }: SearchBoxProps) {
     } else if (event.key === 'Enter') {
       event.preventDefault();
       const active = suggestions[activeIndex];
-      if (active) goToProduct(active);
+      if (active) goToItem(active);
       else goToSearch();
     } else if (event.key === 'Escape') {
       setIsOpen(false);
@@ -99,8 +104,8 @@ export function SearchBox({ onNavigate, className }: SearchBoxProps) {
           onChange={(event) => setKeyword(event.target.value)}
           onFocus={() => suggestions.length > 0 && setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Tìm Bakugan, hệ, series…"
-          aria-label="Tìm kiếm sản phẩm"
+          placeholder="Tìm tên hoặc mã Bakugan…"
+          aria-label="Tìm Bakugan theo tên hoặc mã"
           aria-autocomplete="list"
           aria-expanded={isOpen}
           aria-controls="search-suggestions"
@@ -133,43 +138,54 @@ export function SearchBox({ onNavigate, className }: SearchBoxProps) {
             transition={{ duration: 0.15 }}
             id="search-suggestions"
             role="listbox"
-            aria-label="Gợi ý sản phẩm"
+            aria-label="Gợi ý Bakugan"
             className="absolute top-full right-0 left-0 z-50 mt-2 overflow-hidden rounded-2xl border border-white/10 bg-surface shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]"
           >
             {suggestions.length === 0 ? (
               <p className="px-4 py-5 text-center text-sm text-text-muted">
-                Không tìm thấy sản phẩm phù hợp với “{trimmed}”.
+                Không có Bakugan nào khớp “{trimmed}” trên các feed.
               </p>
             ) : (
               <>
                 <ul className="max-h-80 overflow-y-auto py-1.5">
-                  {suggestions.map((product, index) => (
-                    <li key={product.id}>
+                  {suggestions.map((item, index) => (
+                    <li key={item.id}>
                       <button
                         type="button"
                         role="option"
                         aria-selected={index === activeIndex}
-                        onClick={() => goToProduct(product)}
+                        onClick={() => goToItem(item)}
                         onMouseEnter={() => setActiveIndex(index)}
                         className={cn(
                           'flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors',
                           index === activeIndex ? 'bg-white/8' : 'hover:bg-white/5',
                         )}
                       >
-                        <img
-                          src={product.images[0]}
+                        <RefImage
+                          src={item.image}
                           alt=""
                           loading="lazy"
                           width={44}
                           height={44}
-                          className="h-11 w-11 shrink-0 rounded-lg bg-surface-2 object-cover"
+                          className={cn(
+                            'h-11 w-11 shrink-0 rounded-lg bg-surface-2 object-cover',
+                            item.status === 'sold' && 'opacity-40 grayscale',
+                          )}
                         />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium text-text">
-                            {product.name}
+                            <span className="font-mono text-xs text-accent-cyan">{item.code}</span>{' '}
+                            {item.name}
                           </span>
-                          <span className="block text-xs text-gold">
-                            {formatCurrency(product.price)}
+                          <span className="block text-xs">
+                            {item.status === 'sold' ? (
+                              <span className="font-bold text-danger">SOLD</span>
+                            ) : (
+                              <span className="text-gold">{formatCurrency(item.price)}</span>
+                            )}
+                            {item.feedNumber && (
+                              <span className="text-text-muted"> · Feed #{item.feedNumber}</span>
+                            )}
                           </span>
                         </span>
                       </button>

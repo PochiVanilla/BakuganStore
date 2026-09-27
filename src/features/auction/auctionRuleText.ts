@@ -1,6 +1,7 @@
 import type { Auction } from '@/types';
 import { formatCurrency } from '@/utils/format';
-import { EyeOff, Gavel, LockKeyhole, ShieldCheck, Timer, Wallet } from 'lucide-react';
+import { AUCTION_MIN_LEVEL, PURCHASES_FOR_LV2 } from '@/constants/catalog';
+import { EyeOff, Gavel, LockKeyhole, ShieldCheck, Timer, UserRoundX, Wallet } from 'lucide-react';
 
 interface RuleItem {
   icon: typeof Timer;
@@ -23,9 +24,14 @@ export function buildAuctionRules(auction?: Auction): RuleItem[] {
       text: 'Ở phiên kín, giá hiện tại và số tiền trong lịch sử đều được giấu. Bạn chỉ biết mình đang dẫn đầu hay đã bị vượt, nên phải trả đúng mức mình thấy xứng đáng thay vì canh hơn người khác một bước giá.',
     },
     {
+      icon: UserRoundX,
+      title: 'Không công khai người đặt giá',
+      text: 'Mọi người chỉ thấy giá cao nhất và số người đã đặt (hình cây búa). Không ai biết ai đang đấu với mình; bạn vẫn xem được các lượt đặt của chính mình.',
+    },
+    {
       icon: LockKeyhole,
-      title: 'Chỉ tài khoản đã đăng nhập được đặt giá',
-      text: 'Mỗi lượt đặt đều gắn với một tài khoản và được ghi lại vĩnh viễn. Tên người đặt luôn hiển thị dạng ẩn một phần để bảo vệ quyền riêng tư.',
+      title: `Chỉ thành viên Lv${AUCTION_MIN_LEVEL} trở lên được đặt giá`,
+      text: `Lên Lv${AUCTION_MIN_LEVEL} bằng một trong ba cách: mua đủ ${PURCHASES_FOR_LV2} Bakugan ở TD shop, nạp tiền thành viên, hoặc được admin duyệt. Mỗi lượt đặt gắn với tài khoản và được ghi lại vĩnh viễn.`,
     },
     {
       icon: Gavel,
@@ -50,5 +56,5 @@ export function minimumBidHint(auction: Auction, minimum: number): string {
   if (auction.priceVisibility === 'sealed') {
     return `Phiên kín nên bạn không thấy giá của người khác. Mức tối thiểu của bạn là ${formatCurrency(minimum)}.`;
   }
-  return `Tối thiểu ${formatCurrency(minimum)} (giá hiện tại cộng bước giá ${formatCurrency(auction.bidStep)}).`;
+  return `Tối thiểu ${formatCurrency(minimum)} (giá cao nhất hiện tại cộng bước giá ${formatCurrency(auction.bidStep)}).`;
 }

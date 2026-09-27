@@ -39,6 +39,21 @@ export function currentMockUser(): UserRecord | null {
   return readDb().users.find((user) => user.id === userId) ?? null;
 }
 
+/** Người dùng đang đăng nhập và còn hoạt động (khách hoặc admin). */
+export function requireUser(): UserRecord {
+  const user = currentMockUser();
+  if (!user) {
+    throw new MockApiError('Bạn cần đăng nhập để tiếp tục.', 401);
+  }
+  if (user.status !== 'active') {
+    throw new MockApiError(
+      'Tài khoản của bạn đang bị tạm khoá. Vui lòng liên hệ hotline của shop.',
+      403,
+    );
+  }
+  return user;
+}
+
 export function requireAdmin(): UserRecord {
   const user = currentMockUser();
   if (!user) {
@@ -70,5 +85,6 @@ export function toSessionUser(record: UserRecord): User {
     birthday: record.birthday,
     gender: record.gender,
     bankAccount: record.bankAccount,
+    memberLevel: record.memberLevel ?? 1,
   };
 }

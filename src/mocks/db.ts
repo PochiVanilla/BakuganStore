@@ -1,30 +1,37 @@
 import type {
   AccountStatus,
   AuctionFulfillment,
+  BakuganAttribute,
+  BakuganItem,
+  BakuganSeries,
   BotSettings,
   ChatConversation,
+  FeedPost,
+  ItemStatus,
+  LevelSource,
+  MembershipRequest,
   Order,
   OrderIssue,
   OrderItem,
-  Product,
+  ProductCondition,
   ShopSettings,
-  StockReceipt,
   User,
 } from '@/types';
-import { productPlaceholder } from '@/utils/placeholder';
-import { MOCK_PRODUCTS } from './products';
+import { BOT_TOPIC_IDS } from '@/types';
+import { lotPlaceholder, productPlaceholder } from '@/utils/placeholder';
 import { MOCK_AUCTIONS } from './auctions';
-import { createDemoPendingOrder, createSeedDatabase } from './seed';
+import { createSeedDatabase, DEFAULT_BOT_SETTINGS } from './seed';
 
 /* ============================================================
    "Cơ sở dữ liệu" của chế độ mock
    ------------------------------------------------------------
-   Lưu trong localStorage để thao tác của admin (tạo đơn, nhập kho,
+   Lưu trong localStorage để thao tác của admin (đăng feed, tạo đơn,
    khoá tài khoản, chat…) còn nguyên sau khi tải lại trang. Khi nối
    backend thật, toàn bộ file này không còn được dùng tới.
 
-   Ảnh sản phẩm là SVG data-URI khá nặng nên không lưu vào đây: đơn
-   hàng chỉ giữ productId, ảnh được gắn lại lúc đọc.
+   Ảnh minh hoạ là SVG sinh tại chỗ nên không lưu vào đây; ảnh admin
+   tải lên nằm trong IndexedDB (xem services/api/imageStore.ts), ở đây
+   chỉ giữ mã tham chiếu "idb:<id>".
    ============================================================ */
 
 export type StoredOrderItem = Omit<OrderItem, 'image'>;
@@ -39,20 +46,64 @@ export interface UserRecord extends User {
   lastLoginAt?: string;
   tags: string[];
   adminNote: string;
+  levelSource?: LevelSource;
+  levelUpAt?: string;
+  /** Tổng tiền khách đã nạp (để lên Lv2 / trừ vào đơn đấu giá) */
+  depositBalance?: number;
 }
 
-/** Những trường admin được sửa trên sản phẩm có sẵn. `originalPrice: 0` nghĩa là bỏ giảm giá. */
-export type ProductPatch = Partial<Omit<Product, 'id' | 'slug' | 'images' | 'createdAt'>>;
-export type StoredProduct = Omit<Product, 'images'>;
+/** Một con Bakugan như được lưu phía server. */
+export interface StoredItem {
+  id: string;
+  code: string;
+  name: string;
+  price: number;
+  attribute: BakuganAttribute;
+  series?: BakuganSeries;
+  condition: ProductCondition;
+  conditionNote?: string;
+  gPower?: number;
+  /** Ảnh riêng (mã tham chiếu hoặc URL) */
+  photo?: string;
+  status: ItemStatus;
+  soldAt?: string;
+  soldVia?: 'order' | 'manual';
+  orderId?: string;
+  soldNote?: string;
+  buyerName?: string;
+  feedId?: string;
+  /** Thứ tự trong feed */
+  position: number;
+  /** Tên / số feed lúc con này được bán hoặc lúc feed bị xoá */
+  feedTitle?: string;
+  feedNumber?: number;
+  createdAt: string;
+}
+
+export interface StoredFeed {
+  id: string;
+  number: number;
+  title: string;
+  caption: string;
+  /** Mã tham chiếu ảnh: "lot:<hạt giống>", "idb:<id>", "/feeds/…" hoặc URL */
+  images: string[];
+  publishedAt: string;
+  opensAt: string;
+  lotCost?: number;
+  supplier?: string;
+  createdBy: string;
+}
 
 export interface MockDatabase {
   version: number;
   seededAt: string;
   users: UserRecord[];
   orders: StoredOrder[];
-  productPatches: Record<string, ProductPatch>;
-  customProducts: StoredProduct[];
-  receipts: StockReceipt[];
+  feeds: StoredFeed[];
+  items: StoredItem[];
+  nextFeedNumber: number;
+  nextItemNumber: number;
+  membershipRequests: MembershipRequest[];
   issues: OrderIssue[];
   auctionFulfillments: AuctionFulfillment[];
   conversations: ChatConversation[];
@@ -62,7 +113,7 @@ export interface MockDatabase {
 
 const STORAGE_KEY = 'td-bakugan:mock-db';
 /** Tăng số này khi đổi cấu trúc dữ liệu; bản cũ được nâng cấp trong `migrate`. */
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 let cache: MockDatabase | null = null;
 let revision = 0;
@@ -77,32 +128,58 @@ function persist(db: MockDatabase): void {
 }
 
 /**
- * Nâng cấp dữ liệu đã lưu ở phiên bản trước, giữ nguyên đơn, khách, tin nhắn.
- * Trả về undefined nếu không nâng cấp được (khi đó seed lại từ đầu).
+ * Nâng cấp dữ liệu đã lưu ở phiên bản trước.
+ *
+ * v1/v2 bán theo "mẫu sản phẩm có số lượng"; v3 bán theo feed, mỗi con một mã.
+ * Đơn và kho cũ gắn với mẫu sản phẩm nên được sinh lại theo cách bán mới,
+ * còn tài khoản, cài đặt bot và tin nhắn thì giữ nguyên.
  */
 function migrate(data: Partial<MockDatabase>): MockDatabase | undefined {
   if (data.version === DB_VERSION) return data as MockDatabase;
-  if (data.version !== 1 || !data.botSettings || !data.orders || !data.users) return undefined;
-
-  // v1 -> v2: thêm việc "tự huỷ đơn" và "kiến thức Bakugan" cho trợ lý.
-  const db = data as MockDatabase;
-  const topics = db.botSettings.topics as Partial<MockDatabase['botSettings']['topics']>;
-  db.botSettings.topics = {
-    ...db.botSettings.topics,
-    'order-cancel': topics['order-cancel'] ?? true,
-    'bakugan-knowledge': topics['bakugan-knowledge'] ?? true,
-    // Mã giảm giá từng tắt mặc định; admin chưa từng lưu cài đặt thì bật lên.
-    promotions: db.botSettings.updatedAt === db.seededAt ? true : db.botSettings.topics.promotions,
-  };
-  const demo = db.users.find((user) => user.id === 'usr-001');
-  const demoHasPending = db.orders.some(
-    (order) => order.userId === 'usr-001' && order.status === 'pending',
-  );
-  if (demo && !demoHasPending && !db.orders.some((order) => order.id === 'ord-demo-pending')) {
-    db.orders.unshift(createDemoPendingOrder(demo, Date.now()));
+  if ((data.version !== 1 && data.version !== 2) || !data.users || !data.botSettings) {
+    return undefined;
   }
-  db.version = DB_VERSION;
-  return db;
+
+  const fresh = createSeedDatabase(DB_VERSION);
+  const seeded = new Map(fresh.users.map((user) => [user.id, user]));
+  const users = data.users.map((user): UserRecord => {
+    const seed = seeded.get(user.id);
+    return seed
+      ? {
+          ...user,
+          memberLevel: seed.memberLevel,
+          levelSource: seed.levelSource,
+          levelUpAt: seed.levelUpAt,
+          depositBalance: seed.depositBalance,
+        }
+      : user;
+  });
+  // Tài khoản mới có trong bộ mẫu (VD khách demo Lv1) mà bản cũ chưa có.
+  fresh.users.forEach((user) => {
+    if (!users.some((item) => item.id === user.id)) users.push(user);
+  });
+
+  const oldTopics = data.botSettings.topics as Partial<BotSettings['topics']>;
+  const topics = Object.fromEntries(
+    BOT_TOPIC_IDS.map((topic) => [topic, oldTopics[topic] ?? DEFAULT_BOT_SETTINGS.topics[topic]]),
+  ) as BotSettings['topics'];
+
+  return {
+    ...fresh,
+    users,
+    conversations: (data.conversations ?? fresh.conversations).map(
+      ({ pendingAction: _pending, ...conversation }) => conversation,
+    ),
+    botSettings: {
+      ...data.botSettings,
+      topics,
+      // Lời chào cũ nhắc tới "tư vấn mẫu" — đổi sang lời chào mới nếu admin chưa sửa.
+      greeting:
+        data.botSettings.updatedAt === data.seededAt
+          ? DEFAULT_BOT_SETTINGS.greeting
+          : data.botSettings.greeting,
+    },
+  };
 }
 
 function load(): MockDatabase {
@@ -180,61 +257,115 @@ export function createId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
-function withImages(product: StoredProduct): Product {
+export function itemImage(item: Pick<StoredItem, 'photo' | 'name' | 'attribute'>): string {
+  return item.photo ?? productPlaceholder(item.name, item.attribute);
+}
+
+/** Ảnh của feed: ảnh minh hoạ "lot:" được sinh theo màu hệ của những con trong lô. */
+export function feedImages(feed: StoredFeed, items: readonly StoredItem[]): string[] {
+  return feed.images.map((ref) =>
+    ref.startsWith('lot:')
+      ? lotPlaceholder(
+          ref.slice(4),
+          items.map((item) => item.attribute),
+        )
+      : ref,
+  );
+}
+
+export function isFeedOpen(feed: Pick<StoredFeed, 'opensAt'>, now: number = Date.now()): boolean {
+  return new Date(feed.opensAt).getTime() <= now;
+}
+
+export function itemsOfFeed(db: Readonly<MockDatabase>, feedId: string): StoredItem[] {
+  return db.items.filter((item) => item.feedId === feedId).sort((a, b) => a.position - b.position);
+}
+
+/** Con Bakugan như khách thấy: không có người mua, đơn hay ghi chú nội bộ. */
+export function toPublicItem(
+  item: StoredItem,
+  feed?: Pick<StoredFeed, 'number' | 'title' | 'opensAt'>,
+  now: number = Date.now(),
+): BakuganItem {
   return {
-    ...product,
-    originalPrice: product.originalPrice || undefined,
-    images: [0, 1].map((variant) =>
-      productPlaceholder(product.name.replace(/^Bakugan\s+/, ''), product.attribute, variant),
-    ),
+    id: item.id,
+    code: item.code,
+    name: item.name,
+    price: item.price,
+    attribute: item.attribute,
+    series: item.series,
+    condition: item.condition,
+    conditionNote: item.conditionNote,
+    gPower: item.gPower,
+    image: itemImage(item),
+    hasOwnPhoto: Boolean(item.photo),
+    status: item.status,
+    soldAt: item.soldAt,
+    feedId: item.feedId,
+    feedNumber: feed?.number ?? item.feedNumber,
+    feedTitle: feed?.title ?? item.feedTitle,
+    feedOpensAt: feed?.opensAt,
+    onSale: item.status === 'available' && Boolean(feed) && isFeedOpen(feed!, now),
+    createdAt: item.createdAt,
   };
 }
 
-/** Toàn bộ sản phẩm hiện tại: dữ liệu gốc + chỉnh sửa của admin + sản phẩm admin thêm. */
-export function listAllProducts(db: Readonly<MockDatabase> = readDb()): Product[] {
-  const base = MOCK_PRODUCTS.map((product) => {
-    const patch = db.productPatches[product.id];
-    if (!patch) return product;
-    // JSON bỏ mất giá trị undefined, nên "gỡ giá gốc" được lưu thành 0.
-    const merged = { ...product, ...patch };
-    return { ...merged, originalPrice: merged.originalPrice || undefined };
-  });
-  return [...base, ...db.customProducts.map(withImages)];
+export function toFeedPost(
+  feed: StoredFeed,
+  items: readonly StoredItem[],
+  now: number = Date.now(),
+): FeedPost {
+  const soldCount = items.filter((item) => item.status === 'sold').length;
+  const available = items.filter((item) => item.status === 'available');
+  const soldOut = items.length > 0 && available.length === 0;
+  const prices = available.map((item) => item.price);
+  return {
+    id: feed.id,
+    number: feed.number,
+    title: feed.title,
+    caption: feed.caption,
+    images: feedImages(feed, items),
+    publishedAt: feed.publishedAt,
+    opensAt: feed.opensAt,
+    status: !isFeedOpen(feed, now) ? 'upcoming' : soldOut ? 'sold-out' : 'selling',
+    itemCount: items.length,
+    soldCount,
+    soldOutAt: soldOut
+      ? items.reduce<string | undefined>(
+          (latest, item) =>
+            item.soldAt && (!latest || item.soldAt > latest) ? item.soldAt : latest,
+          undefined,
+        )
+      : undefined,
+    priceRange:
+      prices.length > 0 ? { min: Math.min(...prices), max: Math.max(...prices) } : undefined,
+    items: items.map((item) => toPublicItem(item, feed, now)),
+  };
 }
 
-/** Sản phẩm khách được thấy (bỏ các mẫu admin đang ẩn). */
-export function listVisibleProducts(db: Readonly<MockDatabase> = readDb()): Product[] {
-  return listAllProducts(db).filter((product) => !product.isHidden);
-}
-
-/** Ghi thay đổi cho một sản phẩm, dù là sản phẩm gốc hay do admin thêm. */
-export function patchProduct(db: MockDatabase, productId: string, patch: ProductPatch): void {
-  const custom = db.customProducts.find((product) => product.id === productId);
-  if (custom) {
-    Object.assign(custom, patch);
-    return;
-  }
-  db.productPatches[productId] = { ...db.productPatches[productId], ...patch };
+/** Các feed đang có trên web, mới nhất trước. */
+export function listFeedPosts(db: Readonly<MockDatabase> = readDb()): FeedPost[] {
+  const now = Date.now();
+  return [...db.feeds]
+    .sort((a, b) => b.number - a.number)
+    .map((feed) => toFeedPost(feed, itemsOfFeed(db, feed.id), now));
 }
 
 const FALLBACK_IMAGE = productPlaceholder('TD Bakugan', 'darkus', 0);
 
-function imageFor(productId: string, products: Product[]): string {
-  if (productId.startsWith('auction:')) {
-    const auction = MOCK_AUCTIONS.find((item) => item.id === productId.slice('auction:'.length));
+function imageFor(itemId: string, db: Readonly<MockDatabase>): string {
+  if (itemId.startsWith('auction:')) {
+    const auction = MOCK_AUCTIONS.find((item) => item.id === itemId.slice('auction:'.length));
     return auction?.images[0] ?? FALLBACK_IMAGE;
   }
-  return products.find((product) => product.id === productId)?.images[0] ?? FALLBACK_IMAGE;
+  const item = db.items.find((entry) => entry.id === itemId);
+  return item ? itemImage(item) : FALLBACK_IMAGE;
 }
 
 /** Gắn lại ảnh cho đơn đọc từ kho dữ liệu. */
-export function hydrateOrder(order: StoredOrder, products: Product[] = listAllProducts()): Order {
+export function hydrateOrder(order: StoredOrder, db: Readonly<MockDatabase> = readDb()): Order {
   return {
     ...order,
-    items: order.items.map((item) => ({ ...item, image: imageFor(item.productId, products) })),
+    items: order.items.map((item) => ({ ...item, image: imageFor(item.itemId, db) })),
   };
-}
-
-export function stripOrderImages(items: OrderItem[]): StoredOrderItem[] {
-  return items.map(({ image: _image, ...rest }) => rest);
 }

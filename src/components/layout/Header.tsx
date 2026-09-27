@@ -23,7 +23,7 @@ export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const cartCount = useCartStore(selectCartCount);
   const openCartDrawer = useCartStore((state) => state.openDrawer);
-  const wishlistCount = useWishlistStore((state) => state.productIds.length);
+  const wishlistCount = useWishlistStore((state) => state.itemIds.length);
   const openMobileMenu = useUIStore((state) => state.openMobileMenu);
 
   useEffect(() => {
@@ -90,7 +90,7 @@ export function Header() {
         <div className="ml-auto flex items-center gap-2 md:ml-0">
           <Link
             to={ROUTES.wishlist}
-            aria-label={`Yêu thích${wishlistCount > 0 ? ` (${wishlistCount} sản phẩm)` : ''}`}
+            aria-label={`Yêu thích${wishlistCount > 0 ? ` (${wishlistCount} con)` : ''}`}
             className="relative rounded-xl border border-white/10 bg-surface-2 p-2.5 text-text-muted transition hover:border-accent-pink/50 hover:text-accent-pink"
           >
             <Heart size={19} />
@@ -100,7 +100,7 @@ export function Header() {
           <button
             type="button"
             onClick={openCartDrawer}
-            aria-label={`Giỏ hàng${cartCount > 0 ? ` (${cartCount} sản phẩm)` : ''}`}
+            aria-label={`Giỏ hàng${cartCount > 0 ? ` (${cartCount} con)` : ''}`}
             className="relative rounded-xl border border-white/10 bg-surface-2 p-2.5 text-text-muted transition hover:border-accent-cyan/50 hover:text-accent-cyan"
           >
             <ShoppingCart size={19} />

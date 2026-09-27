@@ -102,9 +102,12 @@ export function AuctionCard({ auction }: { auction: Auction }) {
             )}
           </div>
           <div className="mt-1.5 flex items-center justify-between text-[11px] text-text-muted">
-            <span className="inline-flex items-center gap-1">
+            <span
+              className="inline-flex items-center gap-1"
+              title={`${auction.bidderCount} người đã đặt, ${auction.bidCount} lượt`}
+            >
               <Gavel size={11} aria-hidden="true" />
-              {auction.bidCount} lượt đặt
+              {auction.bidderCount} người · {auction.bidCount} lượt
             </span>
             <span>
               {auction.extensionCount > 0
@@ -132,10 +135,13 @@ export function AuctionCard({ auction }: { auction: Auction }) {
             </div>
           ) : (
             <p className="text-center text-xs text-text-muted">
-              Người thắng:{' '}
-              <span className="font-semibold text-text">
-                {auction.winnerMaskedName ?? 'Không có lượt đặt'}
-              </span>
+              {auction.viewerIsLeading ? (
+                <span className="font-semibold text-success">Bạn đã thắng phiên này</span>
+              ) : auction.bidCount > 0 ? (
+                'Phiên đã có người thắng'
+              ) : (
+                'Kết thúc, không có lượt đặt'
+              )}
             </p>
           )}
         </div>

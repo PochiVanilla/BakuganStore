@@ -30,7 +30,7 @@ export function Pagination({ page, totalPages, onChange, className }: Pagination
 
   return (
     <nav
-      aria-label="Phân trang sản phẩm"
+      aria-label="Phân trang"
       className={cn('flex items-center justify-center gap-1.5', className)}
     >
       <button

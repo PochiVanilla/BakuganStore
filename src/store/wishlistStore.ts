@@ -1,43 +1,37 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
+/** Những con Bakugan khách đánh dấu yêu thích (theo id từng con). */
 interface WishlistState {
-  productIds: string[];
-  toggle: (productId: string) => void;
-  add: (productId: string) => void;
-  remove: (productId: string) => void;
+  itemIds: string[];
+  toggle: (itemId: string) => void;
+  remove: (itemId: string) => void;
   clear: () => void;
-  has: (productId: string) => boolean;
 }
 
 export const useWishlistStore = create<WishlistState>()(
   persist(
-    (set, get) => ({
-      productIds: [],
+    (set) => ({
+      itemIds: [],
 
-      toggle: (productId) =>
+      toggle: (itemId) =>
         set((state) => ({
-          productIds: state.productIds.includes(productId)
-            ? state.productIds.filter((id) => id !== productId)
-            : [productId, ...state.productIds],
+          itemIds: state.itemIds.includes(itemId)
+            ? state.itemIds.filter((id) => id !== itemId)
+            : [itemId, ...state.itemIds],
         })),
 
-      add: (productId) =>
-        set((state) =>
-          state.productIds.includes(productId)
-            ? state
-            : { productIds: [productId, ...state.productIds] },
-        ),
+      remove: (itemId) =>
+        set((state) => ({ itemIds: state.itemIds.filter((id) => id !== itemId) })),
 
-      remove: (productId) =>
-        set((state) => ({ productIds: state.productIds.filter((id) => id !== productId) })),
-
-      clear: () => set({ productIds: [] }),
-      has: (productId) => get().productIds.includes(productId),
+      clear: () => set({ itemIds: [] }),
     }),
     {
       name: 'td-bakugan:wishlist',
       storage: createJSONStorage(() => localStorage),
+      // Bản 1 lưu id "mẫu sản phẩm" cũ — không còn dùng được.
+      version: 2,
+      migrate: () => ({ itemIds: [] }),
     },
   ),
 );

@@ -1,9 +1,10 @@
 import type {
   BakuganAttribute,
   BakuganSeries,
+  FeedStatus,
+  FeedStatusFilter,
   OrderStatus,
   ProductCondition,
-  ProductSort,
 } from '@/types';
 
 export interface AttributeMeta {
@@ -118,13 +119,21 @@ export const CONDITION_DESCRIPTIONS: Record<ProductCondition, string> = {
   used: 'Đã chơi, có dấu vết sử dụng nhẹ, cơ cấu bung nở còn tốt.',
 };
 
-export const SORT_LABELS: Record<ProductSort, string> = {
-  newest: 'Mới nhất',
-  'price-asc': 'Giá tăng dần',
-  'price-desc': 'Giá giảm dần',
-  'best-selling': 'Bán chạy nhất',
-  'g-power-desc': 'G-Power cao nhất',
+export const FEED_STATUS_LABELS: Record<FeedStatus, string> = {
+  upcoming: 'Sắp mở bán',
+  selling: 'Đang bán',
+  'sold-out': 'Đã bán hết',
 };
+
+export const FEED_FILTER_LABELS: Record<FeedStatusFilter, string> = {
+  all: 'Tất cả',
+  selling: 'Đang bán',
+  upcoming: 'Sắp mở bán',
+  'sold-out': 'Đã bán hết',
+};
+
+/** Trang chủ hiện tối đa ngần này feed mới nhất. */
+export const HOME_FEED_LIMIT = 10;
 
 export const AUCTION_STATUS_LABELS = {
   upcoming: 'Sắp diễn ra',
@@ -142,7 +151,7 @@ export const ORDER_STATUS_LABELS = {
   returned: 'Hoàn trả',
 } as const satisfies Record<OrderStatus, string>;
 
-/** Khoảng giá gợi ý cho sidebar lọc. */
+/** Khoảng giá gợi ý cho bộ lọc Bakugan. */
 export const PRICE_RANGES = [
   { label: 'Dưới 300.000₫', min: 0, max: 300_000 },
   { label: '300.000₫ – 600.000₫', min: 300_000, max: 600_000 },
@@ -151,11 +160,19 @@ export const PRICE_RANGES = [
   { label: 'Trên 2.000.000₫', min: 2_000_000, max: Number.MAX_SAFE_INTEGER },
 ] as const;
 
-export const G_POWER_RANGES = [
-  { label: 'Dưới 400 G', min: 0, max: 400 },
-  { label: '400 – 700 G', min: 400, max: 700 },
-  { label: '700 – 1000 G', min: 700, max: 1000 },
-  { label: 'Trên 1000 G', min: 1000, max: Number.MAX_SAFE_INTEGER },
-] as const;
+/** Hạng thành viên */
+export const MEMBER_LEVEL_LABELS = {
+  1: 'Thành viên Lv1',
+  2: 'Thành viên Lv2',
+} as const;
 
-export const PRODUCT_PAGE_SIZE = 9;
+/** Muốn đặt giá đấu giá thì phải từ hạng này trở lên. */
+export const AUCTION_MIN_LEVEL = 2;
+/** Nhận đủ ngần này con Bakugan (đơn hoàn tất) thì tự lên Lv2. */
+export const PURCHASES_FOR_LV2 = 3;
+
+export const LEVEL_SOURCE_LABELS = {
+  purchases: 'Đã mua đủ 3 Bakugan',
+  deposit: 'Đã nạp tiền thành viên',
+  admin: 'Admin duyệt',
+} as const;

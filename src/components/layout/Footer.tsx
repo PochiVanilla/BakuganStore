@@ -51,7 +51,7 @@ export function Footer() {
     setIsSubmitting(true);
     try {
       await subscribeNewsletter(email);
-      toast.success('Đăng ký nhận tin thành công', 'Bạn sẽ nhận thông báo khi có hàng mới về.');
+      toast.success('Đăng ký nhận tin thành công', 'Bạn sẽ nhận thông báo khi có feed mới.');
       setEmail('');
     } catch (error) {
       toast.error('Đăng ký thất bại', getApiErrorMessage(error));

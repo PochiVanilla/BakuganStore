@@ -1,10 +1,9 @@
 import type {
   AdminCustomer,
   AdminCustomerStats,
-  Auction,
+  AuctionRecord,
+  MembershipRequest,
   Order,
-  Product,
-  StockLevel,
 } from '@/types';
 import { VOID_ORDER_STATUSES } from '@/constants/orders';
 import type { StoredOrder, UserRecord } from '@/mocks/db';
@@ -28,16 +27,10 @@ export function isRevenueOrder(order: Pick<Order, 'status'>): boolean {
   return !VOID_ORDER_STATUSES.includes(order.status);
 }
 
-export function stockLevelOf(product: Pick<Product, 'stock'>, threshold: number): StockLevel {
-  if (product.stock <= 0) return 'out';
-  if (product.stock <= threshold) return 'low';
-  return 'in-stock';
-}
-
 export function customerStats(
   userId: string,
   orders: readonly StoredOrder[],
-  auctions: readonly Auction[],
+  auctions: readonly AuctionRecord[],
 ): AdminCustomerStats {
   const mine = orders.filter((order) => order.userId === userId);
   const lastOrderAt = mine.reduce<string | undefined>(
@@ -60,6 +53,9 @@ export function customerStats(
     lastOrderAt,
     auctionBidCount,
     auctionWinCount,
+    purchasedItemCount: mine
+      .filter((order) => order.status === 'completed')
+      .reduce((sum, order) => sum + order.items.length, 0),
   };
 }
 
@@ -72,7 +68,8 @@ export function customerStats(
 export function toAdminCustomer(
   record: UserRecord,
   orders: readonly StoredOrder[],
-  auctions: readonly Auction[],
+  auctions: readonly AuctionRecord[],
+  requests: readonly MembershipRequest[] = [],
 ): AdminCustomer {
   return {
     id: record.id,
@@ -93,6 +90,13 @@ export function toAdminCustomer(
     bankLink: record.bankAccount
       ? { bankName: record.bankAccount.bankName, accountHolder: record.bankAccount.accountHolder }
       : null,
+    memberLevel: record.memberLevel ?? 1,
+    levelSource: record.levelSource,
+    levelUpAt: record.levelUpAt,
+    depositBalance: record.depositBalance ?? 0,
+    pendingLevelRequest: requests.find(
+      (request) => request.userId === record.id && request.status === 'pending',
+    ),
     stats: customerStats(record.id, orders, auctions),
   };
 }

@@ -14,7 +14,6 @@ import { ACTIVE_ORDER_STATUSES, ORDER_TRANSITIONS } from '@/constants/orders';
 import {
   createId,
   hydrateOrder,
-  listAllProducts,
   readDb,
   updateDb,
   type StoredOrder,
@@ -23,7 +22,13 @@ import {
 import { listAuctionsSnapshot } from '../auctionService';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from '../client';
 import { requireAdmin } from '../mockSession';
-import { applyStock, recordStatus, releaseCancelledOrder } from '../orderMutations';
+import { applyPurchaseUpgrade } from '../membershipRules';
+import {
+  recordStatus,
+  releaseCancelledOrder,
+  releaseOrderItems,
+  sellOrderItems,
+} from '../orderMutations';
 import { generateOrderCode, withinDays } from './shared';
 import { normalizeSearch } from '@/utils/slugify';
 
@@ -66,13 +71,14 @@ export async function listOrders(query: AdminOrderQuery = {}): Promise<AdminOrde
   const pageSize = query.pageSize ?? 12;
   const needle = normalizeSearch(keyword);
 
-  const scoped = readDb().orders.filter((order) => {
+  const db = readDb();
+  const scoped = db.orders.filter((order) => {
     if (source !== 'all' && order.source !== source) return false;
     if (!withinDays(order.createdAt, days)) return false;
     if (!needle) return true;
     const haystack = normalizeSearch(
       `${order.code} ${order.receiverName} ${order.phone} ${order.customerEmail ?? ''} ${order.items
-        .map((item) => item.name)
+        .map((item) => `${item.name} ${item.code ?? ''}`)
         .join(' ')}`,
     );
     return haystack.includes(needle);
@@ -90,7 +96,6 @@ export async function listOrders(query: AdminOrderQuery = {}): Promise<AdminOrde
   const filtered = scoped
     .filter((order) => matchesStatus(order, status))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const products = listAllProducts();
   const total = filtered.length;
 
   return mockDelay({
@@ -98,7 +103,7 @@ export async function listOrders(query: AdminOrderQuery = {}): Promise<AdminOrde
     page: {
       items: filtered
         .slice((page - 1) * pageSize, page * pageSize)
-        .map((order) => hydrateOrder(order, products)),
+        .map((order) => hydrateOrder(order, db)),
       page,
       pageSize,
       total,
@@ -124,7 +129,7 @@ export interface UpdateOrderStatusInput {
   status: OrderStatus;
   note?: string;
   cancelReason?: CancelReason;
-  /** Với đơn hoàn trả: có nhập hàng lại kho không (hàng còn bán được) */
+  /** Với đơn hoàn trả: hàng còn bán được thì mở bán lại những con trong đơn */
   restock?: boolean;
 }
 
@@ -157,13 +162,15 @@ export async function updateOrderStatus(
     const note = input.note?.trim() || undefined;
 
     if (input.status === 'cancelled') {
-      // Hàng chưa rời kho nên trả lại tồn kho ngay.
+      // Hàng chưa rời shop nên những con trong đơn được mở bán lại ngay.
       releaseCancelledOrder(db, order, input.cancelReason!, note, now);
     }
-    if (input.status === 'returned' && input.restock) applyStock(db, order.items, 1);
+    if (input.status === 'returned' && input.restock) releaseOrderItems(db, order);
     if (input.status === 'completed' && order.paymentMethod === 'cod') order.paymentStatus = 'paid';
 
     recordStatus(order, input.status, admin.fullName, now, note);
+    // Khách nhận đủ 3 Bakugan thì tự lên thành viên Lv2.
+    if (input.status === 'completed' && order.userId) applyPurchaseUpgrade(db, order.userId, now);
     return order;
   });
 
@@ -232,8 +239,8 @@ export interface AdminCreateOrderInput {
   receiverName: string;
   phone: string;
   addressLine: string;
-  /** Món trong kho. Giá có thể khác giá niêm yết (admin chốt giá riêng). */
-  items: Array<{ productId: string; quantity: number; price: number }>;
+  /** Những con Bakugan còn bán. Giá có thể khác giá trên feed (admin chốt giá riêng). */
+  items: Array<{ itemId: string; price: number }>;
   /** Tạo đơn cho người thắng phiên — giá lấy theo giá chốt của phiên */
   auctionId?: string;
   shippingFee: number;
@@ -251,28 +258,21 @@ export async function createOrder(input: AdminCreateOrderInput): Promise<Order> 
   }
   const admin = requireAdmin();
   const db = readDb();
-  const products = listAllProducts(db);
 
-  // Server tự tra tên và tồn kho, không tin dữ liệu gửi lên.
+  // Server tự tra tên và trạng thái từng con, không tin dữ liệu gửi lên.
+  const seen = new Set<string>();
   const items: StoredOrderItem[] = input.items.map((line) => {
-    const product = products.find((item) => item.id === line.productId);
-    if (!product) throw new MockApiError('Có sản phẩm không còn tồn tại trong kho.', 422);
-    if (!Number.isInteger(line.quantity) || line.quantity < 1) {
-      throw new MockApiError(`Số lượng của "${product.name}" không hợp lệ.`, 422);
+    const item = db.items.find((entry) => entry.id === line.itemId);
+    if (!item) throw new MockApiError('Có con Bakugan không còn tồn tại.', 422);
+    if (seen.has(item.id)) throw new MockApiError(`${item.code} bị chọn hai lần.`, 422);
+    seen.add(item.id);
+    if (item.status !== 'available') {
+      throw new MockApiError(`${item.code} ${item.name} đã bán rồi.`, 409);
     }
-    if (line.quantity > product.stock) {
-      throw new MockApiError(
-        `"${product.name}" chỉ còn ${product.stock} trong kho, không đủ ${line.quantity}.`,
-        409,
-      );
+    if (!Number.isInteger(line.price) || line.price < 0) {
+      throw new MockApiError('Đơn giá không hợp lệ.', 422);
     }
-    if (line.price < 0) throw new MockApiError('Đơn giá không được âm.', 422);
-    return {
-      productId: product.id,
-      name: product.name,
-      price: line.price,
-      quantity: line.quantity,
-    };
+    return { itemId: item.id, code: item.code, name: item.name, price: line.price };
   });
 
   if (input.auctionId) {
@@ -286,19 +286,18 @@ export async function createOrder(input: AdminCreateOrderInput): Promise<Order> 
     );
     if (existing) throw new MockApiError('Phiên này đã được tạo đơn rồi.', 409);
     items.unshift({
-      productId: `auction:${auction.id}`,
+      itemId: `auction:${auction.id}`,
       name: auction.title,
       price: auction.currentPrice,
-      quantity: 1,
     });
   }
 
-  if (items.length === 0) throw new MockApiError('Đơn hàng cần ít nhất một sản phẩm.', 422);
+  if (items.length === 0) throw new MockApiError('Đơn hàng cần ít nhất một con Bakugan.', 422);
   if (input.shippingFee < 0 || input.discount < 0) {
     throw new MockApiError('Phí ship và giảm giá không được âm.', 422);
   }
 
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.price, 0);
   const now = new Date();
   const nowIso = now.toISOString();
   const orderId = createId('ord');
@@ -348,7 +347,7 @@ export async function createOrder(input: AdminCreateOrderInput): Promise<Order> 
       timeline,
     };
     draft.orders.unshift(order);
-    applyStock(draft, items, -1);
+    sellOrderItems(draft, order, nowIso);
     if (input.auctionId) {
       draft.auctionFulfillments = draft.auctionFulfillments.filter(
         (item) => item.auctionId !== input.auctionId,

@@ -1,34 +1,25 @@
 # Ảnh thương hiệu
 
-## dragon.png — hình rồng trong quả cầu trang chủ
+Logo tròn của shop (chữ TD tím, BAKUGAN cyan, trăng khuyết vàng) được dùng cho
+header, footer, trang quản trị, khung chat và màn intro.
 
-Bỏ ảnh rồng của bạn vào đây với đúng tên `dragon.png`.
+| File | Dùng ở đâu |
+| --- | --- |
+| `logo.png` | Ảnh gốc 495×495, nền trong suốt |
+| `logo-96.webp`, `logo-192.webp`, `logo-320.webp` | Logo trên web (trình duyệt tự chọn cỡ hợp màn hình) |
+| `icon-192.png`, `icon-512.png` | Icon khi lưu web ra màn hình điện thoại |
+| `/favicon-32.png`, `/favicon-48.png`, `/apple-touch-icon.png` | Biểu tượng trên tab trình duyệt / iPhone |
 
-Website sẽ tự dùng ảnh này cho:
+## Đổi logo
 
-- quả cầu galaxy ở trang chủ
-- logo trên header/footer
-- màn intro khi mở web
-
-Nếu không có file này, website tự quay về dùng hình rồng vẽ bằng vector
-(`src/features/home/DragonEmblem.tsx`), nên trang không bao giờ bị lỗi.
-
-### Yêu cầu ảnh
-
-- Định dạng: PNG (nên có nền trong suốt) hoặc JPG
-- Kích thước: vuông, tối thiểu 600×600, lý tưởng 1000×1000
-- Nền trắng cũng dùng được: website tự tách hình khỏi nền trắng và tô lại
-  bằng màu neon của shop, nên ảnh gốc màu gì cũng ra đúng tông thương hiệu
-
-### Cách thêm
+Chuẩn bị ảnh vuông, logo nằm trong hình tròn chiếm gần hết ảnh, rồi thay các
+file trên bằng ảnh mới **đúng tên, đúng kích thước** (có thể xuất từ Canva /
+Photoshop, nền trong suốt cho các file `logo-*`).
 
 ```bash
-# chép ảnh vào đúng chỗ
-cp ~/Downloads/rong.png public/brand/dragon.png
-
-git add public/brand/dragon.png
-git commit -m "them anh rong thuong hieu"
+git add public/brand public/favicon-*.png public/apple-touch-icon.png
+git commit -m "doi logo"
 git push
 ```
 
-Vercel sẽ tự build lại và ảnh xuất hiện ngay.
+Vercel sẽ tự build lại và logo mới xuất hiện ngay.

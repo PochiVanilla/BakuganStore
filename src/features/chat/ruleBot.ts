@@ -1,22 +1,30 @@
-import type { BotReply, BotTopicId } from '@/types';
-import { BAKUGAN_ATTRIBUTES, BAKUGAN_SERIES } from '@/types';
-import { SHOP_INFO } from '@/constants/routes';
-import { ATTRIBUTE_META, SERIES_META } from '@/constants/catalog';
-import { formatDate } from '@/utils/format';
+import type { BotReply, BotTopicId, ChatLink } from '@/types';
+import { BAKUGAN_ATTRIBUTES } from '@/types';
+import { ROUTES, SHOP_INFO } from '@/constants/routes';
+import { ATTRIBUTE_META, AUCTION_MIN_LEVEL, SERIES_META } from '@/constants/catalog';
+import { formatCurrency, formatDate, formatDateTime } from '@/utils/format';
+import { formatItemCode } from '@/utils/itemCode';
 import {
   ACCOUNT_GUIDE,
   BAKUGAN_BASICS,
+  FEED_GUIDE,
+  ORDERING_GUIDE,
   PAYMENT_POLICY,
   RETURN_POLICY,
   SHIPPING_POLICY,
   SHOP_COMMITMENTS,
   deliveryHint,
   describeAttributes,
+  describeFeed,
+  describeItem,
+  describeMembership,
   describeOrder,
-  describeProduct,
   describeSeries,
+  feedLink,
+  itemLink,
+  membershipRules,
+  type BotItemFact,
   type BotKnowledge,
-  type BotProductFact,
 } from './botKnowledge';
 import {
   extractBudget,
@@ -49,7 +57,8 @@ type IntentId =
   | 'payment'
   | 'returns'
   | 'product-info'
-  | 'restock'
+  | 'feeds'
+  | 'membership'
   | 'bakugan-knowledge'
   | 'authenticity'
   | 'account'
@@ -331,28 +340,43 @@ const INTENTS: readonly IntentDef[] = [
       'dat nhat',
       'mac nhat',
       'hang hiem',
-      'moi ve',
-      'hang moi',
-      'ban chay',
       'nguyen seal',
       'like new',
       'san pham',
       'dang ban',
       'co ban',
-      'mau moi',
       'suu tam',
-      'hot nhat',
       'noi bat',
+      'da ban chua',
+      'ban chua',
+      'con ban',
+      'ma bk',
     ],
+    strong: ['sold'],
     weak: ['gia', 'bao nhieu', 'co khong', 'con khong', 'mau', 'con', 'hot'],
   },
   {
-    id: 'restock',
+    id: 'feeds',
     topic: 'product-info',
     phrases: [
-      'co hang lai',
-      've hang',
+      'feed moi',
+      'feed sau',
+      'feed tiep',
+      'lo moi',
+      'lo hang',
+      'dot hang',
+      'mo ban',
+      'gio mo ban',
+      'khi nao mo ban',
+      'len feed',
+      'dang feed',
+      'bai dang',
+      'hang moi',
+      'moi ve',
       'hang ve',
+      've hang',
+      'co hang lai',
+      'co hang moi',
       'nhap them',
       'khi nao co hang',
       'bao gio co hang',
@@ -361,6 +385,33 @@ const INTENTS: readonly IntentDef[] = [
       'pre order',
       'bao khi co hang',
     ],
+    strong: ['feed'],
+  },
+  {
+    id: 'membership',
+    topic: 'membership',
+    phrases: [
+      'len lv2',
+      'lv 2',
+      'level 2',
+      'len hang',
+      'hang thanh vien',
+      'thanh vien',
+      'cap do',
+      'len cap',
+      'nap tien',
+      'nap coc',
+      'tien coc',
+      'xet duyet',
+      'duyet len',
+      'khong dat gia duoc',
+      'khong bid duoc',
+      'khong tham gia duoc',
+      'dieu kien dau gia',
+      'du dieu kien',
+      'nap bao nhieu',
+    ],
+    strong: ['lv2', 'lv1', 'level'],
   },
   {
     id: 'bakugan-knowledge',
@@ -490,7 +541,7 @@ const INTENTS: readonly IntentDef[] = [
   { id: 'bye', phrases: ['tam biet', 'bye', 'hen gap lai'] },
 ];
 
-/** Từ tiếng Việt không dấu hay nằm sau tên chiến binh trong tên sản phẩm. */
+/** Từ tiếng Việt không dấu hay nằm sau tên chiến binh trong tên Bakugan. */
 const NAME_STOP_WORDS = new Set(['song', 'long', 'tam', 'kim', 'xanh', 'tay', 'sinh', 'bakugan']);
 
 const ATTRIBUTE_PHRASES: ReadonlyArray<readonly [string, readonly string[]]> = [
@@ -519,9 +570,9 @@ function wordCount(phrase: string): number {
   return phrase.split(' ').length;
 }
 
-/** Tên chiến binh ở đầu tên sản phẩm: "Neo Dragonoid Bão Lửa" -> ["neo", "dragonoid"] */
-function speciesTokens(productName: string): string[] {
-  const words = productName.replace(/^Bakugan\s+/i, '').split(/\s+/);
+/** Tên chiến binh ở đầu tên Bakugan: "Neo Dragonoid Bão Lửa" -> ["neo", "dragonoid"] */
+function speciesTokens(itemName: string): string[] {
+  const words = itemName.replace(/^Bakugan\s+/i, '').split(/\s+/);
   const tokens: string[] = [];
   for (const word of words) {
     const plain = normalizeText(word);
@@ -532,34 +583,77 @@ function speciesTokens(productName: string): string[] {
   return tokens;
 }
 
-interface ProductEntities {
-  products: BotProductFact[];
+interface ItemEntities {
+  /** Con còn bán khớp tên chiến binh khách nhắc tới */
+  items: BotItemFact[];
+  /** Tên chiến binh khách nhắc tới theo thứ tự trong câu (kể cả khi không còn con nào) */
+  species: string[];
+  /** Mã BK khách gõ ("bk 231", "BK-0231") */
+  codes: string[];
   attributes: string[];
   series: string[];
 }
 
-function detectEntities(text: string, knowledge: BotKnowledge): ProductEntities {
+/** "bk 0231", "bk231" -> ["BK-0231"] */
+function extractItemCodes(text: string): string[] {
+  return [...text.matchAll(/\bbk ?(\d{1,4})\b/g)].map((match) => formatItemCode(Number(match[1])));
+}
+
+/** Tên chiến binh quen thuộc — nhận ra cả khi trên web không còn con nào tên đó. */
+const KNOWN_SPECIES = [
+  'dragonoid',
+  'drago',
+  'tigrerra',
+  'gorem',
+  'preyas',
+  'skyress',
+  'hydranoid',
+  'percival',
+  'nemus',
+  'elfin',
+  'wilda',
+  'ingram',
+  'helios',
+  'linehalt',
+  'fenneca',
+  'sharpedoid',
+];
+
+/** "drago" khớp "dragonoid", "dragonoid" khớp "dragonoid". */
+function sameName(token: string, word: string): boolean {
+  return token.length >= 4 && (token.startsWith(word) || word.startsWith(token));
+}
+
+function detectEntities(text: string, knowledge: BotKnowledge): ItemEntities {
   const words = text.split(' ').filter((word) => word.length >= 4);
-  const products = knowledge.products.filter((product) =>
-    speciesTokens(product.name).some(
-      (token) =>
-        token.length >= 4 && words.some((word) => token.startsWith(word) || word.startsWith(token)),
-    ),
+  const items = knowledge.items.filter((item) =>
+    speciesTokens(item.name).some((token) => words.some((word) => sameName(token, word))),
   );
 
-  // Có nhiều mẫu trùng tên chiến binh ("Dragonoid") -> ưu tiên mẫu có thêm mô tả khớp.
-  const described = products.filter((product) => {
-    const extra = normalizeText(product.name)
+  // Có nhiều con trùng tên chiến binh ("Dragonoid") -> ưu tiên con có thêm mô tả khớp.
+  const described = items.filter((item) => {
+    const extra = normalizeText(item.name)
       .split(' ')
-      .filter((word) => word.length >= 3 && !speciesTokens(product.name).includes(word));
+      .filter((word) => word.length >= 3 && !speciesTokens(item.name).includes(word));
     return extra.some((word, index) => {
       const next = extra[index + 1];
       return next ? hasPhrase(text, `${word} ${next}`) : false;
     });
   });
 
+  // Gọi theo đúng tên khách nhắc tới ("Drago" -> "dragonoid", không phải "titanium").
+  const species: string[] = [];
+  for (const word of words) {
+    const name =
+      items.flatMap((item) => speciesTokens(item.name)).find((token) => sameName(token, word)) ??
+      KNOWN_SPECIES.find((known) => sameName(known, word));
+    if (name && !species.includes(name)) species.push(name);
+  }
+
   return {
-    products: described.length > 0 ? described : products,
+    items: described.length > 0 ? described : items,
+    species,
+    codes: extractItemCodes(text),
     attributes: ATTRIBUTE_PHRASES.filter(([, phrases]) => hasAnyPhrase(text, phrases)).map(
       ([id]) => id,
     ),
@@ -567,7 +661,7 @@ function detectEntities(text: string, knowledge: BotKnowledge): ProductEntities 
   };
 }
 
-function scoreIntents(text: string, entities: ProductEntities, hasOrderCode: boolean) {
+function scoreIntents(text: string, entities: ItemEntities, hasOrderCode: boolean) {
   const scores = INTENTS.map((intent) => {
     let score = 0;
     intent.phrases.forEach((phrase) => {
@@ -580,9 +674,11 @@ function scoreIntents(text: string, entities: ProductEntities, hasOrderCode: boo
       if (hasPhrase(text, phrase)) score += 0.5;
     });
     if (intent.id === 'order-status' && hasOrderCode) score += 3;
+    if (intent.id === 'feeds' && extractFeedNumber(text) !== undefined) score += 3;
     const namesGroup = entities.attributes.length > 0 || entities.series.length > 0;
     if (intent.id === 'product-info') {
-      if (entities.products.length > 0) score += 3;
+      if (entities.items.length > 0 || entities.species.length > 0) score += 3;
+      if (entities.codes.length > 0) score += 4;
       if (namesGroup) score += 1.5;
     }
     // "Pyrus là gì", "Battle Planet là gì" -> giải thích, không liệt kê hàng.
@@ -594,14 +690,25 @@ function scoreIntents(text: string, entities: ProductEntities, hasOrderCode: boo
 
 /* ---------------- Câu trả lời từng loại ---------------- */
 
-function reply(text: string, handoff = false): BotReply {
-  return { reply: text, handoff, source: 'rules' };
+function reply(
+  text: string,
+  handoff = false,
+  extra: Pick<BotReply, 'links' | 'quickReplies'> = {},
+): BotReply {
+  return {
+    reply: text,
+    handoff,
+    source: 'rules',
+    ...(extra.links?.length ? { links: extra.links.slice(0, 5) } : {}),
+    ...(extra.quickReplies?.length ? { quickReplies: extra.quickReplies } : {}),
+  };
 }
 
 const CAPABILITY_LABELS: Partial<Record<BotTopicId, string>> = {
+  'product-info': 'tư vấn chọn Bakugan, feed nào đang / sắp mở bán, con nào còn',
   'order-status': 'tra cứu đơn hàng',
   'order-cancel': 'huỷ đơn còn chờ xác nhận',
-  'product-info': 'tư vấn mẫu, giá, còn hàng',
+  membership: 'cách lên Lv2 để đấu giá',
   shipping: 'phí và thời gian giao hàng',
   payment: 'cách thanh toán',
   returns: 'chính sách đổi trả, bảo hành',
@@ -621,7 +728,7 @@ function capabilityList(topics: ReadonlySet<BotTopicId>): string {
 const SENSITIVE_REPLIES: ReadonlyArray<readonly [readonly string[], string]> = [
   [
     ['giu hang', 'giu giup', 'giu dum', 'giu lai', 'de danh', 'giu cho minh'],
-    'Việc giữ hàng cần nhân viên TD Bakugan xác nhận, mình chuyển cho nhân viên ngay nhé.',
+    'Mỗi con chỉ có một và ai chốt đơn trước được trước nên shop thường không giữ hàng; mình chuyển nhân viên xem giúp bạn nhé.',
   ],
   [
     ['hoan tien', 'tra lai tien', 'lay lai tien'],
@@ -649,10 +756,10 @@ const SENSITIVE_REPLIES: ReadonlyArray<readonly [readonly string[], string]> = [
   ],
 ];
 
-function answerSensitive(text: string, entities: ProductEntities): BotReply {
+function answerSensitive(text: string, entities: ItemEntities): BotReply {
   const match = SENSITIVE_REPLIES.find(([phrases]) => hasAnyPhrase(text, phrases));
-  const product = entities.products[0];
-  const info = product ? `\n(${describeProduct(product)})` : '';
+  const item = entities.items[0];
+  const info = item ? `\n(${describeItem(item)})` : '';
   return reply(
     `${
       match?.[1] ??
@@ -703,144 +810,320 @@ function answerOrder(text: string, knowledge: BotKnowledge): BotReply {
   );
 }
 
-type ProductSort = 'popular' | 'cheap' | 'expensive' | 'strong' | 'newest';
+type ItemSort = 'featured' | 'hot' | 'cheap' | 'expensive' | 'strong' | 'newest';
 
-function pickProducts(text: string, entities: ProductEntities, knowledge: BotKnowledge) {
-  let pool = knowledge.products;
+function pickItems(text: string, entities: ItemEntities, knowledge: BotKnowledge) {
+  let pool = knowledge.items;
   let filtered = false;
-  const narrow = (keep: (product: BotProductFact) => boolean) => {
+  const narrow = (keep: (item: BotItemFact) => boolean) => {
     pool = pool.filter(keep);
     filtered = true;
   };
-  if (entities.products.length > 0) pool = entities.products;
+  if (entities.items.length > 0 || entities.species.length > 0) pool = entities.items;
   if (entities.attributes.length > 0) {
-    narrow((product) => entities.attributes.includes(product.attributeId));
+    narrow((item) => entities.attributes.includes(item.attributeId));
   }
-  if (entities.series.length > 0) narrow((product) => entities.series.includes(product.seriesId));
-  if (hasAnyPhrase(text, ['hang hiem', 'hiem'])) narrow((product) => product.isRare);
-  const wantsNew = hasAnyPhrase(text, ['moi ve', 'hang moi', 'mau moi']);
-  if (wantsNew) narrow((product) => product.isNew);
-  if (hasAnyPhrase(text, ['giam gia', 'sale', 'dang giam'])) {
-    narrow((product) => Boolean(product.originalPrice));
+  if (entities.series.length > 0) {
+    narrow((item) => Boolean(item.seriesId && entities.series.includes(item.seriesId)));
+  }
+  if (hasAnyPhrase(text, ['nguyen seal', 'con seal'])) {
+    narrow((item) => item.conditionId === 'new-sealed');
+  } else if (hasAnyPhrase(text, ['like new', 'nhu moi'])) {
+    narrow((item) => item.conditionId === 'like-new');
+  } else if (hasAnyPhrase(text, ['da qua su dung', 'hang cu', 'da su dung'])) {
+    narrow((item) => item.conditionId === 'used');
+  }
+  if (hasAnyPhrase(text, ['dang ban', 'mua ngay', 'mua duoc ngay', 'mo ban roi'])) {
+    narrow((item) => item.onSale);
   }
   const budget = extractBudget(text);
-  if (budget) narrow((product) => product.price >= budget.min && product.price <= budget.max);
+  if (budget) narrow((item) => item.price >= budget.min && item.price <= budget.max);
 
-  let sort: ProductSort = 'popular';
-  if (hasAnyPhrase(text, ['re nhat', 'gia re'])) sort = 'cheap';
-  else if (hasAnyPhrase(text, ['dat nhat', 'mac nhat', 'cao cap'])) sort = 'expensive';
-  else if (hasAnyPhrase(text, ['manh nhat', 'g power cao', 'manh'])) sort = 'strong';
-  else if (wantsNew) sort = 'newest';
+  let sort: ItemSort = 'featured';
+  if (hasAnyPhrase(text, ['re nhat', 'gia re', 'gia mem'])) sort = 'cheap';
+  else if (hasAnyPhrase(text, ['dat nhat', 'mac nhat', 'cao cap', 'hang hiem', 'hiem'])) {
+    sort = 'expensive';
+  } else if (hasAnyPhrase(text, ['manh nhat', 'g power cao', 'manh'])) sort = 'strong';
+  else if (hasAnyPhrase(text, ['moi nhat', 'moi len'])) sort = 'newest';
+  else if (hasAnyPhrase(text, ['ban chay', 'hot nhat', 'hot', 'noi bat'])) sort = 'hot';
 
-  const inStockFirst = (a: BotProductFact, b: BotProductFact) =>
-    Number(b.stock > 0) - Number(a.stock > 0);
-  const compare: Record<ProductSort, (a: BotProductFact, b: BotProductFact) => number> = {
-    cheap: (a, b) => inStockFirst(a, b) || a.price - b.price,
-    expensive: (a, b) => inStockFirst(a, b) || b.price - a.price,
-    strong: (a, b) => inStockFirst(a, b) || b.gPower - a.gPower,
-    newest: (a, b) => inStockFirst(a, b) || a.ageDays - b.ageDays,
-    popular: (a, b) => inStockFirst(a, b) || b.soldCount - a.soldCount,
+  const onSaleFirst = (a: BotItemFact, b: BotItemFact) => Number(b.onSale) - Number(a.onSale);
+  const compare: Record<ItemSort, (a: BotItemFact, b: BotItemFact) => number> = {
+    cheap: (a, b) => onSaleFirst(a, b) || a.price - b.price,
+    expensive: (a, b) => onSaleFirst(a, b) || b.price - a.price,
+    strong: (a, b) => onSaleFirst(a, b) || (b.gPower ?? 0) - (a.gPower ?? 0),
+    newest: (a, b) => b.feedNumber - a.feedNumber || onSaleFirst(a, b),
+    featured: (a, b) => onSaleFirst(a, b) || b.feedNumber - a.feedNumber,
+    hot: (a, b) => onSaleFirst(a, b) || b.feedNumber - a.feedNumber,
   };
   return { items: [...pool].sort(compare[sort]), sort, filtered };
 }
 
-const SORT_HEADINGS: Record<Exclude<ProductSort, 'popular'>, string> = {
-  cheap: 'Mẫu giá mềm nhất',
-  expensive: 'Mẫu cao cấp nhất',
-  strong: 'Mẫu có G-Power cao nhất',
-  newest: 'Mẫu mới lên kệ gần đây',
+const SORT_HEADINGS: Record<Exclude<ItemSort, 'featured'>, string> = {
+  hot: 'Mỗi con ở shop là duy nhất nên không có mẫu "bán chạy" — đây là vài con ở feed mới nhất',
+  cheap: 'Con giá mềm nhất',
+  expensive: 'Con giá trị nhất',
+  strong: 'Con có G-Power cao nhất',
+  newest: 'Con ở feed mới nhất',
 };
 
-function listProducts(products: readonly BotProductFact[]): string {
-  return products.map((product) => `• ${describeProduct(product)}`).join('\n');
+function titleCase(name: string): string {
+  return name ? name[0]!.toUpperCase() + name.slice(1) : name;
 }
 
-function answerProduct(text: string, entities: ProductEntities, knowledge: BotKnowledge): BotReply {
-  const { items: matches, sort, filtered } = pickProducts(text, entities, knowledge);
-  const named = entities.products.length > 0;
+function listItems(items: readonly BotItemFact[]): string {
+  return items.map((item) => `• ${describeItem(item)}`).join('\n');
+}
 
-  if (named && matches.length > 0 && matches.every((product) => product.stock === 0)) {
-    const attribute = matches[0]!.attributeId;
-    const similar = knowledge.products
-      .filter((product) => product.attributeId === attribute && product.stock > 0)
-      .sort((a, b) => b.soldCount - a.soldCount)
-      .slice(0, 2);
+function upcomingFeed(knowledge: BotKnowledge) {
+  return [...knowledge.feeds]
+    .filter((feed) => feed.status === 'upcoming')
+    .sort((a, b) => a.opensAt.localeCompare(b.opensAt))[0];
+}
+
+/** Hỏi thẳng một mã: "BK-0231 còn không?" */
+function answerByCode(codes: readonly string[], knowledge: BotKnowledge): BotReply {
+  const found = codes
+    .map((code) => knowledge.items.find((item) => item.code === code))
+    .filter((item): item is BotItemFact => Boolean(item));
+  const missing = codes.filter((code) => !found.some((item) => item.code === code));
+  const lines =
+    found.length > 0
+      ? [found.length === 1 ? 'Con này vẫn còn nhé:' : 'Những con này vẫn còn:']
+      : [];
+  lines.push(...found.map((item) => `• ${describeItem(item)}`));
+  if (missing.length > 0) {
+    lines.push(
+      `${missing.join(', ')} không còn bán trên web — có thể đã có người mua (SOLD) hoặc feed đã được gỡ. Bạn gõ mã vào ô tìm kiếm để xem lại nhé.`,
+    );
+  }
+  if (found.length > 0) {
+    lines.push(
+      found.some((item) => item.onSale)
+        ? 'Bấm vào nút bên dưới để mở đúng con đó và thêm vào giỏ nhé.'
+        : 'Tới giờ mở bán bạn quay lại thêm vào giỏ nhé — ai chốt đơn trước được trước.',
+    );
+  }
+  return reply(lines.join('\n'), false, { links: found.map(itemLink) });
+}
+
+function answerProduct(text: string, entities: ItemEntities, knowledge: BotKnowledge): BotReply {
+  if (entities.codes.length > 0) return answerByCode(entities.codes, knowledge);
+
+  const { items: matches, sort, filtered } = pickItems(text, entities, knowledge);
+  const named = entities.items.length > 0 || entities.species.length > 0;
+  const species = entities.species.map(titleCase).join(' / ');
+
+  if (named && matches.length === 0) {
+    const next = upcomingFeed(knowledge);
     return reply(
-      `${listProducts(matches.slice(0, 2))}\nMẫu này hiện đang hết hàng.${
-        similar.length > 0
-          ? ` Cùng hệ ${similar[0]!.attribute} đang có:\n${listProducts(similar)}`
-          : ''
+      `Hiện trên web không còn con ${species || 'nào như bạn tìm'} đang bán — mỗi con là hàng lô duy nhất nên bán rồi là hết (SOLD). ${
+        next
+          ? `Feed #${next.number} sẽ mở bán ${formatDateTime(next.opensAt)}, bạn xem trước danh sách nhé.`
+          : 'Feed mới thường mở bán lúc 20:00, bạn theo dõi mục Feed bán nhé.'
       }`,
+      false,
+      { links: next ? [feedLink(next)] : [{ label: 'Xem các feed', to: ROUTES.feeds }] },
     );
   }
 
   if (matches.length > 0) {
-    const shown = matches.slice(0, 3);
-    const inStock = matches.filter((product) => product.stock > 0).length;
+    // Hỏi hai tên ("Dragonoid với Hydranoid") -> mỗi tên vài con.
+    const shown =
+      entities.species.length > 1
+        ? entities.species
+            .flatMap((name) =>
+              matches
+                .filter((item) => speciesTokens(item.name).some((token) => sameName(token, name)))
+                .slice(0, 2),
+            )
+            .filter((item, index, list) => list.indexOf(item) === index)
+            .slice(0, 4)
+        : matches.slice(0, 3);
+    const onSale = matches.filter((item) => item.onSale).length;
     let heading = '';
-    if (!named) {
-      if (sort !== 'popular') heading = `${SORT_HEADINGS[sort]}:\n`;
-      else if (filtered) heading = `Có ${matches.length} mẫu phù hợp, bán chạy nhất:\n`;
-      else heading = `Shop đang có ${inStock} mẫu còn hàng. Bán chạy nhất:\n`;
+    if (named) {
+      heading = `Có ${matches.length} con ${species} còn bán:\n`;
+    } else if (sort !== 'featured') {
+      heading = `${SORT_HEADINGS[sort]}:\n`;
+    } else if (filtered) {
+      heading = `Có ${matches.length} con phù hợp:\n`;
+    } else {
+      heading = `Trên web đang còn ${matches.length} con (${onSale} con mua được ngay). Vài con nổi bật:\n`;
     }
     const more =
       matches.length > shown.length
-        ? `\nCòn ${matches.length - shown.length} mẫu khác, bạn xem ở mục Sản phẩm hoặc cho mình biết hệ / tầm giá để lọc thêm nhé.`
+        ? `\nCòn ${matches.length - shown.length} con khác — bạn cho mình biết hệ / tầm giá để lọc thêm, hoặc nhắn "tư vấn" để mình hỏi từng bước nhé.`
         : '';
-    return reply(`${heading}${listProducts(shown)}${more}`);
+    return reply(`${heading}${listItems(shown)}${more}`, false, { links: shown.map(itemLink) });
   }
 
-  if (named || filtered) {
+  if (filtered) {
     return reply(
-      'Hiện shop chưa có mẫu đúng như bạn tìm. Bạn thử hệ hoặc tầm giá khác, hoặc bấm "Gặp nhân viên" để shop tìm hàng giúp nhé.',
+      'Hiện chưa có con nào đúng như bạn tìm. Bạn thử hệ hoặc tầm giá khác, hoặc nhắn "tư vấn" để mình gợi ý con gần nhất nhé.',
+      false,
+      { quickReplies: ['Tư vấn giúp mình chọn Bakugan'] },
     );
   }
+  const next = upcomingFeed(knowledge);
   return reply(
-    'Hiện shop tạm hết hàng. Bạn bấm "Gặp nhân viên" để được báo ngay khi có lô mới nhé.',
-  );
-}
-
-function answerBuy(
-  text: string,
-  entities: ProductEntities,
-  knowledge: BotKnowledge,
-  confident: boolean,
-): BotReply {
-  const matches = entities.products.length > 0 ? pickProducts(text, entities, knowledge).items : [];
-  const info = matches.length > 0 ? `${listProducts(matches.slice(0, 2))}\n` : '';
-  return reply(
-    `${info}Bạn gửi giúp mình tên mẫu, số lượng và địa chỉ nhận hàng nhé — nhân viên sẽ xác nhận còn hàng, báo tổng tiền và cách thanh toán rồi lên đơn cho bạn ngay. Shop giao toàn quốc.`,
-    confident,
-  );
-}
-
-function answerRestock(entities: ProductEntities, knowledge: BotKnowledge): BotReply {
-  const inStock = entities.products.filter((product) => product.stock > 0);
-  if (inStock.length > 0) {
-    return reply(
-      `Mẫu này đang có hàng ạ:\n${inStock
-        .slice(0, 2)
-        .map((product) => `• ${describeProduct(product)}`)
-        .join('\n')}`,
-    );
-  }
-  const name = entities.products[0]?.name;
-  const similar = entities.products[0]
-    ? knowledge.products
-        .filter(
-          (product) =>
-            product.attributeId === entities.products[0]!.attributeId && product.stock > 0,
-        )
-        .slice(0, 2)
-    : [];
-  return reply(
-    `Shop nhập hàng theo từng lô nên chưa có lịch cố định. Mình chuyển nhân viên để báo bạn ngay khi có ${name ?? 'mẫu bạn cần'} nhé.${
-      similar.length > 0
-        ? `\nTrong lúc chờ, cùng hệ đang có:\n${similar.map((product) => `• ${describeProduct(product)}`).join('\n')}`
-        : ''
+    `Hiện các feed trên web đều đã bán hết.${
+      next
+        ? ` Feed #${next.number} sẽ mở bán ${formatDateTime(next.opensAt)}.`
+        : ' Feed mới thường mở bán lúc 20:00, bạn quay lại xem nhé.'
     }`,
-    true,
+    false,
+    { links: next ? [feedLink(next)] : [] },
   );
+}
+
+function answerBuy(text: string, entities: ItemEntities, knowledge: BotKnowledge): BotReply {
+  const matches =
+    entities.codes.length > 0
+      ? knowledge.items.filter((item) => entities.codes.includes(item.code))
+      : entities.items.length > 0
+        ? pickItems(text, entities, knowledge).items
+        : [];
+  const shown = matches.slice(0, 2);
+  const info = shown.length > 0 ? `${listItems(shown)}\n` : '';
+  return reply(
+    `${info}${ORDERING_GUIDE} Cần nhân viên lên đơn giúp thì bạn bấm "Gặp nhân viên" nhé.`,
+    false,
+    {
+      links:
+        shown.length > 0 ? shown.map(itemLink) : [{ label: 'Xem feed đang bán', to: ROUTES.feeds }],
+    },
+  );
+}
+
+/** "feed 36", "feed #36" -> 36 */
+function extractFeedNumber(text: string): number | undefined {
+  const match = text.match(/\bfeed ?(\d{1,4})\b/);
+  return match ? Number(match[1]) : undefined;
+}
+
+/** "Khi nào có hàng mới", "feed sau mở lúc mấy giờ", "feed 36 còn gì" */
+function answerFeeds(text: string, entities: ItemEntities, knowledge: BotKnowledge): BotReply {
+  const feeds = knowledge.feeds;
+  const asked = extractFeedNumber(text);
+  if (asked !== undefined) {
+    const feed = feeds.find((entry) => entry.number === asked);
+    if (!feed) {
+      return reply(
+        `Feed #${asked} không còn trên web — có thể đã bán hết và được shop gỡ. Bạn xem các feed đang có ở mục Feed bán nhé.`,
+        false,
+        { links: [{ label: 'Xem các feed', to: ROUTES.feeds }] },
+      );
+    }
+    const left = knowledge.items.filter((item) => item.feedNumber === feed.number);
+    const sample = left
+      .slice(0, 3)
+      .map((item) => `${item.code} ${item.name}`)
+      .join(', ');
+    return reply(
+      `${describeFeed(feed)}.${sample ? ` Còn: ${sample}${left.length > 3 ? '…' : ''}.` : ''}${
+        feed.status === 'upcoming' ? ' Tới giờ mở bán mới thêm vào giỏ được nhé.' : ''
+      }`,
+      false,
+      { links: [feedLink(feed)] },
+    );
+  }
+  if (feeds.length === 0) {
+    return reply(
+      'Hiện chưa có feed nào trên web. Shop đăng feed mới khi nhập lô — thường mở bán lúc 20:00, bạn quay lại xem nhé.',
+    );
+  }
+  const upcoming = feeds.filter((feed) => feed.status === 'upcoming');
+  const selling = feeds.filter((feed) => feed.status === 'selling');
+  const lines: string[] = [];
+  if (upcoming.length > 0) {
+    lines.push('Sắp mở bán:', ...upcoming.slice(0, 2).map((feed) => `• ${describeFeed(feed)}`));
+  }
+  if (selling.length > 0) {
+    lines.push('Đang bán:', ...selling.slice(0, 3).map((feed) => `• ${describeFeed(feed)}`));
+  }
+  if (lines.length === 0) lines.push('Các feed hiện có đều đã bán hết.');
+
+  if (entities.species.length > 0) {
+    const name = entities.species.map(titleCase).join(' / ');
+    const found = entities.items;
+    lines.push(
+      found.length > 0
+        ? `Con ${name} đang có: ${found
+            .slice(0, 3)
+            .map(
+              (item) =>
+                `${item.code} (feed #${item.feedNumber}, ${item.onSale ? 'đang bán' : 'sắp mở bán'})`,
+            )
+            .join(', ')}.`
+        : `Hiện chưa có con ${name} nào trên web.`,
+    );
+  }
+  if (hasAnyPhrase(text, ['dat truoc', 'dat hang truoc', 'pre order', 'giu'])) {
+    lines.push(FEED_GUIDE[2]!);
+  } else {
+    lines.push(
+      'Shop nhập theo lô, mỗi con là duy nhất; feed mới thường đăng trước rồi mở bán lúc 20:00.',
+    );
+  }
+  // Nhờ báo khi có mẫu mình cần -> để nhân viên ghi lại.
+  const wantsNotice = hasAnyPhrase(text, ['bao khi co hang', 'bao minh', 'nhan tin cho minh']);
+  const links = [...upcoming.slice(0, 1), ...selling.slice(0, 2)].map(feedLink);
+  return reply(lines.join('\n'), wantsNotice, { links });
+}
+
+function answerMembership(text: string, knowledge: BotKnowledge): BotReply {
+  const { membership } = knowledge;
+  const mine = describeMembership(membership)?.replace(/Khách/g, 'Bạn');
+  const isMember = (membership.level ?? 1) >= AUCTION_MIN_LEVEL;
+  const [intro, ways] = membershipRules(membership.depositAmount);
+  const membershipLink: ChatLink = { label: 'Mở mục Hạng thành viên', to: ROUTES.membership };
+
+  if (!knowledge.isSignedIn) {
+    return reply(
+      `${intro}\n${ways}\nBạn đăng nhập để xem hạng của mình và gửi yêu cầu lên Lv2 nhé.`,
+      false,
+      {
+        links: [{ label: 'Đăng nhập', to: ROUTES.login }],
+      },
+    );
+  }
+  if (isMember) {
+    return reply(mine ?? intro!, false, {
+      links: [{ label: 'Xem phiên đấu giá', to: ROUTES.auctions }],
+    });
+  }
+  // Đã gửi yêu cầu -> chỉ cần báo đang chờ, không liệt kê lại các cách.
+  if (membership.pendingRequest) {
+    return reply(`${mine}\nShop sẽ cập nhật ngay khi xử lý xong, thường trong ngày.`, false, {
+      links: [membershipLink],
+    });
+  }
+
+  const aboutDeposit = hasAnyPhrase(text, [
+    'nap tien',
+    'nap coc',
+    'tien coc',
+    'nap bao nhieu',
+    'chuyen khoan',
+    'muon nap',
+    'nap',
+  ]);
+  if (aboutDeposit) {
+    const amount = `Nạp ${formatCurrency(membership.depositAmount)} là lên Lv2 sau khi shop xác nhận.`;
+    if (!membership.bankConfigured) {
+      return reply(
+        `${amount} Mình chuyển nhân viên gửi số tài khoản cho bạn nhé — nhớ ghi đúng nội dung chuyển khoản để shop đối soát.`,
+        true,
+      );
+    }
+    return reply(
+      `${amount} Số tài khoản và nội dung chuyển khoản nằm ở Tài khoản → Hạng thành viên; chuyển xong bạn bấm "Tôi đã chuyển khoản" để shop đối soát nhé.`,
+      false,
+      { links: [membershipLink] },
+    );
+  }
+  return reply(`${mine}\n${ways}`, false, { links: [membershipLink] });
 }
 
 function answerShipping(text: string, knowledge: BotKnowledge): BotReply {
@@ -894,7 +1177,9 @@ function answerPayment(text: string): BotReply {
   const lines = [PAYMENT_POLICY[0]!, PAYMENT_POLICY[1]!];
   if (hasAnyPhrase(text, ['dau gia', 'thang'])) lines.push(PAYMENT_POLICY[2]!);
   if (hasAnyPhrase(text, ['so tai khoan', 'chuyen khoan', 'qr', 'quet ma'])) {
-    lines.push('Khi chốt đơn, nhân viên sẽ gửi thông tin chuyển khoản cho bạn.');
+    lines.push(
+      'Chọn "Chuyển khoản" khi chốt đơn, trang xác nhận đơn sẽ hướng dẫn chuyển khoản kèm nội dung là mã đơn.',
+    );
   }
   return reply(lines.join(' '));
 }
@@ -922,6 +1207,13 @@ function answerAuction(text: string): BotReply {
     );
   }
   if (
+    hasAnyPhrase(text, ['ai dat', 'ten nguoi', 'nguoi dat', 'ai dang', 'bao nhieu nguoi', 'an ten'])
+  ) {
+    parts.push(
+      'Web không công khai tên người đặt giá: mọi người chỉ thấy giá cao nhất và số người đã đặt (biểu tượng cây búa). Bạn vẫn xem được các lượt đặt của chính mình.',
+    );
+  }
+  if (
     hasAnyPhrase(text, [
       'dat gia',
       'buoc gia',
@@ -934,7 +1226,7 @@ function answerAuction(text: string): BotReply {
     ])
   ) {
     parts.push(
-      'Cách tham gia: đăng nhập, vào mục Đấu giá, chọn phiên đang diễn ra và nhập mức giá từ giá hiện tại cộng bước giá trở lên. Lượt đặt là cam kết mua nên không huỷ được.',
+      `Cách tham gia: đăng nhập bằng tài khoản thành viên Lv${AUCTION_MIN_LEVEL} trở lên, vào mục Đấu giá, chọn phiên đang diễn ra và nhập mức giá từ giá hiện tại cộng bước giá trở lên. Lượt đặt là cam kết mua nên không huỷ được. Chưa đủ Lv${AUCTION_MIN_LEVEL} thì nhắn "lên Lv2" để mình chỉ cách.`,
     );
   }
   if (hasAnyPhrase(text, ['thang', 'thanh toan', 'nhan hang'])) {
@@ -944,10 +1236,12 @@ function answerAuction(text: string): BotReply {
   }
   if (parts.length === 0) {
     parts.push(
-      'Đấu giá ở TD Bakugan có luật chống bắn tỉa (đặt trong 5 phút cuối thì phiên tự cộng thêm 5 phút) và phiên kín (giấu giá hiện tại). Bạn cần đăng nhập để đặt giá; người thắng thanh toán trong 48 giờ.',
+      `Đấu giá ở TD Bakugan có luật chống bắn tỉa (đặt trong 5 phút cuối thì phiên tự cộng thêm 5 phút), phiên kín (giấu giá hiện tại) và không công khai tên người đặt. Chỉ thành viên Lv${AUCTION_MIN_LEVEL} trở lên được đặt giá; người thắng thanh toán trong 48 giờ.`,
     );
   }
-  return reply(parts.join('\n'));
+  return reply(parts.join('\n'), false, {
+    links: [{ label: 'Xem phiên đấu giá', to: ROUTES.auctions }],
+  });
 }
 
 function answerPromotions(
@@ -962,22 +1256,9 @@ function answerPromotions(
       : '';
   const coupons =
     knowledge.coupons.length > 0
-      ? `Mã đang có:\n${knowledge.coupons.map((coupon) => `• ${coupon.code}: ${coupon.label}`).join('\n')}`
+      ? `Mã đang có (nhập ở bước chốt đơn trong Giỏ hàng):\n${knowledge.coupons.map((coupon) => `• ${coupon.code}: ${coupon.label}`).join('\n')}`
       : 'Hiện shop chưa có mã giảm giá nào đang chạy ạ.';
-  const onSale =
-    topics.has('product-info') && !freeShip
-      ? knowledge.products
-          .filter((product) => product.originalPrice && product.stock > 0)
-          .sort((a, b) => (b.originalPrice ?? 0) - b.price - ((a.originalPrice ?? 0) - a.price))
-          .slice(0, 3)
-      : [];
-  return reply(
-    `${freeShip}${coupons}${
-      onSale.length > 0
-        ? `\nMẫu đang giảm giá:\n${onSale.map((product) => `• ${describeProduct(product)}`).join('\n')}`
-        : ''
-    }`,
-  );
+  return reply(`${freeShip}${coupons}`);
 }
 
 function answerStore(text: string): BotReply {
@@ -1002,7 +1283,7 @@ function answerStore(text: string): BotReply {
   );
 }
 
-function answerKnowledge(text: string, entities: ProductEntities): BotReply {
+function answerKnowledge(text: string, entities: ItemEntities): BotReply {
   if (entities.attributes.length > 0 && !hasAnyPhrase(text, ['cac he', 'may he', 'bao nhieu he'])) {
     const meta = ATTRIBUTE_META[entities.attributes[0] as keyof typeof ATTRIBUTE_META];
     return reply(
@@ -1030,10 +1311,12 @@ function answerKnowledge(text: string, entities: ProductEntities): BotReply {
     return reply(`Bakugan có 6 hệ: ${describeAttributes()}.`);
   }
   if (hasAnyPhrase(text, ['series', 'dong nao', 'the he', 'dong'])) {
-    return reply(`Các dòng Bakugan shop đang bán: ${describeSeries()}.`);
+    return reply(`Các dòng Bakugan: ${describeSeries()}.`);
   }
   return reply(
-    `${BAKUGAN_BASICS[0]} Hiện có ${BAKUGAN_ATTRIBUTES.length} hệ và shop bán ${BAKUGAN_SERIES.length} dòng, từ Battle Brawlers đời đầu tới Geogan Rising.`,
+    `${BAKUGAN_BASICS[0]} Có ${BAKUGAN_ATTRIBUTES.length} hệ; shop có hàng từ Battle Brawlers đời đầu tới Geogan Rising. Mới tìm hiểu thì nhắn "tư vấn" để mình giúp chọn con đầu tiên nhé.`,
+    false,
+    { quickReplies: ['Tư vấn giúp mình chọn Bakugan'] },
   );
 }
 
@@ -1068,6 +1351,7 @@ const INFO_INTENTS: ReadonlySet<IntentId> = new Set([
   'authenticity',
   'account',
   'auction-rules',
+  'membership',
   'bakugan-knowledge',
 ]);
 
@@ -1075,7 +1359,7 @@ interface AnswerInput {
   text: string;
   topics: ReadonlySet<BotTopicId>;
   knowledge: BotKnowledge;
-  entities: ProductEntities;
+  entities: ItemEntities;
   score: number;
 }
 
@@ -1089,7 +1373,7 @@ function answerIntent(id: IntentId, input: AnswerInput): BotReply {
     case 'cancel':
       return answerCancelFallback(topics);
     case 'buy':
-      return answerBuy(text, entities, knowledge, input.score >= 2);
+      return answerBuy(text, entities, knowledge);
     case 'order-status':
       return answerOrder(text, knowledge);
     case 'auction-rules':
@@ -1104,8 +1388,10 @@ function answerIntent(id: IntentId, input: AnswerInput): BotReply {
       return answerReturns(text);
     case 'product-info':
       return answerProduct(text, entities, knowledge);
-    case 'restock':
-      return answerRestock(entities, knowledge);
+    case 'feeds':
+      return answerFeeds(text, entities, knowledge);
+    case 'membership':
+      return answerMembership(text, knowledge);
     case 'bakugan-knowledge':
       return answerKnowledge(text, entities);
     case 'authenticity':
@@ -1120,7 +1406,13 @@ function answerIntent(id: IntentId, input: AnswerInput): BotReply {
       );
     case 'greeting':
       return reply(
-        'Chào bạn! Mình là trợ lý AI của TD Bakugan. Bạn cần tra đơn, hỏi giá – còn hàng, phí ship hay luật đấu giá ạ?',
+        'Chào bạn! Mình là trợ lý AI của TD Bakugan. Bạn muốn xem feed đang bán, nhờ mình tư vấn chọn Bakugan, tra đơn hay hỏi luật đấu giá ạ?',
+        false,
+        {
+          quickReplies: topics.has('product-info')
+            ? ['Tư vấn giúp mình chọn Bakugan', 'Feed nào đang mở bán?']
+            : [],
+        },
       );
     case 'thanks':
       return reply(

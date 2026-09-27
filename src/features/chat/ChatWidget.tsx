@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Headset, MessageCircle, SendHorizontal, X } from 'lucide-react';
 import type { ChatConversation, ChatMessage } from '@/types';
@@ -16,21 +16,28 @@ import { getApiErrorMessage } from '@/services/api/client';
 import { useAsync } from '@/hooks/useAsync';
 import { useLiveRevision } from '@/hooks/useLiveRevision';
 import { useAuthStore } from '@/store/authStore';
-import { toast } from '@/store/uiStore';
+import { toast, useUIStore, type ChatRequest } from '@/store/uiStore';
 import { cn } from '@/utils/cn';
-import { DragonMark } from '@/components/layout/DragonMark';
+import { CONSULT_STARTER } from '@/constants/chat';
+import { BrandMark } from '@/components/layout/BrandMark';
 import { ChatMessageList } from './ChatMessageList';
 
 const GUEST_KEY = 'td-bakugan:chat-conversation';
 const MAX_LENGTH = 1_000;
 
-const QUICK_QUESTIONS = [
+const QUICK_QUESTIONS: readonly string[] = [
+  CONSULT_STARTER,
+  'Feed nào đang mở bán?',
+  'Làm sao lên Lv2 để đấu giá?',
   'Đơn hàng của mình tới đâu rồi?',
-  'Mẫu nào đang bán chạy?',
   'Phí ship bao nhiêu?',
-  'Luật chống bắn tỉa là gì?',
   'Đổi trả thế nào?',
-] as const;
+];
+
+/** Trên điện thoại khung chat che gần hết trang -> mở link gợi ý thì đóng khung chat lại. */
+function isNarrowScreen(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches;
+}
 
 const STATUS_TEXT: Record<ChatConversation['status'], string> = {
   bot: 'Trợ lý AI đang hỗ trợ',
@@ -93,8 +100,24 @@ export function ChatWidget() {
     }
   }, [isOpen, current]);
 
+  /*
+   * Nơi khác trong web nhờ mở khung chat (nút "Tư vấn chọn Bakugan", "Hỏi shop về
+   * feed này"…). Xử lý trong callback của store để luôn dùng hàm gửi mới nhất.
+   */
+  const handleRequestRef = useRef<(request: ChatRequest) => void>(() => undefined);
+  useEffect(() => {
+    const handle = (request: ChatRequest | null): void => {
+      if (!request) return;
+      useUIStore.getState().clearChatRequest(request.id);
+      handleRequestRef.current(request);
+    };
+    handle(useUIStore.getState().chatRequest);
+    return useUIStore.subscribe((state, previous) => {
+      if (state.chatRequest !== previous.chatRequest) handle(state.chatRequest);
+    });
+  }, []);
+
   const isAdmin = user?.role === 'admin';
-  if (isAdmin) return null;
 
   const greeting: ChatMessage = {
     id: 'greeting',
@@ -174,17 +197,43 @@ export function ChatWidget() {
     }
   };
 
+  const handleRequest = (request: ChatRequest): void => {
+    setIsOpen(true);
+    const text = request.send ?? request.prefill;
+    if (text) setDraft(text);
+    if (!request.send) return;
+    // Khách vãng lai chưa để lại tên -> giữ sẵn câu hỏi, chờ khách điền tên rồi bấm gửi.
+    if (needsGuestInfo && guestName.trim().length < 2) {
+      toast.info('Cho shop xin tên của bạn', 'Điền tên ở ô phía dưới rồi bấm gửi để bắt đầu nhé.');
+      return;
+    }
+    void send(request.send);
+  };
+  useEffect(() => {
+    handleRequestRef.current = handleRequest;
+  });
+
+  if (isAdmin) return null;
+
   const status = current?.status ?? (config.data?.botEnabled === false ? 'waiting' : 'bot');
-  const lastSender = messages[messages.length - 1]?.sender;
+  const lastMessage = messages[messages.length - 1];
   const botAnswering =
     config.data?.botEnabled !== false &&
     current?.botEnabled !== false &&
     (status === 'bot' || status === 'waiting');
-  const idle = lastSender !== 'customer' && !isBotTyping && !isSending;
+  const idle = lastMessage?.sender !== 'customer' && !isBotTyping && !isSending;
   // Bot đang chờ khách xác nhận huỷ đơn -> hiện nút trả lời nhanh.
   // (Hết hạn thì phía xử lý tự hỏi lại, nên không cần kiểm tra giờ ở đây.)
   const pendingCancel = current?.pendingAction;
+  // Bot vừa hỏi kèm lựa chọn (VD các câu tư vấn chọn Bakugan) -> hiện đúng các lựa chọn đó.
+  const suggested =
+    lastMessage?.sender === 'bot' && lastMessage.quickReplies?.length
+      ? lastMessage.quickReplies
+      : null;
   const showQuickQuestions = botAnswering && idle && !pendingCancel;
+  const closeOnNarrowScreen = (): void => {
+    if (isNarrowScreen()) setIsOpen(false);
+  };
 
   return (
     <>
@@ -201,7 +250,7 @@ export function ChatWidget() {
             className="fixed right-3 bottom-24 z-[80] flex h-[min(580px,calc(100dvh-8rem))] w-[min(380px,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-white/12 bg-surface shadow-[0_30px_80px_-20px_rgba(0,0,0,0.95)] sm:right-6"
           >
             <header className="flex items-center gap-3 border-b border-white/8 bg-surface-2/60 px-4 py-3">
-              <DragonMark size={34} />
+              <BrandMark size={34} />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-text">TD Bakugan hỗ trợ</p>
                 <p className="flex items-center gap-1.5 truncate text-[11px] text-text-muted">
@@ -234,6 +283,7 @@ export function ChatWidget() {
               viewer="customer"
               isTyping={isBotTyping}
               className="flex-1"
+              onLinkClick={closeOnNarrowScreen}
             />
 
             {pendingCancel && idle && (
@@ -256,14 +306,26 @@ export function ChatWidget() {
             )}
 
             {showQuickQuestions && (
-              <div className="scrollbar-none flex gap-1.5 overflow-x-auto px-3 pb-2">
-                {QUICK_QUESTIONS.map((question) => (
+              <div
+                className={cn(
+                  'flex gap-1.5 px-3 pb-2',
+                  suggested
+                    ? 'max-h-28 flex-wrap overflow-y-auto'
+                    : 'scrollbar-none overflow-x-auto',
+                )}
+              >
+                {(suggested ?? QUICK_QUESTIONS).map((question) => (
                   <button
                     key={question}
                     type="button"
                     disabled={isSending}
                     onClick={() => void send(question)}
-                    className="shrink-0 rounded-full border border-accent-cyan/30 px-3 py-1 text-xs text-accent-cyan transition hover:bg-accent-cyan/10 disabled:opacity-50"
+                    className={cn(
+                      'shrink-0 rounded-full border px-3 py-1 text-xs transition disabled:opacity-50',
+                      question === CONSULT_STARTER && !suggested
+                        ? 'border-gold/40 bg-gold/10 font-semibold text-gold hover:bg-gold/20'
+                        : 'border-accent-cyan/30 text-accent-cyan hover:bg-accent-cyan/10',
+                    )}
                   >
                     {question}
                   </button>

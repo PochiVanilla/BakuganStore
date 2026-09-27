@@ -1,10 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Gavel, LockKeyhole, TriangleAlert } from 'lucide-react';
+import { Gavel, LockKeyhole, ShieldCheck, ShoppingBag, TriangleAlert, Wallet } from 'lucide-react';
 import type { Auction } from '@/types';
 import { ROUTES } from '@/constants/routes';
+import { AUCTION_MIN_LEVEL } from '@/constants/catalog';
 import { getMinimumBid, isInAntiSnipeWindow, placeBid } from '@/services/api/auctionService';
+import { fetchMyMembership } from '@/services/api/membershipService';
 import { getApiErrorMessage } from '@/services/api/client';
+import { useAsync } from '@/hooks/useAsync';
+import { useLiveRevision } from '@/hooks/useLiveRevision';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from '@/store/uiStore';
 import { formatCurrency } from '@/utils/format';
@@ -22,8 +26,14 @@ interface BidFormProps {
 export function BidForm({ auction, onBidPlaced, isOutbid }: BidFormProps) {
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const revision = useLiveRevision();
+  const isCustomer = isAuthenticated && user?.role === 'customer';
+  const membership = useAsync(() => fetchMyMembership(), [user?.id, revision], {
+    enabled: isCustomer && auction.status === 'live',
+    keepPreviousData: true,
+  });
 
-  const minimumBid = getMinimumBid(auction, user?.id);
+  const minimumBid = getMinimumBid(auction);
   const [amount, setAmount] = useState<number>(minimumBid);
   const [trackedMinimum, setTrackedMinimum] = useState(minimumBid);
   const [error, setError] = useState<string | null>(null);
@@ -41,10 +51,15 @@ export function BidForm({ auction, onBidPlaced, isOutbid }: BidFormProps) {
       <div className="rounded-2xl border border-white/10 bg-surface-2/60 p-5 text-center">
         <p className="font-display text-sm font-bold text-text">Phiên đã kết thúc</p>
         <p className="mt-1.5 text-sm text-text-muted">
-          Người thắng:{' '}
-          <span className="font-semibold text-gold">
-            {auction.winnerMaskedName ?? 'Không có lượt đặt nào'}
-          </span>
+          {auction.viewerIsLeading ? (
+            <span className="font-semibold text-success">
+              Bạn đã thắng phiên này — shop sẽ liên hệ trong 24 giờ.
+            </span>
+          ) : auction.bidCount > 0 ? (
+            'Phiên đã có người thắng. Tên người thắng không được công khai.'
+          ) : (
+            'Không có lượt đặt nào.'
+          )}
         </p>
       </div>
     );
@@ -90,6 +105,61 @@ export function BidForm({ auction, onBidPlaced, isOutbid }: BidFormProps) {
     );
   }
 
+  if (user.role !== 'customer') {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-surface-2/60 p-5 text-sm text-text-muted">
+        Tài khoản quản trị không tham gia đặt giá. Xem người đặt ở trang quản trị → Đơn đấu giá.
+      </div>
+    );
+  }
+
+  const info = membership.data;
+  if (info && info.level < AUCTION_MIN_LEVEL) {
+    const left = Math.max(0, info.purchaseGoal - info.purchasedCount);
+    return (
+      <div className="rounded-2xl border border-gold/30 bg-gold/8 p-5">
+        <p className="inline-flex items-center gap-2 font-display text-sm font-bold text-gold">
+          <LockKeyhole size={15} aria-hidden="true" />
+          Chỉ thành viên Lv{AUCTION_MIN_LEVEL} trở lên được đặt giá
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-text-muted">
+          Bạn đang là thành viên Lv{info.level}. Lên Lv{AUCTION_MIN_LEVEL} bằng một trong ba cách:
+        </p>
+        <ul className="mt-3 space-y-2 text-sm text-text-muted">
+          <li className="flex items-start gap-2">
+            <ShoppingBag size={15} className="mt-0.5 shrink-0 text-gold" aria-hidden="true" />
+            <span>
+              Mua đủ {info.purchaseGoal} Bakugan ở TD shop — bạn đã nhận{' '}
+              <strong className="text-text">
+                {info.purchasedCount}/{info.purchaseGoal}
+              </strong>
+              {left > 0 ? `, còn ${left} con nữa.` : '.'}
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <Wallet size={15} className="mt-0.5 shrink-0 text-gold" aria-hidden="true" />
+            <span>Nạp {formatCurrency(info.depositAmount)} tiền thành viên.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <ShieldCheck size={15} className="mt-0.5 shrink-0 text-gold" aria-hidden="true" />
+            <span>Gửi yêu cầu để admin xét duyệt.</span>
+          </li>
+        </ul>
+        {info.pendingRequest && (
+          <p className="mt-3 rounded-lg border border-accent-cyan/30 bg-accent-cyan/8 px-3 py-2 text-xs text-accent-cyan">
+            Yêu cầu lên Lv{AUCTION_MIN_LEVEL} của bạn đang chờ shop duyệt.
+          </p>
+        )}
+        <Link
+          to={ROUTES.membership}
+          className="mt-4 inline-flex h-11 items-center rounded-xl gradient-cta px-5 text-sm font-semibold text-white transition hover:brightness-110"
+        >
+          Lên Lv{AUCTION_MIN_LEVEL} ngay
+        </Link>
+      </div>
+    );
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     setError(null);
@@ -101,12 +171,7 @@ export function BidForm({ auction, onBidPlaced, isOutbid }: BidFormProps) {
 
     setIsSubmitting(true);
     try {
-      const updated = await placeBid({
-        auctionId: auction.id,
-        amount,
-        bidderId: user.id,
-        bidderName: user.fullName,
-      });
+      const updated = await placeBid({ auctionId: auction.id, amount });
       onBidPlaced(updated);
       toast.success('Đặt giá thành công!', `Bạn đang dẫn đầu với ${formatCurrency(amount)}.`);
     } catch (submitError) {
@@ -204,7 +269,8 @@ export function BidForm({ auction, onBidPlaced, isOutbid }: BidFormProps) {
       </Button>
 
       <p className="mt-3 text-center text-[11px] leading-relaxed text-text-muted">
-        Bằng việc đặt giá, bạn cam kết mua sản phẩm nếu thắng phiên và thanh toán trong 48 giờ.
+        Tên bạn không hiện cho người khác — họ chỉ thấy giá cao nhất và số người đã đặt. Bằng việc
+        đặt giá, bạn cam kết mua nếu thắng phiên và thanh toán trong 48 giờ.
         {auction.antiSnipeMinutes > 0 &&
           ` Đặt trong ${auction.antiSnipeMinutes} phút cuối sẽ gia hạn phiên thêm ${auction.antiSnipeMinutes} phút.`}
       </p>

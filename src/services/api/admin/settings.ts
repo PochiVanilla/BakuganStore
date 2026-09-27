@@ -18,11 +18,27 @@ export async function updateShopSettings(settings: ShopSettings): Promise<void> 
     return;
   }
   requireAdmin();
-  if (!Number.isInteger(settings.lowStockThreshold) || settings.lowStockThreshold < 0) {
-    throw new MockApiError('Ngưỡng sắp hết hàng phải là số nguyên không âm.', 422);
+  const amount = settings.memberDepositAmount;
+  if (!Number.isInteger(amount) || amount < 0 || amount > 50_000_000) {
+    throw new MockApiError('Số tiền nạp lên Lv2 phải từ 0 đến 50.000.000₫.', 422, {
+      memberDepositAmount: 'Số tiền không hợp lệ.',
+    });
+  }
+  const accountNumber = settings.bank.accountNumber.replace(/\s+/g, '');
+  if (accountNumber && !/^\d{6,20}$/.test(accountNumber)) {
+    throw new MockApiError('Số tài khoản chỉ gồm 6–20 chữ số.', 422, {
+      accountNumber: 'Số tài khoản chỉ gồm 6–20 chữ số.',
+    });
   }
   updateDb((db) => {
-    db.shopSettings = settings;
+    db.shopSettings = {
+      memberDepositAmount: amount,
+      bank: {
+        bankName: settings.bank.bankName.trim(),
+        accountNumber,
+        accountHolder: settings.bank.accountHolder.trim().toUpperCase(),
+      },
+    };
   });
   await mockDelay(null, 300);
 }
