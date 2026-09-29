@@ -296,7 +296,7 @@ function BotSettingsForm({ initial }: { initial: BotSettings }) {
       <div className="flex min-w-0 flex-col gap-4 xl:col-span-2">
         <Panel
           title="Trợ lý AI trả lời khách"
-          description="Chạy bằng Google Gemini (gói miễn phí). Khoá API chỉ nằm trên server Vercel."
+          description="Chạy bằng Google Gemini (gói miễn phí). Khoá API chỉ nằm trên server (mini PC, hoặc Vercel ở bản tạm), không bao giờ gửi xuống trình duyệt."
           actions={
             <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-text">
               <span>{settings.enabled ? 'Đang bật' : 'Đang tắt'}</span>

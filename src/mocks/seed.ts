@@ -16,6 +16,7 @@ import type {
 } from '@/types';
 import { FREE_SHIPPING_THRESHOLD, SHIPPING_FEE } from '@/constants/routes';
 import { DEFAULT_INTERNATIONAL_SHIPPING } from '@/constants/shipping';
+import { DEFAULT_MEMBER_DEPOSIT, INITIAL_BOT_SETTINGS } from '@/constants/defaults';
 import { ATTRIBUTE_META, CONDITION_LABELS, PURCHASES_FOR_LV2 } from '@/constants/catalog';
 import { formatItemCode } from '@/utils/itemCode';
 import { BAKUGAN_MODELS, type BakuganModel } from './models';
@@ -1079,7 +1080,7 @@ function retireOldFeeds(feeds: StoredFeed[], items: StoredItem[]): StoredFeed[] 
 
 /* ---------------- Hạng thành viên ---------------- */
 
-export const DEFAULT_MEMBER_DEPOSIT = 500_000;
+export { DEFAULT_MEMBER_DEPOSIT };
 
 function assignMemberships(users: UserRecord[], orders: readonly StoredOrder[], now: number): void {
   const bidders = new Set(AUCTION_BIDDERS.map((bidder) => bidder.id));
@@ -1272,27 +1273,11 @@ function buildIssues(orders: StoredOrder[], users: UserRecord[], now: number): O
 
 /* ---------------- Chat ---------------- */
 
+/** Bản chạy thử thêm một câu về phiên đấu giá mẫu để thử bot. */
 export const DEFAULT_BOT_SETTINGS: Omit<BotSettings, 'updatedAt'> = {
-  enabled: true,
-  greeting:
-    'Chào bạn! Mình là trợ lý AI của TD Bakugan. Mình tư vấn chọn Bakugan trong feed, tra đơn, huỷ đơn chưa xác nhận, giải thích cách lên Lv2 để đấu giá… Việc nào cần nhân viên, mình chuyển ngay nhé.',
-  topics: {
-    'order-status': true,
-    'order-cancel': true,
-    shipping: true,
-    payment: true,
-    returns: true,
-    'auction-rules': true,
-    'product-info': true,
-    'bakugan-knowledge': true,
-    membership: true,
-    'store-info': true,
-    promotions: true,
-  },
+  ...INITIAL_BOT_SETTINGS,
   extraKnowledge:
     'Feed mới thường mở bán lúc 20:00. Tuần này có phiên đấu giá Titanium Dragonoid mạ vàng. Hàng hiếm không nhận giữ quá 24 giờ.',
-  handoffMessage:
-    'Mình đã chuyển cuộc trò chuyện cho nhân viên TD Bakugan. Bạn chờ chút nhé — giờ làm việc 09:00–21:00 hằng ngày.',
 };
 
 function conversation(

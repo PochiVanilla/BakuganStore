@@ -1,5 +1,5 @@
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 
@@ -7,6 +7,11 @@
 /dist
 /build
 /coverage
+backend/dist/
+
+# dữ liệu thử của bộ Docker (bản thật nằm ở /srv/tdbakugan trên mini PC)
+deploy/data/
+deploy/backups/
 
 # misc
 .DS_Store

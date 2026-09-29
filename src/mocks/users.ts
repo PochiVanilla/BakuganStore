@@ -1,4 +1,5 @@
 import type { Coupon, User } from '@/types';
+import { couponFromTemplate, DEFAULT_COUPONS } from '@/constants/defaults';
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = Date.now();
@@ -65,30 +66,6 @@ export const MOCK_USER: User = {
   ],
 };
 
-export const MOCK_COUPONS: Coupon[] = [
-  {
-    code: 'TDNEW10',
-    label: 'Giảm 10% cho khách mới (tối đa 150.000₫)',
-    type: 'percent',
-    value: 10,
-    minSubtotal: 500_000,
-    maxDiscount: 150_000,
-    expiresAt: new Date(now + 30 * DAY).toISOString(),
-  },
-  {
-    code: 'FREESHIP',
-    label: 'Miễn phí vận chuyển toàn quốc',
-    type: 'shipping',
-    value: 0,
-    minSubtotal: 300_000,
-    expiresAt: new Date(now + 14 * DAY).toISOString(),
-  },
-  {
-    code: 'BAKUGAN200',
-    label: 'Giảm ngay 200.000₫ cho đơn từ 2.000.000₫',
-    type: 'amount',
-    value: 200_000,
-    minSubtotal: 2_000_000,
-    expiresAt: new Date(now + 7 * DAY).toISOString(),
-  },
-];
+export const MOCK_COUPONS: Coupon[] = DEFAULT_COUPONS.map((template) =>
+  couponFromTemplate(template, now),
+);

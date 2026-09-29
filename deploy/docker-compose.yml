@@ -1,0 +1,91 @@
+# TD Bakugan trên mini PC: Caddy (web + HTTPS) · backend Express · MySQL 8.4.
+# Chạy trong thư mục deploy/:  docker compose up -d --build
+# Biến cấu hình nằm trong deploy/.env (tạo từ .env.example; KHÔNG commit file .env).
+name: tdbakugan
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    command:
+      - --default-time-zone=+00:00
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Thiếu MYSQL_ROOT_PASSWORD trong deploy/.env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-tdbakugan}
+      MYSQL_USER: ${MYSQL_USER:-tdbakugan}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Thiếu MYSQL_PASSWORD trong deploy/.env}
+    volumes:
+      - ${DATA_DIR:-/srv/tdbakugan}/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+    # Chỉ nằm trong mạng nội bộ: không mở cổng ra ngoài, cũng không ra được internet.
+    networks: [db]
+
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Thiếu PUBLIC_ORIGIN trong deploy/.env}
+      TRUST_PROXY_HOPS: 1
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE:-tdbakugan}
+      DB_USER: ${MYSQL_USER:-tdbakugan}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
+    volumes:
+      - ${DATA_DIR:-/srv/tdbakugan}/uploads:/data/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    stop_grace_period: 20s
+    # db: nói chuyện với MySQL · default: ra internet (Gemini, email, cổng thẻ) và nhận request từ Caddy.
+    networks: [db, default]
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+      args:
+        VITE_USE_MOCK: ${VITE_USE_MOCK:-true}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Thiếu SITE_ADDRESS trong deploy/.env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ${DATA_DIR:-/srv/tdbakugan}/uploads:/srv/uploads:ro
+      # Chứng chỉ HTTPS: phải giữ lại giữa các lần cập nhật.
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [default]
+
+networks:
+  db:
+    internal: true
+
+volumes:
+  caddy_data:
+  caddy_config:

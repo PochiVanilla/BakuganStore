@@ -1,0 +1,11 @@
+# Không đưa vào Docker build: thư viện đã cài, bản build cũ, file bí mật, lịch sử git.
+**/node_modules
+**/dist
+**/coverage
+.git
+.vercel
+**/.env
+**/.env.*
+!**/.env.example
+deploy/backups
+**/*.log

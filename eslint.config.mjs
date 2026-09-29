@@ -6,7 +6,8 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'coverage'] },
+  // backend/ có cấu hình ESLint riêng (Node.js); deploy/ chỉ có file cấu hình máy chủ.
+  { ignores: ['dist', 'node_modules', 'coverage', 'backend', 'deploy'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],

@@ -4,6 +4,10 @@ Website thương mại điện tử cho shop **TD Bakugan** (chuyên đồ chơi
 Giai đoạn này là **frontend thuần**, chạy hoàn toàn trên mock data, nhưng kiến trúc đã sẵn sàng
 nối với backend TypeScript (Node.js) — chỉ cần đổi biến môi trường, không phải sửa component.
 
+> **Backend** (Express + TypeScript + MySQL) đang được làm trong thư mục [`backend/`](backend/),
+> kế hoạch và nhật ký từng giai đoạn ở [`backend/docs/`](backend/docs/README.md). Bản chính sẽ chạy
+> trên mini PC của shop, cài theo [`deploy/HUONG-DAN.md`](deploy/HUONG-DAN.md); Vercel chỉ là bản chạy tạm.
+
 Shop **bán theo feed**: mỗi feed là một lô hàng (ảnh chụp cả lô + danh sách từng con), mỗi con
 Bakugan là **duy nhất** — có tên và mã riêng (`BK-0231`), tình trạng riêng, không có số lượng; bán
 rồi hiện **SOLD**. Sàn đấu giá chỉ dành cho **thành viên Lv2**, không công khai tên người đặt.

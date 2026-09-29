@@ -172,19 +172,19 @@ export async function testBotConnection(): Promise<GeminiResult> {
 export const FALLBACK_REASON_TEXT: Record<BotFallbackReason, { title: string; fix: string }> = {
   'not-configured': {
     title: 'Chưa có GEMINI_API_KEY trên server',
-    fix: 'Tạo khoá tại aistudio.google.com/apikey, thêm biến GEMINI_API_KEY trong Vercel (Settings → Environment Variables) rồi Redeploy.',
+    fix: 'Tạo khoá tại aistudio.google.com/apikey, thêm dòng GEMINI_API_KEY=… vào file deploy/.env trên mini PC rồi chạy lại “docker compose up -d”. (Bản tạm trên Vercel: Settings → Environment Variables rồi Redeploy.)',
   },
   'invalid-key': {
     title: 'Khoá Gemini không hợp lệ',
-    fix: 'Kiểm tra đã copy đủ khoá chưa (không thừa dấu cách), sửa lại biến GEMINI_API_KEY trên Vercel rồi Redeploy.',
+    fix: 'Kiểm tra đã copy đủ khoá chưa (không thừa dấu cách), sửa GEMINI_API_KEY trong deploy/.env rồi chạy lại “docker compose up -d” (trên Vercel: sửa biến rồi Redeploy).',
   },
   'key-forbidden': {
     title: 'Google từ chối khoá này',
-    fix: 'Khoá có thể đã bị khoá do lộ công khai hoặc bị giới hạn. Tạo khoá mới trong Google AI Studio và thay trên Vercel.',
+    fix: 'Khoá có thể đã bị khoá do lộ công khai hoặc bị giới hạn. Tạo khoá mới trong Google AI Studio, thay trong deploy/.env (hoặc trên Vercel) rồi chạy lại.',
   },
   'model-not-found': {
     title: 'Không tìm thấy model Gemini phù hợp',
-    fix: 'Thêm biến GEMINI_MODEL trên Vercel với tên model có trong Google AI Studio (VD: gemini-2.5-flash) rồi Redeploy.',
+    fix: 'Thêm dòng GEMINI_MODEL=… với tên model có trong Google AI Studio (VD: gemini-2.5-flash) vào deploy/.env rồi chạy lại “docker compose up -d” (trên Vercel: thêm biến rồi Redeploy).',
   },
   'quota-exceeded': {
     title: 'Đã hết hạn mức miễn phí của Gemini',
@@ -204,14 +204,14 @@ export const FALLBACK_REASON_TEXT: Record<BotFallbackReason, { title: string; fi
   },
   'empty-reply': {
     title: 'Gemini không trả về câu trả lời',
-    fix: 'Thử lại; nếu lặp lại, đặt GEMINI_MODEL=gemini-2.5-flash trên Vercel.',
+    fix: 'Thử lại; nếu lặp lại, đặt GEMINI_MODEL=gemini-2.5-flash trong deploy/.env (hoặc trên Vercel).',
   },
   'bad-request': {
     title: 'Yêu cầu gửi tới Gemini bị từ chối',
-    fix: 'Thử đặt GEMINI_MODEL=gemini-2.5-flash trên Vercel rồi Redeploy.',
+    fix: 'Thử đặt GEMINI_MODEL=gemini-2.5-flash trong deploy/.env (hoặc trên Vercel) rồi chạy lại.',
   },
   unreachable: {
     title: 'Không gọi được /api/chat-bot',
-    fix: 'Trên Vercel: mở Deployments → bản mới nhất → Logs, lọc "chat-bot" để xem lỗi. Ở máy: "vite preview" không chạy endpoint này, hãy dùng "npm run dev" với GEMINI_API_KEY trong .env.local.',
+    fix: 'Trên mini PC: vào thư mục deploy, chạy “docker compose logs api” để xem lỗi. Bản tạm trên Vercel: Deployments → bản mới nhất → Logs, lọc “chat-bot”. Ở máy: “vite preview” không chạy endpoint này, hãy dùng “npm run dev” với GEMINI_API_KEY trong .env.local.',
   },
 };

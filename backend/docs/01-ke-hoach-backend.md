@@ -4,7 +4,7 @@
 | --- | --- |
 | Ngày | 29/09/2026 |
 | Phiên bản | **3**: không tự hoàn tiền; tên, hệ, tình trạng do shop tự gõ; bỏ G-Power (xem [03](03-khong-tu-hoan-tien-va-o-tu-dien.md)). Bản 2: MySQL, lưu ảnh trên máy, tự chạy trên mini PC (xem [02](02-dieu-chinh-mysql-mini-pc.md)) |
-| Giai đoạn | Đang làm giai đoạn 1 |
+| Giai đoạn | Xong giai đoạn 1 ([04](04-giai-doan-1-khung-backend.md)); tiếp theo giai đoạn 2 |
 | Trạng thái | **Đã duyệt** (chủ shop: "tiến hành làm backend đi") |
 | Dựa trên | [00 · Tổng hợp nhu cầu](00-tong-hop-nhu-cau.md) |
 | Cách làm | Làm lần lượt từ giai đoạn 1. Xong giai đoạn nào thì báo kết quả kèm một file MD mới (số kế tiếp). Chỗ nào phải đổi thiết kế thì hỏi trước |
@@ -827,7 +827,7 @@ Chi tiết ở [00 §10](00-tong-hop-nhu-cau.md#10-frontend-còn-thiếu-hoặc-
 
 | GĐ | Làm gì | Xong khi |
 | --- | --- | --- |
-| 1 | **Khung backend + chạy trên mini PC + Gemini**: Express + TS, biến môi trường, log, lỗi chuẩn, `/api/health`; MySQL (schema, migration, dữ liệu mẫu); code dùng chung; `/api/chat-bot` chạy trong backend (kèm sửa câu hướng dẫn lỗi Gemini cho mini PC); Docker Compose (Caddy + backend + MySQL); hướng dẫn cài mini PC từng bước | Chạy `docker compose up` từ repo sạch là có web (vẫn dữ liệu giả lập) qua HTTPS, bot trả lời bằng Gemini; test xanh |
+| 1 ✓ | **Khung backend + chạy trên mini PC + Gemini** (xong, xem [04](04-giai-doan-1-khung-backend.md)): Express + TS, biến môi trường, log, lỗi chuẩn, `/api/health`; MySQL (schema, migration, dữ liệu mẫu); code dùng chung; `/api/chat-bot` chạy trong backend (kèm sửa câu hướng dẫn lỗi Gemini cho mini PC); Docker Compose (Caddy + backend + MySQL); hướng dẫn cài mini PC từng bước | Chạy `docker compose up` từ repo sạch là có web (vẫn dữ liệu giả lập) qua HTTPS, bot trả lời bằng Gemini; test xanh |
 | 2 | **Tài khoản**: đăng ký, đăng nhập, phiên, đăng xuất, hồ sơ, sổ địa chỉ, tài khoản ngân hàng (mã hoá), đổi và quên mật khẩu, tạo admin. Web: tự gia hạn phiên, trang đặt lại mật khẩu | Đăng nhập thật trên web chạy với backend |
 | 3 | **Feed và kho**: feed, từng con, tìm kiếm; admin feed và từng con; tải ảnh/video lưu trên ổ máy | Trang chủ, feed, trang chi tiết, admin đăng feed chạy bằng backend |
 | 4 | **Đơn hàng**: cấu hình thanh toán, mã giảm giá, đặt hàng chống bán trùng, đơn của khách, admin đơn / tạo đơn / sự cố, tự lên Lv2 khi đủ 3 con, tự huỷ chuyển khoản 24 giờ | 20 đơn tranh một con: đúng 1 thành công; test đặt hàng (không thẻ) xanh |

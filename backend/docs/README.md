@@ -12,7 +12,8 @@ Frontend (React + Vite) vẫn ở thư mục gốc. Vercel chỉ là bản chạ
 | Backend | Express 5 + TypeScript (Node.js 22 LTS trở lên), MySQL 8.4 |
 | Nơi chạy | Mini PC của shop (Docker Compose: Caddy + backend + MySQL); ảnh và video lưu trên ổ cứng máy. Vercel chỉ là bản chạy tạm |
 | Cách nối | Frontend build với `VITE_USE_MOCK=false` + `VITE_API_BASE_URL=/api` là gọi backend thật, không phải viết lại giao diện |
-| Trạng thái | Kế hoạch bản 3 **đã duyệt**. Đang làm giai đoạn 1: khung backend, MySQL, Gemini, bộ cài mini PC |
+| Trạng thái | Kế hoạch bản 3 **đã duyệt**. **Xong giai đoạn 1** (khung backend, MySQL, Gemini, bộ cài mini PC). Tiếp theo: giai đoạn 2, tài khoản |
+| Cài mini PC | [`deploy/HUONG-DAN.md`](../../deploy/HUONG-DAN.md) |
 | Luật tiền | Hệ thống **không bao giờ tự hoàn tiền**. Có vấn đề về tiền thì khách liên hệ shop, admin giải quyết |
 
 ## Quy ước
@@ -30,3 +31,4 @@ Frontend (React + Vite) vẫn ở thư mục gốc. Vercel chỉ là bản chạ
 | [01-ke-hoach-backend.md](01-ke-hoach-backend.md) | Kế hoạch chi tiết (bản 3): công nghệ, cơ sở dữ liệu, thuật toán từng phần, bảo mật, kiểm thử, cài mini PC, lộ trình | Đã duyệt |
 | [02-dieu-chinh-mysql-mini-pc.md](02-dieu-chinh-mysql-mini-pc.md) | Đổi sang MySQL, lưu ảnh trên máy, tự chạy trên mini PC; bot Gemini khi rời Vercel | Xong |
 | [03-khong-tu-hoan-tien-va-o-tu-dien.md](03-khong-tu-hoan-tien-va-o-tu-dien.md) | Không tự hoàn tiền; tên, hệ, tình trạng do shop tự gõ; bỏ G-Power (web đã sửa) | Xong |
+| [04-giai-doan-1-khung-backend.md](04-giai-doan-1-khung-backend.md) | Giai đoạn 1: backend Express + TS, CSDL MySQL 31 bảng, bot Gemini trong backend, bộ cài mini PC (Docker, sao lưu, hướng dẫn); 43 test trên MySQL thật | Xong |

@@ -1,0 +1,62 @@
+# Caddy trên mini PC: nhận HTTPS (tự xin và gia hạn chứng chỉ Let's Encrypt khi
+# SITE_ADDRESS là tên miền), trả file web và ảnh, chuyển /api và /ws vào backend.
+# SITE_ADDRESS = ":80" thì chạy HTTP thường (thử trong mạng nhà khi chưa có tên miền).
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Giới hạn dung lượng gửi lên: API 1 MB, riêng đường tải ảnh / video 100 MB.
+	@upload path /api/admin/uploads /api/admin/uploads/*
+	request_body @upload {
+		max_size 100MB
+	}
+	@api {
+		path /api/*
+		not path /api/admin/uploads /api/admin/uploads/*
+	}
+	request_body @api {
+		max_size 1MB
+	}
+
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+
+	handle /ws/* {
+		reverse_proxy api:4000
+	}
+
+	# Ảnh / video khách tải về: tên file ngẫu nhiên, không bao giờ đổi nội dung → cache 1 năm.
+	# CSP "sandbox" để lỡ có file lạ cũng không chạy được mã trên tên miền của shop.
+	handle /uploads/* {
+		root * /srv
+		header {
+			Cache-Control "public, max-age=31536000, immutable"
+			Content-Security-Policy "default-src 'none'; img-src 'self'; media-src 'self'; sandbox"
+		}
+		file_server
+	}
+
+	# Web React (trang một tệp): đường dẫn nào không có file thì trả index.html.
+	handle {
+		root * /srv/www
+		try_files {path} /index.html
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		header ?Cache-Control "no-cache"
+		file_server
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		X-Frame-Options "SAMEORIGIN"
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
