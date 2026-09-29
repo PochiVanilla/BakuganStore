@@ -61,7 +61,7 @@ Quyền phải kiểm tra ở server cho từng request. Tài khoản bị khoá
 | | Thông tin admin quản lý: trạng thái khoá + lý do, thẻ phân loại, ghi chú nội bộ, lần đăng nhập cuối | Khách không thấy |
 | | Hạng thành viên: hạng, lên nhờ cách nào, lúc nào, tổng tiền đã nạp | |
 | Hàng | Feed: số thứ tự, tiêu đề, mô tả, ảnh lô (≤6), giờ đăng, giờ mở bán, giá nhập lô, nhà cung cấp | Tối đa 30 feed trên web |
-| | Từng con: mã `BK-xxxx` (duy nhất mãi mãi), tên, giá, hệ, dòng, tình trạng + ghi chú, G-Power, ≤3 ảnh + 1 video, còn/đã bán, bán qua đơn hay bán tay, người mua, thứ tự trong feed | Con đã bán giữ lại tên/số feed |
+| | Từng con: mã `BK-xxxx` (duy nhất mãi mãi), tên, giá, hệ (chữ shop gõ), dòng, tình trạng (chữ shop gõ, có thể trống), ≤3 ảnh + 1 video, còn/đã bán, bán qua đơn hay bán tay, người mua, thứ tự trong feed | Con đã bán giữ lại tên/số feed |
 | | File ảnh, video đã tải lên | Để dọn file không còn dùng |
 | Đơn hàng | Đơn: mã, tiền (tạm tính, ship, giảm, tổng), trạng thái, cách trả, trạng thái trả, nguồn (web / đấu giá / admin tạo), người nhận, địa chỉ (trong nước hoặc quốc tế), ghi chú, lý do huỷ | |
 | | Dòng hàng: bản chụp tên, mã, giá lúc mua | Không đổi theo sản phẩm về sau |
@@ -153,10 +153,11 @@ Ngoài ra web còn gọi thẳng `GET/POST /api/chat-bot` (hàm Vercel giữ kho
   - Con đã bán không đổi giá được.
   - Con bị bỏ khỏi form: chưa bán thì thành hàng tồn; đã bán thì vẫn ở lại feed.
 - Giới hạn: mỗi feed ≤ 60 con và ≤ 6 ảnh; mỗi con ≤ 3 ảnh + 1 video; tiêu đề ≥ 3 ký tự; giá là số nguyên dương.
+- Tên, hệ, tình trạng là chữ shop tự gõ (cập nhật theo [03](03-khong-tu-hoan-tien-va-o-tu-dien.md)): tên 2–80 ký tự; hệ bắt buộc, ≤ 40 ký tự; tình trạng ≤ 160 ký tự, được để trống. Không có G-Power.
 - Bán ngoài web (Messenger, tại shop): admin tự đánh dấu SOLD, ghi người mua; bỏ đánh dấu được. Con bán qua đơn chỉ quay lại bán khi đơn bị huỷ.
 - Xoá hẳn một con: chỉ khi chưa bán và chưa từng nằm trong đơn nào.
 - Khách không bao giờ thấy: người mua, đơn, ghi chú nội bộ, giá nhập lô, nhà cung cấp, hàng tồn.
-- Tìm kiếm không dấu theo tên, mã (gõ `BK0231` cũng ra), tiêu đề feed; lọc theo hệ, tình trạng, khoảng giá; mặc định chỉ con còn bán. Gợi ý nhanh: con còn bán lên trước, kèm tối đa 3 feed.
+- Tìm kiếm không dấu theo tên, mã (gõ `BK0231` cũng ra), tiêu đề feed; lọc theo hệ (nhận ra từ chữ shop gõ) và khoảng giá; mặc định chỉ con còn bán. Gợi ý nhanh: con còn bán lên trước, kèm tối đa 3 feed.
 
 ### 6.2 Tính tiền và mã giảm giá
 - Tạm tính là tổng giá các con, **lấy từ CSDL, không lấy giá trình duyệt gửi lên**.
@@ -204,7 +205,7 @@ Ngoài ra web còn gọi thẳng `GET/POST /api/chat-bot` (hàm Vercel giữ kho
 - Mỗi lần đổi trạng thái thêm một mốc lịch sử: ai, lúc nào, ghi chú.
 - **Admin sửa trạng thái thanh toán**:
   - Đơn thẻ không đánh dấu đã trả / chưa trả bằng tay được.
-  - Chỉ hoàn tiền đơn đã trả. Hoàn tiền đơn thẻ = gửi lệnh hoàn qua cổng về đúng thẻ khách đã dùng.
+  - Chỉ hoàn tiền đơn đã trả, và **chỉ khi admin bấm**: hệ thống không bao giờ tự hoàn (cập nhật theo [03](03-khong-tu-hoan-tien-va-o-tu-dien.md)). Hoàn tiền đơn thẻ = gửi lệnh hoàn qua cổng về đúng thẻ khách đã dùng.
 - **Khách tự huỷ**: chỉ đơn `pending` chưa trả.
 - **Khách đổi cách trả** (thẻ sang COD / chuyển khoản / MoMo): chỉ đơn trong nước đang chờ trả thẻ.
 - **Admin tạo đơn tay**:

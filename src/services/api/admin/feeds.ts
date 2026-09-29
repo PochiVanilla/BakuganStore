@@ -232,6 +232,7 @@ export interface CreateFeedOptions {
 }
 
 /** Giới hạn độ dài chữ shop tự gõ */
+export const NAME_MAX = 80;
 export const ATTRIBUTE_MAX = 40;
 export const CONDITION_MAX = 160;
 
@@ -255,6 +256,7 @@ function validateFeedInput(input: FeedInput, allowEmptyItems: boolean): void {
   input.items.forEach((item, index) => {
     const label = `Con thứ ${index + 1}`;
     if (item.name.trim().length < 2) fail(`${label}: chưa có tên.`);
+    if (item.name.trim().length > NAME_MAX) fail(`${label}: tên tối đa ${NAME_MAX} ký tự.`);
     if (!Number.isInteger(item.price) || item.price <= 0) fail(`${label}: giá không hợp lệ.`);
     if (!item.attribute?.trim()) fail(`${label}: chưa ghi hệ.`);
     if (item.attribute.trim().length > ATTRIBUTE_MAX)

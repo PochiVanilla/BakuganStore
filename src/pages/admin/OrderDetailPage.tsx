@@ -186,8 +186,8 @@ function StatusActions({ order }: { order: Order }) {
         {order.paymentStatus === 'paid' && (
           <p className="mt-4 rounded-xl border border-warning/30 bg-warning/8 p-3 text-xs text-warning">
             {order.paymentMethod === 'card'
-              ? 'Khách đã trả bằng thẻ — huỷ xong, bấm “Hoàn tiền về thẻ” để trả lại qua cổng thanh toán.'
-              : 'Khách đã thanh toán — sau khi huỷ, nhớ hoàn tiền và bấm “Đã hoàn tiền”.'}
+              ? 'Khách đã trả bằng thẻ. Hệ thống không tự hoàn tiền — liên hệ khách để thống nhất cách giải quyết; nếu hoàn thì huỷ xong bấm “Hoàn tiền về thẻ”.'
+              : 'Khách đã thanh toán. Hệ thống không tự hoàn tiền — liên hệ khách để thống nhất cách giải quyết; nếu hoàn thì chuyển trả xong bấm “Đã hoàn tiền cho khách”.'}
           </p>
         )}
       </Modal>
@@ -282,8 +282,8 @@ function PaymentPanel({ order }: { order: Order }) {
         <p className="mt-3 flex gap-2 rounded-xl border border-warning/30 bg-warning/8 p-3 text-xs text-warning">
           <TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
           {byCard
-            ? 'Đơn đã huỷ/hoàn nhưng khách đã trả bằng thẻ — bấm hoàn tiền để trả về đúng thẻ đó qua cổng thanh toán.'
-            : 'Đơn đã huỷ/hoàn nhưng khách đã trả tiền — cần hoàn tiền. Số tài khoản của khách được hệ thống thanh toán giữ kín, nhân viên không xem được.'}
+            ? 'Đơn đã huỷ/hoàn nhưng khách đã trả bằng thẻ. Hệ thống không tự hoàn — liên hệ khách để thống nhất cách giải quyết; nếu hoàn tiền thì bấm nút bên dưới, tiền về đúng thẻ đó.'
+            : 'Đơn đã huỷ/hoàn nhưng khách đã trả tiền. Hệ thống không tự hoàn — liên hệ khách để thống nhất cách giải quyết. Số tài khoản của khách được hệ thống giữ kín, nhân viên không xem được.'}
         </p>
       )}
       <div className="mt-4 flex flex-col gap-2">

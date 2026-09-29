@@ -189,7 +189,12 @@ function EditItemForm({ item, onDone }: { item: AdminItem; onDone: () => void })
       <div className="grid grid-cols-3 gap-2">
         <label className="col-span-2 block">
           <span className="mb-1 block text-xs text-text-muted">Tên</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} className={fieldClass} />
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={80}
+            className={fieldClass}
+          />
         </label>
         <label className="block">
           <span className="mb-1 block text-xs text-text-muted">Mã</span>

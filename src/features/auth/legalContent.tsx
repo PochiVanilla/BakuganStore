@@ -41,7 +41,8 @@ export function TermsContent() {
           'Đơn hàng được xác nhận qua điện thoại hoặc Zalo trong vòng 24 giờ làm việc.',
           'Giá hiển thị đã bao gồm thuế, chưa bao gồm phí vận chuyển (nếu có).',
           'Thanh toán bằng thẻ Visa / Mastercard / JCB được xử lý trên trang bảo mật của cổng thanh toán (3-D Secure); TD Bakugan không nhận và không lưu số thẻ. Số tiền trừ bằng đồng Việt Nam, ngân hàng phát hành thẻ tự quy đổi và có thể thu phí giao dịch nước ngoài.',
-          'Đơn trả bằng thẻ được giữ hàng 15 phút; quá thời gian này chưa thanh toán thì đơn tự huỷ. Hoàn tiền cho đơn trả thẻ được chuyển về đúng thẻ đã dùng.',
+          'Đơn trả bằng thẻ được giữ hàng 15 phút; quá thời gian này chưa thanh toán thì đơn tự huỷ. Khi shop hoàn tiền cho đơn trả thẻ, tiền được chuyển về đúng thẻ đã dùng.',
+          'Có vấn đề về tiền (bị trừ tiền nhưng đơn đã huỷ, trả hai lần, sai số tiền…): bạn liên hệ shop qua chat, hotline hoặc Zalo; shop kiểm tra và giải quyết trực tiếp với bạn. Hệ thống không tự hoàn tiền.',
           'Shop có quyền từ chối đơn hàng nếu sản phẩm hết hàng hoặc có sai sót về giá do lỗi kỹ thuật.',
         ]}
       />

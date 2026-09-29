@@ -11,6 +11,7 @@ import {
   applyItemFields,
   ATTRIBUTE_MAX,
   CONDITION_MAX,
+  NAME_MAX,
   toAdminItem,
   type FeedItemInput,
 } from './feeds';
@@ -215,6 +216,10 @@ export async function updateItem(
   requireAdmin();
   if (input.name.trim().length < 2) {
     throw new MockApiError('Tên cần ít nhất 2 ký tự.', 422, { name: 'Tên cần ít nhất 2 ký tự.' });
+  }
+  if (input.name.trim().length > NAME_MAX) {
+    const message = `Tên tối đa ${NAME_MAX} ký tự.`;
+    throw new MockApiError(message, 422, { name: message });
   }
   if (!Number.isInteger(input.price) || input.price <= 0) {
     throw new MockApiError('Giá không hợp lệ.', 422, { price: 'Giá không hợp lệ.' });

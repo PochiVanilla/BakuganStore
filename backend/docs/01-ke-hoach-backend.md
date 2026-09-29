@@ -3,11 +3,11 @@
 | Mục | Nội dung |
 | --- | --- |
 | Ngày | 29/09/2026 |
-| Phiên bản | **2**: đổi theo quyết định của chủ shop — MySQL, lưu ảnh trên máy, tự chạy trên mini PC. Đổi gì so với bản 1: xem [02](02-dieu-chinh-mysql-mini-pc.md) |
-| Giai đoạn | 0 — Lập kế hoạch. **Chưa viết code.** |
-| Trạng thái | **Chờ chủ shop duyệt** |
+| Phiên bản | **3**: không tự hoàn tiền; tên, hệ, tình trạng do shop tự gõ; bỏ G-Power (xem [03](03-khong-tu-hoan-tien-va-o-tu-dien.md)). Bản 2: MySQL, lưu ảnh trên máy, tự chạy trên mini PC (xem [02](02-dieu-chinh-mysql-mini-pc.md)) |
+| Giai đoạn | Đang làm giai đoạn 1 |
+| Trạng thái | **Đã duyệt** (chủ shop: "tiến hành làm backend đi") |
 | Dựa trên | [00 · Tổng hợp nhu cầu](00-tong-hop-nhu-cau.md) |
-| Sau khi duyệt | Làm lần lượt từ giai đoạn 1. Xong giai đoạn nào thì báo kết quả kèm một file MD mới (số kế tiếp). Chỗ nào phải đổi thiết kế thì hỏi trước |
+| Cách làm | Làm lần lượt từ giai đoạn 1. Xong giai đoạn nào thì báo kết quả kèm một file MD mới (số kế tiếp). Chỗ nào phải đổi thiết kế thì hỏi trước |
 
 ## Tóm tắt
 
@@ -24,7 +24,9 @@
 - **Thẻ**: làm trước một cổng giả lập ngay trên server để chạy trọn luồng và test. Cổng thật (OnePay hoặc VNPAY) chỉ là thêm một file, cắm vào khi có hợp đồng (mục 8.9).
 - **Web đang chạy không bị ảnh hưởng**: bản trên Vercel và bản trên mini PC vẫn dùng dữ liệu giả lập cho tới giai đoạn cuối. Mọi bộ test Playwright hiện có phải vẫn xanh sau mỗi giai đoạn.
 - **9 giai đoạn**, mỗi giai đoạn có kiểm thử và một file MD (mục 13).
-- **Để bắt đầu** chỉ cần bạn duyệt kế hoạch và trả lời 3 luật ở mục 1.8. Thông tin về mini PC (mục 1.2, 1.4, 1.5) cần có trước khi chạy thử giai đoạn 1 trên máy của bạn.
+- **Tiền không bao giờ tự hoàn**: trả trễ, trả trùng, sai số tiền thì hệ thống chỉ ghi nhận, mở sự cố cho admin và nhắc khách liên hệ shop. Chỉ admin bấm mới hoàn (mục 8.9).
+- **Tên, hệ, tình trạng** của từng con là chữ shop tự gõ; không có G-Power. Server nhận ra hệ quen thuộc để có icon và bộ lọc (mục 6, 8.3).
+- Thông tin về mini PC (mục 1.2, 1.4, 1.5) cần có trước khi chạy thử giai đoạn 1 trên máy của bạn.
 
 ## Mục lục
 
@@ -56,7 +58,7 @@
 | 1.5 | Internet cho mini PC | Kiểm tra hai việc: có **IP công khai** không (nhiều gói gia đình dùng CGNAT, mở cổng không có tác dụng), và nhà mạng có chặn cổng 80/443 không | Không được thì gọi nhà mạng xin IP công khai hoặc IP tĩnh | 1 |
 | 1.6 | Gửi email (quên mật khẩu, báo đơn mới) | **Gmail SMTP**: không cần gì thêm, tối đa khoảng 500 thư/ngày. Hoặc **Resend** (cần tên miền) | Mạng nhà không gửi thư trực tiếp được (thường bị chặn, dễ vào spam), nên phải gửi qua dịch vụ | 2 (ở máy in email ra màn hình) |
 | 1.7 | Cổng thanh toán thẻ | **OnePay hoặc VNPAY**: cả hai nhận Visa/Mastercard/JCB phát hành ở nước ngoài. Bạn làm hồ sơ (doanh nghiệp hoặc hộ kinh doanh); trong lúc chờ, mình dùng cổng giả lập | Khi chạy thẻ thật nên có IP tĩnh (cổng có thể yêu cầu) | 5 (không chặn việc khác) |
-| 1.8 | Ba luật cần bạn xác nhận | **(a)** Đơn chuyển khoản quá 24 giờ chưa nhận tiền: tự huỷ **chỉ khi đơn còn "Chờ xác nhận"**; admin đã xác nhận thì để admin quyết<br>**(b)** Mã `TDNEW10` ("cho khách mới"): chỉ dùng cho **đơn đầu tiên** của mỗi tài khoản<br>**(c)** Khách trả thẻ trễ, sau khi đơn đã tự huỷ: hàng **còn** thì giữ đơn cho khách; hàng **đã bán cho người khác** thì tự hoàn tiền về thẻ | Bạn sửa luật nào cũng được | Bắt đầu |
+| 1.8 | Ba luật | **(a)** Đơn chuyển khoản quá 24 giờ chưa nhận tiền: tự huỷ **chỉ khi đơn còn "Chờ xác nhận"**; admin đã xác nhận thì để admin quyết<br>**(b)** Mã `TDNEW10` ("cho khách mới"): chỉ dùng cho **đơn đầu tiên** của mỗi tài khoản<br>**(c)** **Không bao giờ tự hoàn tiền.** Khách trả thẻ trễ sau khi đơn đã tự huỷ: hàng **còn** thì giữ đơn cho khách; hàng **đã bán cho người khác** thì ghi nhận tiền, mở sự cố "Lỗi thanh toán" cho admin, khách được nhắc liên hệ shop | (a), (b): theo đề xuất, chủ shop chưa ý kiến, đổi lúc nào cũng được. (c): chủ shop chốt | — |
 
 ## 2. Công nghệ
 
@@ -209,7 +211,7 @@ Backend import thẳng các file **chỉ có logic** trong `src/` của web, qua
 | --- | --- | --- |
 | `counters` | name, value | Số feed kế tiếp, số mã BK kế tiếp |
 | `feeds` | number, title, caption, images, published_at, opens_at, lot_cost, supplier, created_by, retired_at | `number` duy nhất; `retired_at` có giá trị = đã gỡ khỏi web |
-| `items` | code, name, price, attribute, series, condition, condition_note, g_power, photos (≤3), video, status, sold_at, sold_via, order_id, sold_note, buyer_name, feed_id, position, feed_title_snapshot, feed_number_snapshot, search_text | `code` duy nhất; giá > 0; `sold` thì bắt buộc có giờ bán; `feed_id` trống = hàng tồn |
+| `items` | code, name (≤80), price, **attribute** (chữ shop gõ, ≤40), **attribute_key** (hệ nhận ra được, có thể trống), series, **condition** (chữ shop gõ, ≤160, có thể trống), photos (≤3), video, status, sold_at, sold_via, order_id, sold_note, buyer_name, feed_id, position, feed_title_snapshot, feed_number_snapshot, search_text | `code` duy nhất; giá > 0; `sold` thì bắt buộc có giờ bán; `feed_id` trống = hàng tồn; chỉ mục trên `attribute_key` để lọc |
 | `media` | path, url, kind, mime, bytes, width, height, sha256, uploaded_by, in_use | Để chặn link lạ và dọn file thừa |
 
 ### Đơn hàng và thanh toán
@@ -222,8 +224,8 @@ Backend import thẳng các file **chỉ có logic** trong `src/` của web, qua
 | `card_payments` | order_id, expires_at, attempts, brand, last4, transaction_id, paid_at, last_error, refunded_at | Một đơn một dòng; **không có số thẻ** |
 | `payment_attempts` | order_id, gateway, amount, status, gateway_txn_id, brand, last4, response_code, message, finished_at | Id là mã giao dịch gửi cổng |
 | `payment_events` | gateway, event_key, attempt_id, payload (đã bỏ trường nhạy cảm), signature_ok, result | `event_key` duy nhất: cổng gửi lặp cũng chỉ xử lý một lần |
-| `refunds` | order_id, attempt_id, amount, status, gateway_refund_id, requested_by, error | Mỗi đơn chỉ một lệnh hoàn đang chạy hoặc đã xong (cột sinh + UNIQUE) |
-| `order_issues` | order_id, type, status, description, reported_by, resolution | Sự cố đơn hàng |
+| `refunds` | order_id, attempt_id, amount, status, gateway_refund_id, requested_by, error | **Chỉ tạo khi admin bấm hoàn**; `requested_by` bắt buộc là admin. Mỗi lượt thanh toán chỉ một lệnh hoàn đang chạy hoặc đã xong (cột sinh + UNIQUE) |
+| `order_issues` | order_id, type, status, description, reported_by (`admin` / `customer` / `carrier` / `system`), payment_attempt_id, resolution | Sự cố đơn hàng. Sự cố tiền do hệ thống mở có `type = payment`, `reported_by = system`; mỗi lượt thanh toán chỉ mở một sự cố (UNIQUE) |
 | `idempotency_keys` | key, user_id, route, request_hash, response | Duy nhất theo (key, user); giữ 24 giờ |
 
 ### Khuyến mãi, thành viên, đấu giá
@@ -233,7 +235,7 @@ Backend import thẳng các file **chỉ có logic** trong `src/` của web, qua
 | `coupons` | code, label, type, value, min_subtotal, max_discount, starts_at, expires_at, active, first_order_only, per_user_limit, total_limit, used_count | `code` lưu chữ hoa, duy nhất |
 | `coupon_redemptions` | coupon_code, order_id, user_id, released_at | Một đơn dùng tối đa một mã; đơn huỷ thì trả lượt |
 | `membership_requests` | user_id, kind, amount, transfer_note, message, status, resolved_at, resolved_by, admin_note | Mỗi khách tối đa một yêu cầu đang chờ (cột sinh + UNIQUE) |
-| `auctions` | slug, title, description, images, attribute, series, g_power, condition, accessories, start_price, current_price, bid_step, buy_now_price, start_at, end_at, original_end_at, price_visibility, anti_snipe_minutes, extension_count, bid_count, leader_id, watcher_count | `slug` duy nhất |
+| `auctions` | slug, title, description, images, attribute (chữ), attribute_key, series, condition (chữ), accessories, start_price, current_price, bid_step, buy_now_price, start_at, end_at, original_end_at, price_visibility, anti_snipe_minutes, extension_count, bid_count, leader_id, watcher_count | `slug` duy nhất |
 | `bids` | auction_id, bidder_id, amount, triggered_extension | Chỉ mục theo phiên và theo người đặt |
 | `auction_fulfillments` | auction_id, status, order_id, note | Mỗi phiên một dòng: không tạo đơn hai lần |
 
@@ -332,7 +334,7 @@ Backend import thẳng các file **chỉ có logic** trong `src/` của web, qua
 - **Bộ nhớ đệm**: danh sách feed đệm vài giây vì trang chủ gọi nhiều; xoá đệm ngay khi có đơn mới hoặc admin sửa feed.
 - **Tìm kiếm**:
   - Cột `search_text` lưu sẵn tên + mã + mã viết liền, đã bỏ dấu bằng đúng hàm `normalizeSearch` của web.
-  - Truy vấn `search_text LIKE '%từ khoá đã bỏ dấu%'`, lọc thêm hệ, tình trạng, khoảng giá; tối đa 60 kết quả.
+  - Truy vấn `search_text LIKE '%từ khoá đã bỏ dấu%'`, lọc thêm hệ (`attribute_key IN (…)`) và khoảng giá; tối đa 60 kết quả. Không lọc theo tình trạng vì tình trạng là chữ tự do.
   - Dữ liệu nhỏ (tối đa 30 feed × 60 con) nên chưa cần công cụ tìm kiếm riêng.
 - `by-ids` nhận tối đa 100 id mỗi lần (một feed có tới 60 con).
 
@@ -350,6 +352,11 @@ Backend import thẳng các file **chỉ có logic** trong `src/` của web, qua
       - Con đã có: phải tồn tại, không thuộc feed khác; con đã bán giữ nguyên giá.
       - Con mới: cấp mã theo cách bên dưới.
    6. Đánh dấu file đang dùng. File không còn dùng được xoá khỏi ổ **sau khi** transaction thành công.
+
+**Tên, hệ, tình trạng là chữ shop tự gõ**
+- Cắt khoảng trắng hai đầu. Tên 2–80 ký tự; hệ bắt buộc, tối đa 40 ký tự; tình trạng tối đa 160 ký tự, để trống thì lưu `NULL`. Không có G-Power.
+- Mỗi lần lưu, server tính `attribute_key = attributeKeyOf(hệ)` bằng đúng hàm của web: "Hệ Lửa", "fire" → `pyrus`; chữ lạ → `NULL` (vẫn hiện chữ, không có icon, không lọc theo 6 hệ).
+- Thêm cách gọi mới cho một hệ trong `attributeKeyOf` thì chạy `npm run items:rekey` để tính lại cho hàng cũ.
 
 **Cấp mã Bakugan**
 - Admin tự gõ: chuẩn hoá bằng `normalizeItemCode`; trùng thì 409.
@@ -418,7 +425,7 @@ POST /orders
 - **Đổi cách trả** (thẻ sang COD / chuyển khoản / MoMo):
   - Chỉ đơn trong nước, còn trong hạn giữ, chưa trả.
   - Xoá hạn giữ, đóng các lượt thanh toán đang mở, ghi lịch sử.
-  - Lượt đã đóng mà cổng vẫn báo trừ tiền thành công thì tự hoàn tiền (8.9).
+  - Lượt đã đóng mà cổng vẫn báo trừ tiền thành công: **không tự hoàn**. Ghi nhận khoản tiền, mở sự cố tiền cho admin (8.9), để shipper không thu tiền lần nữa.
 
 ### 8.8 Admin xử lý đơn
 
@@ -433,12 +440,12 @@ POST /orders
      - Đơn COD tự thành "đã thanh toán".
      - Đếm số con khách đã nhận. Đủ 3 mà đang Lv1 thì lên Lv2 (lý do "mua đủ 3 con") và đóng yêu cầu đang chờ.
   5. Thêm mốc lịch sử với tên admin và ghi chú bước. Ghi chú bước khách xem được (VD mã vận đơn).
-- **Thanh toán**: đơn thẻ không đánh dấu tay được. Hoàn tiền thẻ đi theo 8.9.
+- **Thanh toán**: đơn thẻ không đánh dấu tay được. Hoàn tiền chỉ khi admin bấm (8.9); đơn không trả thẻ thì admin tự chuyển trả rồi bấm "Đã hoàn tiền cho khách".
 - **Ghi chú nội bộ**: lưu vào trường riêng `internal_note`, không đè ghi chú của khách nữa.
 - **Tạo đơn tay**:
   - Server tự tra từng con (còn bán, không chọn trùng) và khoá dòng như 8.6. Giá admin nhập là số nguyên ≥ 0.
   - Đơn cho người thắng đấu giá: phiên đã kết thúc, có người thắng, chưa tạo đơn. Khoá chính của `auction_fulfillments` chặn tạo đơn hai lần.
-- **Sự cố**: tạo và sửa; muốn đóng sự cố phải ghi cách giải quyết.
+- **Sự cố**: tạo và sửa; muốn đóng sự cố phải ghi cách giải quyết. Sự cố tiền do hệ thống mở (8.9) nằm chung danh sách này.
 
 ### 8.9 Thanh toán thẻ
 
@@ -478,16 +485,32 @@ Có ba bản:
 1. Kiểm tra chữ ký bằng phép so sánh an toàn về thời gian. Sai thì trả lỗi theo chuẩn của cổng, không đổi gì, ghi log cảnh báo.
 2. Ghi sự kiện với khoá duy nhất (cổng + mã giao dịch + kết quả). Cổng gửi lại lần hai thì trả "đã xử lý", không làm lại.
 3. Trong transaction, khoá lượt thanh toán và đơn:
-   - **Số tiền khác tổng đơn**: đánh dấu bất thường, báo admin, trả lỗi "sai số tiền".
+   - **Số tiền khác tổng đơn**: đánh dấu bất thường, mở sự cố tiền, trả lỗi "sai số tiền".
    - **Lượt đã có kết quả**: trả "đã xác nhận".
    - **Thành công**:
      - Đơn còn chờ trả: chuyển "đã thanh toán". Lưu hãng thẻ, 4 số cuối, mã giao dịch, giờ trả; ghi lịch sử "Cổng thanh toán: Đã thanh toán … mã giao dịch …". Đơn vẫn "Chờ xác nhận" để shop gọi khách.
      - **Đơn đã tự huỷ vì quá hạn** (khách trả trễ):
        - Các con vẫn còn bán: giữ lại cho khách (chuyển SOLD lại, đơn về `pending` và đã trả), ghi lịch sử.
-       - Có con đã bán cho người khác: **tự gửi lệnh hoàn tiền**, báo admin, ghi lịch sử.
-     - Đơn đã trả bằng lượt khác (trả trùng), hoặc lượt này đã bị đóng (khách đổi sang COD): tự hoàn tiền lượt này.
+       - Có con đã bán cho người khác: đơn vẫn huỷ nhưng ghi "đã thanh toán" (shop đã nhận tiền), mở sự cố tiền, ghi lịch sử. **Không tự hoàn.**
+     - Đơn đã trả bằng lượt khác (trả trùng), hoặc lượt này đã bị đóng (khách đổi sang COD): ghi nhận lượt này, mở sự cố tiền. **Không tự hoàn.**
    - **Thất bại**: ghi lỗi vào lần thử gần nhất, bằng câu tiếng Việt tương ứng mã lỗi của cổng.
 4. Trả lời đúng định dạng cổng yêu cầu.
+
+**Sự cố tiền** (thay cho mọi chỗ bản 2 từng "tự hoàn tiền")
+
+```
+Mở sự cố (cùng transaction với việc ghi nhận tiền):
+  order_issues: type = payment, reported_by = system, payment_attempt_id = lượt đó
+    (UNIQUE theo lượt: IPN gửi lặp hay việc đối chiếu chạy lại cũng chỉ một sự cố)
+  mô tả: chuyện gì xảy ra + số tiền + mã giao dịch của cổng + 4 số cuối thẻ
+  lịch sử đơn: "Hệ thống: nhận tiền … nhưng …; chờ shop xử lý"
+Sau COMMIT: số "sự cố mở" trên menu admin tăng; gửi email báo shop (nếu đã cài gửi thư)
+Khách xem đơn: có cờ needsShopContact → trang đơn hiện
+  "Shop đã nhận khoản thanh toán của bạn nhưng đơn cần kiểm tra lại.
+   Bạn nhắn shop để được hỗ trợ" + nút mở chat
+Admin tự quyết: hoàn tiền (bấm nút, hỏi lại trước khi gửi), đổi con khác, giữ tiền cho đơn sau…
+  → đóng sự cố phải ghi cách giải quyết; cờ needsShopContact tắt
+```
 
 **Khách quay về từ cổng** (`/payments/card/return/:gateway`)
 - Kiểm tra chữ ký (chỉ để hiển thị), rồi chuyển khách tới `/thanh-toan/ket-qua/:orderId` trên web.
@@ -508,14 +531,14 @@ Mỗi đơn một transaction riêng:
 
 Trước khi đặt đơn hoặc mở phiên trả, server dọn luôn những đơn liên quan, không chờ tới lượt chạy.
 
-**Hoàn tiền** (admin bấm "Hoàn tiền về thẻ")
-1. Đơn đã trả bằng thẻ và đã huỷ hoặc hoàn hàng.
-2. Tạo lệnh hoàn. Cột sinh + UNIQUE bảo đảm mỗi đơn chỉ một lệnh đang chạy hoặc đã xong, nên bấm hai lần cũng không hoàn hai lần.
-3. Gọi cổng hoàn toàn bộ số tiền:
+**Hoàn tiền** (chỉ khi admin bấm "Hoàn tiền về thẻ"; không việc chạy nền hay luồng tự động nào gọi tới)
+1. Người gọi là admin. Đơn đã trả bằng thẻ và đã huỷ hoặc hoàn hàng; hoặc admin chọn đúng một lượt thừa trong sự cố tiền.
+2. Tạo lệnh hoàn, ghi admin nào bấm. Cột sinh + UNIQUE bảo đảm mỗi lượt thanh toán chỉ một lệnh đang chạy hoặc đã xong, nên bấm hai lần cũng không hoàn hai lần.
+3. Gọi cổng hoàn số tiền của lượt đó:
    - Thành công: đơn "đã hoàn tiền", ghi giờ hoàn và lịch sử.
    - Thất bại: báo lỗi cho admin, lệnh hoàn ghi "thất bại", bấm lại được.
 
-**Đối chiếu** (mỗi 2 phút): lượt "đang chờ" quá 5 phút thì hỏi cổng, rồi xử lý như khi nhận IPN.
+**Đối chiếu** (mỗi 2 phút): lượt "đang chờ" quá 5 phút thì hỏi cổng, rồi xử lý như khi nhận IPN (kể cả mở sự cố tiền; không tự hoàn).
 
 **Không lưu số thẻ ở bất cứ đâu**, log cũng không ghi dữ liệu thẻ. Web chỉ chuyển khách sang trang của cổng, nên shop thuộc diện PCI DSS **SAQ A**, mức nhẹ nhất.
 
@@ -689,7 +712,7 @@ Web và backend cùng một máy, cùng tên miền, nên không vướng giới
 ### 8.18 Nhật ký admin
 
 Mọi thao tác admin làm thay đổi dữ liệu đều được ghi lại:
-- **Phạm vi**: đơn, thanh toán, hoàn tiền; khoá tài khoản, đổi quyền, đổi hạng; feed; cài đặt.
+- **Phạm vi**: đơn, thanh toán, hoàn tiền (ai bấm), đóng sự cố tiền; khoá tài khoản, đổi quyền, đổi hạng; feed; cài đặt.
 - **Nội dung mỗi dòng**: ai, lúc nào, làm gì, với cái gì, từ IP nào.
 
 Không có API nào sửa hay xoá nhật ký.
@@ -728,7 +751,7 @@ Không có API nào sửa hay xoá nhật ký.
 | Unit | Tính tiền, mã giảm giá, chuyển trạng thái, luật đấu giá (giá tối thiểu, chống bắn tỉa, phiên kín), lên hạng, cấp mã BK và mã đơn, chữ ký từng cổng (theo ví dụ trong tài liệu của cổng), hàm chọn trường không lộ trường mật |
 | Tích hợp (API + MySQL thật) | Từng API: dữ liệu đúng; dữ liệu sai (422 kèm lỗi từng ô); chưa đăng nhập (401); sai quyền (403/404) |
 | Tranh chấp | 20 đơn cùng lúc vào một con: đúng 1 thành công. 20 lượt đặt giá cùng lúc: giá cuối đúng. IPN tới đúng lúc việc dọn giữ hàng đang chạy |
-| Thanh toán | IPN sai chữ ký, gửi lặp, sai số tiền; khách trả trễ khi hàng còn và khi hàng đã bán (phải tự hoàn tiền) |
+| Thanh toán | IPN sai chữ ký, gửi lặp, sai số tiền; khách trả trễ khi hàng còn (giữ đơn) và khi hàng đã bán (mở đúng một sự cố tiền, **không có lệnh hoàn nào**); trả trùng; chỉ admin gọi được API hoàn tiền |
 | Realtime | Người xem khác nhận đúng giá mới (phiên mở), không nhận giá (phiên kín), nhận giờ kết thúc mới khi gia hạn, nhận "bạn bị vượt giá" |
 | Bảo mật | Sửa token; dùng lại refresh token; `Origin` lạ; file giả làm ảnh; gọi dồn |
 | Toàn trình (Playwright) | Chạy cả bộ Caddy + backend + MySQL, build web với `VITE_USE_MOCK=false`, chạy lại các bộ test đang có: thanh toán (35 + 19 + 18 bước), feed, trang chi tiết, admin feed, chat |
@@ -797,6 +820,8 @@ Chi tiết ở [00 §10](00-tong-hop-nhu-cau.md#10-frontend-còn-thiếu-hoặc-
 9. Trang đấu giá: nhận giờ kết thúc mới và cờ "bạn đang dẫn đầu" từ sự kiện realtime; phiên kín nhận biết lượt đặt mới qua số lượt, không qua số tiền.
 10. Build cho mini PC: `VITE_API_BASE_URL=/api`, `VITE_WS_URL=wss://<tên miền>/ws`. Tới giai đoạn 9 mới đặt `VITE_USE_MOCK=false`.
 11. Trang cài đặt bot: câu hướng dẫn sửa lỗi Gemini đang bảo "thêm biến trong Vercel rồi Redeploy". Đổi thành hướng dẫn cho mini PC (sửa `deploy/.env` rồi chạy lại). Làm ở giai đoạn 1.
+12. Sự cố tiền (giai đoạn 5): trang đơn của khách hiện câu "liên hệ shop" kèm nút chat khi đơn có cờ `needsShopContact`; trang Sự cố thêm nhãn người báo "Hệ thống".
+13. Đã làm trong lần sửa [03](03-khong-tu-hoan-tien-va-o-tu-dien.md): tên, hệ, tình trạng là ô chữ tự gõ; bỏ G-Power; điều khoản và câu nhắc admin ghi rõ "hệ thống không tự hoàn tiền".
 
 ## 13. Lộ trình
 
@@ -806,7 +831,7 @@ Chi tiết ở [00 §10](00-tong-hop-nhu-cau.md#10-frontend-còn-thiếu-hoặc-
 | 2 | **Tài khoản**: đăng ký, đăng nhập, phiên, đăng xuất, hồ sơ, sổ địa chỉ, tài khoản ngân hàng (mã hoá), đổi và quên mật khẩu, tạo admin. Web: tự gia hạn phiên, trang đặt lại mật khẩu | Đăng nhập thật trên web chạy với backend |
 | 3 | **Feed và kho**: feed, từng con, tìm kiếm; admin feed và từng con; tải ảnh/video lưu trên ổ máy | Trang chủ, feed, trang chi tiết, admin đăng feed chạy bằng backend |
 | 4 | **Đơn hàng**: cấu hình thanh toán, mã giảm giá, đặt hàng chống bán trùng, đơn của khách, admin đơn / tạo đơn / sự cố, tự lên Lv2 khi đủ 3 con, tự huỷ chuyển khoản 24 giờ | 20 đơn tranh một con: đúng 1 thành công; test đặt hàng (không thẻ) xanh |
-| 5 | **Thẻ**: khuôn cổng, cổng giả lập ở server, IPN, quay về, đối chiếu, hoàn tiền, giữ hàng 15 phút. Cổng thật khi có hợp đồng | Bộ test thanh toán thẻ (35 + 19 + 18) xanh với backend |
+| 5 | **Thẻ**: khuôn cổng, cổng giả lập ở server, IPN, quay về, đối chiếu, giữ hàng 15 phút; trả trễ / trả trùng thành sự cố tiền cho admin; hoàn tiền chỉ khi admin bấm. Cổng thật khi có hợp đồng | Bộ test thanh toán thẻ (35 + 19 + 18) xanh với backend |
 | 6 | **Hạng thành viên và đấu giá**: đặt giá có khoá dòng, chống bắn tỉa, phiên kín không lộ giá, kênh realtime WebSocket, API tạo/sửa phiên | Test tranh đặt giá và test realtime xanh |
 | 7 | **Chat và trợ lý AI** trên server: mã bí mật cho khách vãng lai, lượt bot, trả lời tin bị bỏ dở | Bộ test chat khách vãng lai và bot xanh |
 | 8 | **Báo cáo và phần còn lại**: số trên menu, blog, liên hệ, nhận tin, cài đặt, nhật ký admin | Trang tổng quan admin chạy bằng backend |
@@ -828,6 +853,6 @@ Mỗi giai đoạn gồm:
 | Hỏng ổ, mất máy | Sao lưu mỗi đêm ra ổ ngoài và một nơi khác; thử khôi phục hằng tháng |
 | Mạng nhà có tốc độ tải lên thấp, ảnh/video chậm khi đông khách | Ảnh đã nén WebP (vài trăm KB); video nên ngắn. Nếu cần, sau này đặt thêm CDN phía trước mini PC |
 | Hợp đồng cổng thẻ mất nhiều tuần; cổng có thể đòi IP tĩnh | Cổng giả lập chạy trọn luồng; xin IP tĩnh khi bật thẻ thật |
-| Khách trả tiền đúng lúc đơn bị huỷ vì quá hạn | Chờ thêm khi khách còn ở trang cổng; xử lý trả trễ (giữ đơn hoặc tự hoàn tiền); đối chiếu với cổng định kỳ |
+| Khách trả tiền đúng lúc đơn bị huỷ vì quá hạn | Chờ thêm khi khách còn ở trang cổng; trả trễ mà hàng còn thì giữ đơn, hàng đã bán thì mở sự cố tiền để admin liên hệ khách; đối chiếu với cổng định kỳ |
 | Dữ liệu demo không chuyển sang bản thật | Bản thật bắt đầu trống, bạn đăng feed thật; bản thử dùng dữ liệu mẫu |
 | Hoàn tiền đơn chuyển khoản mà admin không xem được số tài khoản khách | Tạm thời shop liên hệ khách. Sau này có thể nối dịch vụ chi hộ, hoặc dịch vụ tự xác nhận chuyển khoản (SePay, Casso) |

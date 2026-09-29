@@ -49,6 +49,7 @@ export const PAYMENT_POLICY = [
   'Hỗ trợ thanh toán khi nhận hàng (COD), chuyển khoản ngân hàng và ví MoMo — chọn ở bước Thanh toán (Giỏ hàng → Tiến hành thanh toán).',
   'Đơn chuyển khoản được xác nhận trong giờ làm việc; quá 24 giờ chưa nhận được tiền thì đơn tự huỷ và các con Bakugan trong đơn được mở bán lại.',
   'Hàng đấu giá cần thanh toán trong 48 giờ sau khi thắng phiên.',
+  'Có vấn đề về tiền (bị trừ tiền nhưng đơn đã huỷ, trả hai lần, sai số tiền…): hệ thống không tự hoàn tiền; khách nhắn shop để nhân viên kiểm tra và giải quyết trực tiếp.',
 ];
 
 export const RETURN_POLICY = [
