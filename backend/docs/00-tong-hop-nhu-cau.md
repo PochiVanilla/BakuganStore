@@ -300,7 +300,7 @@ Ngoài ra web còn gọi thẳng `GET/POST /api/chat-bot` (hàm Vercel giữ kho
 | 1 | Khách nhập mật khẩu nào dài từ 8 ký tự cũng vào; email lạ tự tạo tài khoản; đổi mật khẩu không kiểm tra; quên mật khẩu không gửi gì | Mật khẩu băm (argon2), đăng nhập thật, email đặt lại mật khẩu |
 | 2 | Token là id người dùng mã hoá base64, ai cũng tự tạo được | Token ký bằng khoá bí mật, phiên đăng nhập lưu trên server, thu hồi được |
 | 3 | Dữ liệu riêng từng trình duyệt | Một CSDL chung |
-| 4 | Ảnh, video nằm trong trình duyệt của máy admin | Kho file thật + CDN để mọi khách xem được |
+| 4 | Ảnh, video nằm trong trình duyệt của máy admin | Lưu trên ổ cứng của máy chủ, mọi khách xem được |
 | 5 | Đấu giá cứng trong code, lượt đặt giá mất khi tải lại trang | Bảng phiên và lượt đặt trong CSDL |
 | 6 | 3 mã giảm giá và 6 bài blog cứng trong code | Bảng trong CSDL (có dữ liệu ban đầu) |
 | 7 | Liên hệ, đăng ký nhận tin không lưu gì | Lưu lại, báo cho shop |
@@ -328,9 +328,8 @@ Ngoài ra web còn gọi thẳng `GET/POST /api/chat-bot` (hàm Vercel giữ kho
 - Trang **đặt lại mật khẩu** (link trong email).
 - Gửi mã chống đặt trùng (`Idempotency-Key`) khi đặt hàng.
 - Chat khách vãng lai: lưu và gửi kèm mã bí mật; lượt bot gọi endpoint mới của backend.
-- Trang cài đặt bot: phần "Thử bot" và "Kiểm tra kết nối" gọi backend thay vì `/api/chat-bot`.
+- Nút "Thử bot" trong cài đặt gọi `/api/chat-bot` kèm token đăng nhập (backend giữ nguyên đường này).
 - Ghi chú nội bộ của admin dùng trường riêng.
-- Tải video lên thẳng kho file (link tải có chữ ký), không đi qua server.
 - Tách phần chữ của luật đấu giá khỏi phần icon để backend dùng chung.
 - Trang đấu giá: nhận giờ kết thúc mới và cờ "bạn đang dẫn đầu" từ sự kiện realtime; phiên kín không dựa vào số tiền để biết có lượt đặt mới.
 
