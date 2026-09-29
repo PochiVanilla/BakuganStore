@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/utils/cn';
-import type { BakuganAttribute } from '@/types';
-import { ATTRIBUTE_META } from '@/constants/catalog';
+import { ATTRIBUTE_META, attributeKeyOf } from '@/constants/catalog';
 import { AttributeIcon } from './AttributeIcon';
 
 export type StatusBadgeType = 'NEW' | 'RARE' | 'SOLD' | 'SELLING' | 'UPCOMING' | 'SOLD_OUT';
@@ -38,32 +37,44 @@ export function StatusBadge({ type, className }: { type: StatusBadgeType; classN
   );
 }
 
+/**
+ * Hệ shop tự gõ. Nhận ra hệ quen thuộc (Pyrus, Lửa…) thì có icon và màu của hệ đó;
+ * không thì hiện đúng chữ shop gõ với màu trung tính.
+ */
 export function AttributeBadge({
   attribute,
   size = 'md',
   className,
 }: {
-  attribute: BakuganAttribute;
+  attribute: string;
   size?: 'sm' | 'md';
   className?: string;
 }) {
-  const meta = ATTRIBUTE_META[attribute];
+  const label = attribute.trim();
+  if (!label) return null;
+  const key = attributeKeyOf(label);
+  const meta = key ? ATTRIBUTE_META[key] : undefined;
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full border font-semibold',
         size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs',
+        !meta && 'border-white/15 bg-white/5 text-text-muted',
         className,
       )}
-      style={{
-        borderColor: `${meta.color}66`,
-        backgroundColor: `${meta.color}1A`,
-        color: meta.color,
-      }}
-      title={meta.description}
+      style={
+        meta
+          ? {
+              borderColor: `${meta.color}66`,
+              backgroundColor: `${meta.color}1A`,
+              color: meta.color,
+            }
+          : undefined
+      }
+      title={meta?.description}
     >
-      <AttributeIcon attribute={attribute} size={size === 'sm' ? 13 : 15} glow />
-      {meta.label}
+      {key && <AttributeIcon attribute={key} size={size === 'sm' ? 13 : 15} glow />}
+      {label}
     </span>
   );
 }

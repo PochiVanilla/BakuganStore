@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { BakuganItem, CartItem, Coupon } from '@/types';
+import type { BakuganAttribute, BakuganItem, CartItem, Coupon, ProductCondition } from '@/types';
+import { ATTRIBUTE_META, CONDITION_LABELS } from '@/constants/catalog';
 
 interface CartState {
   items: CartItem[];
@@ -61,16 +62,21 @@ export const useCartStore = create<CartState>()(
       /*
        * Bản 1 lưu theo "mẫu sản phẩm + số lượng" — bỏ đi khi chuyển sang bán theo từng con.
        * Bản 2 còn ảnh minh hoạ tự vẽ trong giỏ — bỏ ảnh đó (web không còn vẽ ảnh nữa).
+       * Bản 3 lưu hệ / tình trạng dạng mã ("pyrus", "like-new") — đổi sang chữ như shop gõ.
        */
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         if (version < 2) return { items: [], coupon: null };
         const state = persisted as Pick<CartState, 'items' | 'coupon'>;
         return {
           ...state,
-          items: (state.items ?? []).map((item) =>
-            item.image.startsWith('data:') ? { ...item, image: '' } : item,
-          ),
+          items: (state.items ?? []).map((item) => ({
+            ...item,
+            image: item.image.startsWith('data:') ? '' : item.image,
+            attribute: ATTRIBUTE_META[item.attribute as BakuganAttribute]?.label ?? item.attribute,
+            condition:
+              CONDITION_LABELS[item.condition as ProductCondition] ?? item.condition ?? undefined,
+          })),
         };
       },
       // Không lưu trạng thái mở/đóng drawer vào localStorage.

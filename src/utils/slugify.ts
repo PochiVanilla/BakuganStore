@@ -17,5 +17,6 @@ export function slugify(input: string): string {
 
 /** Bỏ dấu để so khớp tìm kiếm ("dragonoid" khớp cả "Dragonoid" lẫn "Drágonoid"). */
 export function normalizeSearch(input: string): string {
-  return input.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').toLowerCase().trim();
+  // Hạ chữ thường trước rồi mới đổi "đ", để cả "Đ" viết hoa cũng thành "d".
+  return input.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/đ/g, 'd').trim();
 }

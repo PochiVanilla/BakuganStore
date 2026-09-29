@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, Check, EyeOff, Eye, Gavel, Radio, ShieldCheck, Zap } from 'lucide-react';
+import { ChevronRight, Check, EyeOff, Eye, Gavel, Radio, ShieldCheck } from 'lucide-react';
 import type { Auction } from '@/types';
 import { ROUTES } from '@/constants/routes';
-import { AUCTION_STATUS_LABELS, CONDITION_LABELS, SERIES_META } from '@/constants/catalog';
+import { AUCTION_STATUS_LABELS, SERIES_META } from '@/constants/catalog';
 import { fetchAuctionById } from '@/services/api/auctionService';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuthStore } from '@/store/authStore';
@@ -225,12 +225,8 @@ export default function AuctionDetailPage() {
             </h1>
 
             <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-text-muted">
-              <span className="inline-flex items-center gap-1.5 text-gold">
-                <Zap size={14} aria-hidden="true" />
-                {formatNumber(auction.gPower)} G
-              </span>
               <span>{seriesMeta.label}</span>
-              <span>{CONDITION_LABELS[auction.condition]}</span>
+              {auction.condition && <span>{auction.condition}</span>}
               <span className="inline-flex items-center gap-1.5">
                 <Eye size={14} aria-hidden="true" />
                 {formatNumber(auction.watcherCount)} người theo dõi

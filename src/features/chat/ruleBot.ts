@@ -843,7 +843,7 @@ function pickItems(text: string, entities: ItemEntities, knowledge: BotKnowledge
   };
   if (entities.items.length > 0 || entities.species.length > 0) pool = entities.items;
   if (entities.attributes.length > 0) {
-    narrow((item) => entities.attributes.includes(item.attributeId));
+    narrow((item) => Boolean(item.attributeId && entities.attributes.includes(item.attributeId)));
   }
   if (entities.series.length > 0) {
     narrow((item) => Boolean(item.seriesId && entities.series.includes(item.seriesId)));
@@ -873,7 +873,8 @@ function pickItems(text: string, entities: ItemEntities, knowledge: BotKnowledge
   const compare: Record<ItemSort, (a: BotItemFact, b: BotItemFact) => number> = {
     cheap: (a, b) => onSaleFirst(a, b) || a.price - b.price,
     expensive: (a, b) => onSaleFirst(a, b) || b.price - a.price,
-    strong: (a, b) => onSaleFirst(a, b) || (b.gPower ?? 0) - (a.gPower ?? 0),
+    // Shop không ghi G-Power cho từng con nên không xếp được theo sức mạnh.
+    strong: (a, b) => onSaleFirst(a, b) || b.feedNumber - a.feedNumber,
     newest: (a, b) => b.feedNumber - a.feedNumber || onSaleFirst(a, b),
     featured: (a, b) => onSaleFirst(a, b) || b.feedNumber - a.feedNumber,
     hot: (a, b) => onSaleFirst(a, b) || b.feedNumber - a.feedNumber,
@@ -885,7 +886,8 @@ const SORT_HEADINGS: Record<Exclude<ItemSort, 'featured'>, string> = {
   hot: 'Mỗi con ở shop là duy nhất nên không có mẫu "bán chạy" — đây là vài con ở feed mới nhất',
   cheap: 'Con giá mềm nhất',
   expensive: 'Con giá trị nhất',
-  strong: 'Con có G-Power cao nhất',
+  strong:
+    'Shop không ghi chỉ số sức mạnh (G-Power) cho từng con nên chưa xếp theo độ mạnh được — đây là vài con đang bán, bạn xem hệ và tình trạng nhé',
   newest: 'Con ở feed mới nhất',
 };
 

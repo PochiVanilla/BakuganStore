@@ -6,6 +6,7 @@ import type {
   OrderStatus,
   ProductCondition,
 } from '@/types';
+import { normalizeSearch } from '@/utils/slugify';
 
 export interface AttributeMeta {
   value: BakuganAttribute;
@@ -60,6 +61,84 @@ export const ATTRIBUTE_META: Record<BakuganAttribute, AttributeMeta> = {
     element: 'Gió',
   },
 };
+
+/* ---------- Hệ và tình trạng do shop tự gõ ---------- */
+
+/** Chữ → từ không dấu, chỉ còn chữ số và khoảng trắng: "Haos (Ánh sáng)" → "haos anh sang". */
+function words(text: string | undefined): string {
+  return normalizeSearch(text ?? '')
+    .replace(/[^a-z0-9%]+/g, ' ')
+    .trim();
+}
+
+function hasPhrase(haystack: string, phrase: string): number {
+  return ` ${haystack} `.indexOf(` ${phrase} `);
+}
+
+/** Tên gọi khác của từng hệ (đã bỏ dấu): tên hệ, nguyên tố tiếng Việt, tiếng Anh. */
+const ATTRIBUTE_ALIASES: Record<BakuganAttribute, readonly string[]> = {
+  pyrus: ['pyrus', 'lua', 'fire'],
+  aquos: ['aquos', 'nuoc', 'water'],
+  subterra: ['subterra', 'dat', 'earth'],
+  haos: ['haos', 'anh sang', 'light'],
+  darkus: ['darkus', 'bong toi', 'dark'],
+  ventus: ['ventus', 'gio', 'wind'],
+};
+
+/**
+ * Hệ shop gõ tay ("Pyrus", "hệ Lửa", "Haos – Ánh sáng") thuộc hệ quen thuộc nào — để có
+ * icon, màu, bộ lọc và tư vấn. Không nhận ra thì trả về undefined (hiện chữ, không icon).
+ * Gõ hai hệ ("Pyrus / Darkus") thì lấy hệ đứng trước.
+ */
+export function attributeKeyOf(text: string | undefined): BakuganAttribute | undefined {
+  const haystack = words(text);
+  if (!haystack) return undefined;
+  let found: { key: BakuganAttribute; at: number } | undefined;
+  (Object.keys(ATTRIBUTE_ALIASES) as BakuganAttribute[]).forEach((key) => {
+    ATTRIBUTE_ALIASES[key].forEach((alias) => {
+      const at = hasPhrase(haystack, alias);
+      if (at >= 0 && (!found || at < found.at)) found = { key, at };
+    });
+  });
+  return found?.key;
+}
+
+/**
+ * Xếp tình trạng shop gõ tay vào một trong ba nhóm để trợ lý tư vấn so với mong muốn
+ * của khách. Không đoán được thì trả về undefined (bot chỉ đọc nguyên văn cho khách).
+ * Kiểm tra "như mới" trước vì câu đó cũng có chữ "mới".
+ */
+export function conditionGradeOf(text: string | undefined): ProductCondition | undefined {
+  const haystack = words(text);
+  if (!haystack) return undefined;
+  const any = (phrases: readonly string[]) => phrases.some((p) => hasPhrase(haystack, p) >= 0);
+  if (
+    any(['like new', 'likenew', 'nhu moi', 'gan nhu moi', 'moi 99%', 'moi 98%', 'moi 95%']) ||
+    /\b(9\d|100) ?%/.test(haystack)
+  ) {
+    return 'like-new';
+  }
+  if (
+    any([
+      'da qua su dung',
+      'qua su dung',
+      'da su dung',
+      'hang cu',
+      'second hand',
+      'used',
+      'da choi',
+      'cu',
+      'tray',
+      'xuoc',
+    ])
+  ) {
+    return 'used';
+  }
+  if (any(['seal', 'nguyen seal', 'nguyen hop', 'chua boc', 'chua khui', 'new', 'moi'])) {
+    return 'new-sealed';
+  }
+  return undefined;
+}
 
 export interface SeriesMeta {
   value: BakuganSeries;

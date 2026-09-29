@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Camera, CircleCheck, Film, Pencil, RotateCcw, Trash2 } from 'lucide-react';
-import type { AdminItem, BakuganAttribute, BakuganSeries, ProductCondition } from '@/types';
-import { BAKUGAN_ATTRIBUTES, BAKUGAN_SERIES, PRODUCT_CONDITIONS } from '@/types';
+import type { AdminItem, BakuganAttribute, BakuganSeries } from '@/types';
+import { BAKUGAN_ATTRIBUTES, BAKUGAN_SERIES } from '@/types';
 import { ADMIN_ROUTES, ROUTES } from '@/constants/routes';
-import { ATTRIBUTE_META, CONDITION_LABELS, SERIES_META } from '@/constants/catalog';
+import { ATTRIBUTE_META, SERIES_META } from '@/constants/catalog';
 import {
   deleteItem,
   listAdminItems,
@@ -155,11 +155,9 @@ function EditItemForm({ item, onDone }: { item: AdminItem; onDone: () => void })
   const [name, setName] = useState(item.name);
   const [code, setCode] = useState(item.code);
   const [price, setPrice] = useState(String(item.price));
-  const [attribute, setAttribute] = useState<BakuganAttribute>(item.attribute);
+  const [attribute, setAttribute] = useState(item.attribute);
   const [series, setSeries] = useState<BakuganSeries | ''>(item.series ?? '');
-  const [condition, setCondition] = useState<ProductCondition>(item.condition);
-  const [conditionNote, setConditionNote] = useState(item.conditionNote ?? '');
-  const [gPower, setGPower] = useState(item.gPower ? String(item.gPower) : '');
+  const [condition, setCondition] = useState(item.condition ?? '');
   const [media, setMedia] = useState<ItemMedia>({ photos: [...item.images], video: item.video });
   const { upload, isUploading } = useUploader();
   const [busy, setBusy] = useState(false);
@@ -174,8 +172,6 @@ function EditItemForm({ item, onDone }: { item: AdminItem; onDone: () => void })
         attribute,
         series: series || undefined,
         condition,
-        conditionNote,
-        gPower: gPower ? Number(gPower) : undefined,
         photos: media.photos,
         video: media.video,
       });
@@ -207,17 +203,14 @@ function EditItemForm({ item, onDone }: { item: AdminItem; onDone: () => void })
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
           <span className="mb-1 block text-xs text-text-muted">Hệ</span>
-          <select
+          <input
+            name="attribute"
             value={attribute}
-            onChange={(e) => setAttribute(e.target.value as BakuganAttribute)}
+            onChange={(e) => setAttribute(e.target.value)}
+            maxLength={40}
+            placeholder="VD: Pyrus"
             className={fieldClass}
-          >
-            {BAKUGAN_ATTRIBUTES.map((value) => (
-              <option key={value} value={value}>
-                {ATTRIBUTE_META[value].label}
-              </option>
-            ))}
-          </select>
+          />
         </label>
         <label className="block">
           <span className="mb-1 block text-xs text-text-muted">Dòng</span>
@@ -234,21 +227,7 @@ function EditItemForm({ item, onDone }: { item: AdminItem; onDone: () => void })
             ))}
           </select>
         </label>
-        <label className="block">
-          <span className="mb-1 block text-xs text-text-muted">Tình trạng</span>
-          <select
-            value={condition}
-            onChange={(e) => setCondition(e.target.value as ProductCondition)}
-            className={fieldClass}
-          >
-            {PRODUCT_CONDITIONS.map((value) => (
-              <option key={value} value={value}>
-                {CONDITION_LABELS[value]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
+        <label className="col-span-2 block">
           <span className="mb-1 block text-xs text-text-muted">
             Giá {item.status === 'sold' && '(đã bán, giữ nguyên)'}
           </span>
@@ -262,19 +241,13 @@ function EditItemForm({ item, onDone }: { item: AdminItem; onDone: () => void })
         </label>
       </div>
       <label className="block">
-        <span className="mb-1 block text-xs text-text-muted">Ghi chú tình trạng</span>
+        <span className="mb-1 block text-xs text-text-muted">Tình trạng</span>
         <input
-          value={conditionNote}
-          onChange={(e) => setConditionNote(e.target.value)}
-          className={fieldClass}
-        />
-      </label>
-      <label className="block">
-        <span className="mb-1 block text-xs text-text-muted">G-Power</span>
-        <input
-          value={gPower}
-          onChange={(e) => setGPower(e.target.value.replace(/\D/g, ''))}
-          inputMode="numeric"
+          name="condition"
+          value={condition}
+          onChange={(e) => setCondition(e.target.value)}
+          maxLength={160}
+          placeholder="VD: Like new, trầy nhẹ ở chân"
           className={fieldClass}
         />
       </label>
@@ -455,9 +428,11 @@ export default function ItemsAdminPage() {
                       <p className="max-w-56 truncate font-medium">{item.name}</p>
                       <div className="mt-1 flex items-center gap-2">
                         <AttributeBadge attribute={item.attribute} size="sm" />
-                        <span className="text-[11px] text-text-muted">
-                          {CONDITION_LABELS[item.condition]}
-                        </span>
+                        {item.condition && (
+                          <span className="max-w-40 truncate text-[11px] text-text-muted">
+                            {item.condition}
+                          </span>
+                        )}
                         <span
                           className={cn(
                             'inline-flex items-center gap-1 text-[11px]',

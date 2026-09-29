@@ -16,7 +16,8 @@ import { FREE_SHIPPING_THRESHOLD, ROUTES, SHIPPING_FEE, SHOP_INFO } from '@/cons
 import {
   ATTRIBUTE_META,
   AUCTION_MIN_LEVEL,
-  CONDITION_LABELS,
+  attributeKeyOf,
+  conditionGradeOf,
   FEED_STATUS_LABELS,
   PURCHASES_FOR_LV2,
   SERIES_META,
@@ -115,15 +116,16 @@ export interface BotItemFact {
   code: string;
   name: string;
   price: number;
-  /** Tên hệ để đọc: "Pyrus" */
+  /** Hệ shop tự gõ: "Pyrus" */
   attribute: string;
-  attributeId: BakuganAttribute;
+  /** Hệ quen thuộc nhận ra từ chữ shop gõ — để tư vấn theo hệ; không nhận ra thì trống */
+  attributeId?: BakuganAttribute;
   series?: string;
   seriesId?: BakuganSeries;
-  condition: string;
-  conditionId: ProductCondition;
-  conditionNote?: string;
-  gPower?: number;
+  /** Tình trạng shop tự gõ */
+  condition?: string;
+  /** Nhóm tình trạng đoán từ chữ shop gõ — để tư vấn; không đoán được thì trống */
+  conditionId?: ProductCondition;
   feedNumber: number;
   /** Đặt mua được ngay; false nghĩa là feed chưa tới giờ mở bán */
   onSale: boolean;
@@ -215,14 +217,12 @@ export function buildKnowledge(input: {
           code: item.code,
           name: item.name,
           price: item.price,
-          attribute: ATTRIBUTE_META[item.attribute].label,
-          attributeId: item.attribute,
+          attribute: item.attribute,
+          attributeId: attributeKeyOf(item.attribute),
           series: item.series ? SERIES_META[item.series].label : undefined,
           seriesId: item.series,
-          condition: CONDITION_LABELS[item.condition],
-          conditionId: item.condition,
-          conditionNote: item.conditionNote,
-          gPower: item.gPower,
+          condition: item.condition,
+          conditionId: conditionGradeOf(item.condition),
           feedNumber: feed.number,
           onSale: item.onSale,
           opensAt: feed.opensAt,
@@ -269,10 +269,9 @@ export function saleState(item: Pick<BotItemFact, 'onSale' | 'opensAt'>): string
 
 export function describeItem(item: BotItemFact): string {
   const details = [
-    `hệ ${item.attribute}`,
+    item.attribute && `hệ ${item.attribute}`,
     item.series && `dòng ${item.series}`,
-    `${item.condition}${item.conditionNote ? ` (${item.conditionNote})` : ''}`,
-    item.gPower && `${item.gPower}G`,
+    item.condition,
   ]
     .filter(Boolean)
     .join(', ');

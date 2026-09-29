@@ -367,7 +367,9 @@ function attributeLabel(attributes: readonly BakuganAttribute[] | undefined): st
 }
 
 function inAttributes(item: BotItemFact, attributes: readonly BakuganAttribute[] | undefined) {
-  return !attributes || attributes.length === 0 || attributes.includes(item.attributeId);
+  if (!attributes || attributes.length === 0) return true;
+  // Hệ shop gõ mà bot không nhận ra thì chỉ hợp với "hệ nào cũng được".
+  return Boolean(item.attributeId && attributes.includes(item.attributeId));
 }
 
 function ask(
@@ -467,7 +469,8 @@ function fitScore(item: BotItemFact, answers: ConsultAnswers): number {
   if (answers.condition === 'used' && item.conditionId === 'like-new') score += 3;
   switch (answers.purpose) {
     case 'play':
-      score += ((item.gPower ?? 600) / 1200) * 12;
+      // Để chơi thì ưu tiên giá mềm (không còn G-Power để so sức mạnh).
+      score += Math.max(0, 1 - item.price / 2_000_000) * 6;
       if (item.conditionId !== 'new-sealed') score += 4;
       break;
     case 'collect':
@@ -545,7 +548,7 @@ const EXTRA_NOTES: Record<string, string> = {
 };
 
 const WHY: Record<ConsultPurpose, string> = {
-  play: 'Để chơi, con có G-Power cao dễ thắng khi so điểm trên thẻ Gate; hàng like new / đã qua sử dụng giá mềm mà vẫn bung nở tốt.',
+  play: 'Để chơi, hàng like new / đã qua sử dụng giá mềm mà vẫn bung nở tốt; muốn biết con nào mạnh hơn khi đấu thì nhắn shop tư vấn thêm nhé.',
   collect:
     'Để sưu tầm, hàng nguyên seal giữ giá tốt nhất; nhớ xem kỹ ảnh và ghi chú tình trạng của từng con.',
   gift: 'Làm quà thì hàng nguyên seal hoặc like new là đẹp nhất; shop đóng gói chống sốc hai lớp.',
@@ -561,9 +564,8 @@ function conditionSummary(condition: ConsultAnswers['condition']): string {
 /** Một dòng ngắn cho mỗi con được gợi ý (chi tiết đầy đủ nằm trong trang feed). */
 function describePick(item: BotItemFact, showAttribute: boolean): string {
   const parts = [
-    showAttribute && `hệ ${item.attribute}`,
-    `${item.condition}${item.conditionNote ? ` (${item.conditionNote})` : ''}`,
-    item.gPower && `${item.gPower}G`,
+    showAttribute && item.attribute && `hệ ${item.attribute}`,
+    item.condition,
     item.onSale
       ? `feed #${item.feedNumber}`
       : `feed #${item.feedNumber}, mở bán ${formatDateTime(item.opensAt)}`,

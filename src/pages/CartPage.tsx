@@ -11,7 +11,6 @@ import {
   X,
 } from 'lucide-react';
 import { FREE_SHIPPING_THRESHOLD, ROUTES } from '@/constants/routes';
-import { CONDITION_LABELS } from '@/constants/catalog';
 import {
   applyCoupon,
   calculateTotals,
@@ -219,9 +218,11 @@ export default function CartPage() {
                               </Link>
                               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                                 <AttributeBadge attribute={item.attribute} size="sm" />
-                                <span className="text-xs text-text-muted">
-                                  {CONDITION_LABELS[item.condition]}
-                                </span>
+                                {item.condition && (
+                                  <span className="line-clamp-1 text-xs text-text-muted">
+                                    {item.condition}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <button

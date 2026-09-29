@@ -16,7 +16,7 @@ import type {
 } from '@/types';
 import { FREE_SHIPPING_THRESHOLD, SHIPPING_FEE } from '@/constants/routes';
 import { DEFAULT_INTERNATIONAL_SHIPPING } from '@/constants/shipping';
-import { PURCHASES_FOR_LV2 } from '@/constants/catalog';
+import { ATTRIBUTE_META, CONDITION_LABELS, PURCHASES_FOR_LV2 } from '@/constants/catalog';
 import { formatItemCode } from '@/utils/itemCode';
 import { BAKUGAN_MODELS, type BakuganModel } from './models';
 import { AUCTION_BIDDERS, MOCK_AUCTIONS } from './auctions';
@@ -940,11 +940,9 @@ function buildFeeds(
         code: formatItemCode(sequence),
         name: model.name,
         price,
-        attribute: model.attribute,
+        attribute: ATTRIBUTE_META[model.attribute].label,
         series: model.series,
-        condition,
-        conditionNote: pick(CONDITION_NOTES[condition], rand),
-        gPower: model.gPower,
+        condition: `${CONDITION_LABELS[condition]} — ${pick(CONDITION_NOTES[condition], rand)}`,
         status: 'available',
         feedId: id,
         position: index + 1,

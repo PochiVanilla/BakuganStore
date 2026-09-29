@@ -1,12 +1,19 @@
 import type { AdminItem, ApiResponse, BakuganAttribute, Paginated } from '@/types';
 import { ITEM_PHOTO_LIMIT } from '@/types';
 import { itemMediaRefs, readDb, updateDb } from '@/mocks/db';
+import { attributeKeyOf } from '@/constants/catalog';
 import { normalizeSearch } from '@/utils/slugify';
 import { normalizeItemCode } from '@/utils/itemCode';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from '../client';
 import { requireAdmin } from '../mockSession';
 import { deleteImageRefs } from '../imageStore';
-import { applyItemFields, toAdminItem, type FeedItemInput } from './feeds';
+import {
+  applyItemFields,
+  ATTRIBUTE_MAX,
+  CONDITION_MAX,
+  toAdminItem,
+  type FeedItemInput,
+} from './feeds';
 
 /* ============================================================
    Quản lý từng con Bakugan (không có số lượng: còn bán hoặc SOLD).
@@ -58,7 +65,7 @@ export async function listAdminItems(query: AdminItemQuery = {}): Promise<AdminI
 
   const scoped = db.items
     .map((item) => toAdminItem(db, item))
-    .filter((item) => (attribute === 'all' ? true : item.attribute === attribute))
+    .filter((item) => attribute === 'all' || attributeKeyOf(item.attribute) === attribute)
     .filter((item) =>
       soldWithinDays > 0 && item.status === 'sold'
         ? now - new Date(item.soldAt ?? 0).getTime() <= soldWithinDays * 86_400_000
@@ -211,6 +218,17 @@ export async function updateItem(
   }
   if (!Number.isInteger(input.price) || input.price <= 0) {
     throw new MockApiError('Giá không hợp lệ.', 422, { price: 'Giá không hợp lệ.' });
+  }
+  const attributeText = input.attribute?.trim() ?? '';
+  if (!attributeText || attributeText.length > ATTRIBUTE_MAX) {
+    throw new MockApiError(`Ghi hệ (tối đa ${ATTRIBUTE_MAX} ký tự).`, 422, {
+      attribute: 'Ghi hệ của con này.',
+    });
+  }
+  if ((input.condition?.trim().length ?? 0) > CONDITION_MAX) {
+    throw new MockApiError(`Tình trạng tối đa ${CONDITION_MAX} ký tự.`, 422, {
+      condition: `Tối đa ${CONDITION_MAX} ký tự.`,
+    });
   }
   const code = input.code?.trim() ? normalizeItemCode(input.code) : undefined;
   if (input.code?.trim() && !code) {

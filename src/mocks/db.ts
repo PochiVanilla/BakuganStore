@@ -19,6 +19,7 @@ import type {
 } from '@/types';
 import { BOT_TOPIC_IDS } from '@/types';
 import { DEFAULT_INTERNATIONAL_SHIPPING } from '@/constants/shipping';
+import { ATTRIBUTE_META, CONDITION_LABELS } from '@/constants/catalog';
 import { MOCK_AUCTIONS } from './auctions';
 import { createSeedDatabase, DEFAULT_BOT_SETTINGS } from './seed';
 
@@ -58,11 +59,11 @@ export interface StoredItem {
   code: string;
   name: string;
   price: number;
-  attribute: BakuganAttribute;
+  /** Hệ do shop tự gõ */
+  attribute: string;
   series?: BakuganSeries;
-  condition: ProductCondition;
-  conditionNote?: string;
-  gPower?: number;
+  /** Tình trạng do shop tự gõ */
+  condition?: string;
   /** Ảnh riêng (mã tham chiếu hoặc URL), tối đa 3 — ảnh đầu là ảnh chính */
   photos?: string[];
   /** Video giới thiệu (mã tham chiếu hoặc URL) */
@@ -115,7 +116,7 @@ export interface MockDatabase {
 
 const STORAGE_KEY = 'td-bakugan:mock-db';
 /** Tăng số này khi đổi cấu trúc dữ liệu; bản cũ được nâng cấp trong `migrate`. */
-export const DB_VERSION = 5;
+export const DB_VERSION = 6;
 
 let cache: MockDatabase | null = null;
 let revision = 0;
@@ -156,6 +157,33 @@ function fromV4(data: MockDatabase): MockDatabase {
   };
 }
 
+/** Con Bakugan như bản 5 lưu: hệ và tình trạng là mã cố định, có G-Power. */
+type V5Item = Omit<StoredItem, 'attribute' | 'condition'> & {
+  attribute: string;
+  condition?: string;
+  conditionNote?: string;
+  gPower?: number;
+};
+
+/**
+ * v6: hệ và tình trạng là chữ shop tự gõ, bỏ G-Power. Mã cũ đổi thành chữ tương ứng
+ * ("pyrus" → "Pyrus", "like-new" + ghi chú → "Like new — trầy nhẹ").
+ */
+function fromV5(data: MockDatabase): MockDatabase {
+  return {
+    ...data,
+    version: 6,
+    items: (data.items as V5Item[]).map((stored) => {
+      const { conditionNote, gPower: _gPower, attribute, condition, ...item } = stored;
+      const attributeText =
+        ATTRIBUTE_META[attribute as BakuganAttribute]?.label ?? (attribute || '');
+      const conditionLabel = CONDITION_LABELS[condition as ProductCondition] ?? condition ?? '';
+      const conditionText = [conditionLabel, conditionNote?.trim()].filter(Boolean).join(' — ');
+      return { ...item, attribute: attributeText, condition: conditionText || undefined };
+    }),
+  };
+}
+
 /**
  * Nâng cấp dữ liệu đã lưu ở phiên bản trước.
  *
@@ -165,11 +193,12 @@ function fromV4(data: MockDatabase): MockDatabase {
  */
 function migrate(data: Partial<MockDatabase>): MockDatabase | undefined {
   if (data.version === DB_VERSION) return data as MockDatabase;
-  // Nâng lần lượt từng bậc: v3 -> v4 -> v5.
-  if (data.version === 3 || data.version === 4) {
+  // Nâng lần lượt từng bậc: v3 -> v4 -> v5 -> v6.
+  if (data.version === 3 || data.version === 4 || data.version === 5) {
     let db = data as MockDatabase;
     if (db.version === 3) db = fromV3(db);
-    return fromV4(db);
+    if (db.version === 4) db = fromV4(db);
+    return fromV5(db);
   }
   if ((data.version !== 1 && data.version !== 2) || !data.users || !data.botSettings) {
     return undefined;
@@ -332,8 +361,6 @@ export function toPublicItem(
     attribute: item.attribute,
     series: item.series,
     condition: item.condition,
-    conditionNote: item.conditionNote,
-    gPower: item.gPower,
     images: item.photos ?? [],
     image: itemImage(item),
     video: item.video,

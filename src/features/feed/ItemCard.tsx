@@ -1,10 +1,10 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Heart, ShoppingCart, Zap } from 'lucide-react';
+import { Check, Heart, ShoppingCart } from 'lucide-react';
 import type { BakuganItem } from '@/types';
 import { ROUTES } from '@/constants/routes';
-import { CONDITION_LABELS, SERIES_META } from '@/constants/catalog';
-import { formatCurrency, formatNumber } from '@/utils/format';
+import { SERIES_META } from '@/constants/catalog';
+import { formatCurrency } from '@/utils/format';
 import { cn } from '@/utils/cn';
 import { AttributeBadge, RefImage } from '@/components/ui';
 import { useCartStore } from '@/store/cartStore';
@@ -125,15 +125,8 @@ function ItemCardComponent({
           <AttributeBadge attribute={item.attribute} size="sm" />
           {series && <span className="text-[11px] text-text-muted">{series.label}</span>}
         </div>
-        <p className="mt-2 text-xs text-text-muted">
-          <span className="font-semibold text-text">{CONDITION_LABELS[item.condition]}</span>
-          {item.conditionNote && ` — ${item.conditionNote}`}
-        </p>
-        {item.gPower && (
-          <p className="mt-1 inline-flex items-center gap-1 text-xs text-gold">
-            <Zap size={12} aria-hidden="true" />
-            {formatNumber(item.gPower)} G
-          </p>
+        {item.condition && (
+          <p className="mt-2 line-clamp-2 text-xs text-text-muted">{item.condition}</p>
         )}
 
         <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 pt-3">

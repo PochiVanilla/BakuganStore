@@ -11,18 +11,10 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-react';
-import type {
-  AdminFeed,
-  AdminItem,
-  BakuganAttribute,
-  BakuganSeries,
-  FeedLimitCheck,
-  ProductCondition,
-} from '@/types';
-import { BAKUGAN_ATTRIBUTES, BAKUGAN_SERIES, PRODUCT_CONDITIONS } from '@/types';
+import type { AdminFeed, AdminItem, BakuganSeries, FeedLimitCheck } from '@/types';
+import { BAKUGAN_SERIES } from '@/types';
 import { ADMIN_ROUTES, ROUTES } from '@/constants/routes';
-import { ATTRIBUTE_META, CONDITION_LABELS, SERIES_META } from '@/constants/catalog';
-import { BAKUGAN_MODELS } from '@/mocks';
+import { SERIES_META } from '@/constants/catalog';
 import {
   checkFeedLimit,
   createFeed,
@@ -54,11 +46,11 @@ interface DraftItem {
   name: string;
   code: string;
   price: string;
-  attribute: BakuganAttribute | '';
+  /** Hệ shop tự gõ */
+  attribute: string;
   series: BakuganSeries | '';
-  condition: ProductCondition;
-  conditionNote: string;
-  gPower: string;
+  /** Tình trạng shop tự gõ */
+  condition: string;
   /** Tối đa 3 ảnh riêng, ảnh đầu là ảnh chính */
   photos: string[];
   video?: string;
@@ -78,9 +70,7 @@ function emptyItem(): DraftItem {
     price: '',
     attribute: '',
     series: '',
-    condition: 'like-new',
-    conditionNote: '',
-    gPower: '',
+    condition: '',
     photos: [],
   };
 }
@@ -96,9 +86,7 @@ function fromAdminItem(item: AdminItem, fromLeftover = false): DraftItem {
     price: String(item.price),
     attribute: item.attribute,
     series: item.series ?? '',
-    condition: item.condition,
-    conditionNote: item.conditionNote ?? '',
-    gPower: item.gPower ? String(item.gPower) : '',
+    condition: item.condition ?? '',
     photos: [...item.images],
     video: item.video,
   };
@@ -113,8 +101,6 @@ function toLocalInput(iso: string): string {
 
 const inputClass =
   'h-10 w-full rounded-lg border border-white/10 bg-surface-2/80 px-3 text-sm text-text outline-none placeholder:text-text-muted/50 focus:border-accent-cyan';
-
-const MODEL_BY_NAME = new Map(BAKUGAN_MODELS.map((model) => [model.name.toLowerCase(), model]));
 
 /* ---------------- Hộp xác nhận khi web đã đủ 30 feed ---------------- */
 
@@ -267,7 +253,7 @@ function LeftoverPicker({
                   <span className="font-mono text-xs text-accent-cyan">{item.code}</span>{' '}
                   <span className="text-text">{item.name}</span>
                   <span className="block text-xs text-text-muted">
-                    {CONDITION_LABELS[item.condition]}
+                    {[item.attribute, item.condition].filter(Boolean).join(' · ')}
                     {item.feedNumber && ` · từ feed #${item.feedNumber}`}
                   </span>
                 </span>
@@ -333,14 +319,25 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
   const { upload, isUploading } = useUploader();
   const codes = useAsync(() => suggestItemCodes(40), []);
 
+  // Sửa ô nào thì bỏ báo lỗi của ô đó ngay, không chờ bấm đăng lại.
+  const clearErrors = (names: string[]): void => {
+    setErrors((current) => {
+      if (!names.some((name) => name in current)) return current;
+      const next = { ...current };
+      names.forEach((name) => delete next[name]);
+      return next;
+    });
+  };
   const set = <K extends keyof FormState>(key: K, value: FormState[K]): void => {
     setForm((current) => ({ ...current, [key]: value }));
+    clearErrors(key === 'opensMode' ? ['opensAt'] : [key]);
   };
   const setItem = (key: string, patch: Partial<DraftItem>): void => {
     setForm((current) => ({
       ...current,
       items: current.items.map((item) => (item.key === key ? { ...item, ...patch } : item)),
     }));
+    clearErrors(Object.keys(patch).map((field) => `${key}.${field}`));
   };
   // Ảnh / video tải xong sau vài giây -> cập nhật trên dữ liệu mới nhất của đúng con đó.
   const setItemMedia = (key: string, update: (current: ItemMedia) => ItemMedia): void => {
@@ -373,19 +370,6 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
       setForm((current) => ({ ...current, images: [...current.images, ...refs] }));
   };
 
-  const onNameChange = (item: DraftItem, name: string): void => {
-    const model = MODEL_BY_NAME.get(name.trim().toLowerCase());
-    setItem(item.key, {
-      name,
-      // Chọn đúng tên mẫu quen thuộc thì tự điền hệ / dòng / G-Power nếu còn trống.
-      ...(model && {
-        attribute: item.attribute || model.attribute,
-        series: item.series || model.series,
-        gPower: item.gPower || String(model.gPower),
-      }),
-    });
-  };
-
   const validate = (): boolean => {
     const next: Record<string, string> = {};
     if (form.title.trim().length < 3) next.title = 'Tiêu đề cần ít nhất 3 ký tự.';
@@ -395,7 +379,7 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
       if (item.name.trim().length < 2) next[`${item.key}.name`] = 'Nhập tên';
       const price = Number(item.price);
       if (!Number.isInteger(price) || price <= 0) next[`${item.key}.price`] = 'Giá';
-      if (!item.attribute) next[`${item.key}.attribute`] = 'Chọn hệ';
+      if (!item.attribute.trim()) next[`${item.key}.attribute`] = 'Ghi hệ';
     });
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -418,11 +402,9 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
       name: item.name,
       code: item.code || undefined,
       price: Number(item.price),
-      attribute: item.attribute as BakuganAttribute,
+      attribute: item.attribute.trim(),
       series: item.series || undefined,
-      condition: item.condition,
-      conditionNote: item.conditionNote,
-      gPower: item.gPower ? Number(item.gPower) : undefined,
+      condition: item.condition.trim() || undefined,
       photos: item.photos,
       video: item.video,
     })),
@@ -582,11 +564,6 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
             }
             bodyClassName="space-y-3"
           >
-            <datalist id="bakugan-models">
-              {BAKUGAN_MODELS.map((model) => (
-                <option key={model.name} value={model.name} />
-              ))}
-            </datalist>
             {form.items.map((item, index) => {
               const err = (field: string): string | undefined => errors[`${item.key}.${field}`];
               const label = item.name || `Con thứ ${index + 1}`;
@@ -607,9 +584,10 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
                     <label className="lg:col-span-4">
                       <span className="sr-only">Tên {label}</span>
                       <input
+                        name="item-name"
                         value={item.name}
-                        onChange={(event) => onNameChange(item, event.target.value)}
-                        list="bakugan-models"
+                        onChange={(event) => setItem(item.key, { name: event.target.value })}
+                        maxLength={80}
                         placeholder="Tên (VD: Dragonoid Chiến Binh Lửa)"
                         className={cn(inputClass, err('name') && 'border-danger/70')}
                       />
@@ -625,26 +603,14 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
                     </label>
                     <label className="lg:col-span-2">
                       <span className="sr-only">Hệ {label}</span>
-                      <select
+                      <input
+                        name="item-attribute"
                         value={item.attribute}
-                        onChange={(event) =>
-                          setItem(item.key, {
-                            attribute: event.target.value as BakuganAttribute | '',
-                          })
-                        }
-                        className={cn(
-                          inputClass,
-                          'cursor-pointer',
-                          err('attribute') && 'border-danger/70',
-                        )}
-                      >
-                        <option value="">Hệ…</option>
-                        {BAKUGAN_ATTRIBUTES.map((value) => (
-                          <option key={value} value={value}>
-                            {ATTRIBUTE_META[value].label} ({ATTRIBUTE_META[value].element})
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(event) => setItem(item.key, { attribute: event.target.value })}
+                        maxLength={40}
+                        placeholder="Hệ (VD: Pyrus)"
+                        className={cn(inputClass, err('attribute') && 'border-danger/70')}
+                      />
                     </label>
                     <label className="lg:col-span-2">
                       <span className="sr-only">Dòng {label}</span>
@@ -680,55 +646,30 @@ function FeedForm({ feed }: { feed?: AdminFeed }) {
                         )}
                       />
                     </label>
-                    <label className="lg:col-span-3">
+                    <label className="sm:col-span-2 lg:col-span-10">
                       <span className="sr-only">Tình trạng {label}</span>
-                      <select
+                      <input
+                        name="item-condition"
                         value={item.condition}
-                        onChange={(event) =>
-                          setItem(item.key, { condition: event.target.value as ProductCondition })
-                        }
-                        className={cn(inputClass, 'cursor-pointer')}
-                      >
-                        {PRODUCT_CONDITIONS.map((value) => (
-                          <option key={value} value={value}>
-                            {CONDITION_LABELS[value]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="sm:col-span-2 lg:col-span-5">
-                      <span className="sr-only">Ghi chú tình trạng {label}</span>
-                      <input
-                        value={item.conditionNote}
-                        onChange={(event) =>
-                          setItem(item.key, { conditionNote: event.target.value })
-                        }
-                        placeholder="Tình trạng riêng: trầy nhẹ, bung mượt, thiếu thẻ…"
+                        onChange={(event) => setItem(item.key, { condition: event.target.value })}
+                        maxLength={160}
+                        placeholder="Tình trạng (VD: Like new, bung mượt, trầy nhẹ ở chân)"
                         className={inputClass}
-                      />
-                    </label>
-                    <label className="lg:col-span-2">
-                      <span className="sr-only">G-Power {label}</span>
-                      <input
-                        value={item.gPower}
-                        onChange={(event) =>
-                          setItem(item.key, { gPower: event.target.value.replace(/\D/g, '') })
-                        }
-                        inputMode="numeric"
-                        placeholder="G-Power"
-                        className={cn(inputClass, 'tabular-nums')}
                       />
                     </label>
                     <div className="flex items-center justify-end lg:col-span-2">
                       <button
                         type="button"
                         disabled={item.sold}
-                        onClick={() =>
+                        onClick={() => {
                           set(
                             'items',
                             form.items.filter((entry) => entry.key !== item.key),
-                          )
-                        }
+                          );
+                          clearErrors(
+                            Object.keys(errors).filter((name) => name.startsWith(`${item.key}.`)),
+                          );
+                        }}
                         className="flex h-10 w-10 items-center justify-center rounded-lg text-text-muted transition hover:bg-danger/10 hover:text-danger disabled:opacity-30"
                         aria-label={`Bỏ ${label} khỏi feed`}
                         title={

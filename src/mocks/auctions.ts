@@ -41,7 +41,6 @@ interface AuctionSeed {
   name: string;
   attribute: BakuganAttribute;
   series: BakuganSeries;
-  gPower: number;
   condition: ProductCondition;
   startPrice: number;
   bidStep: number;
@@ -66,7 +65,6 @@ const SEEDS: AuctionSeed[] = [
     name: 'Titanium Dragonoid Bản Mạ Vàng Giới Hạn',
     attribute: 'pyrus',
     series: 'mechtanium-surge',
-    gPower: 1_200,
     condition: 'new-sealed',
     startPrice: 2_500_000,
     bidStep: 100_000,
@@ -84,7 +82,6 @@ const SEEDS: AuctionSeed[] = [
     name: 'Hydranoid Tam Đầu Nguyên Hộp Đời Đầu',
     attribute: 'darkus',
     series: 'battle-brawlers',
-    gPower: 960,
     condition: 'new-sealed',
     startPrice: 1_800_000,
     bidStep: 50_000,
@@ -101,7 +98,6 @@ const SEEDS: AuctionSeed[] = [
     name: 'Linehalt Bóng Tối Kèm Trọn Bộ BakuNano',
     attribute: 'darkus',
     series: 'gundalian-invaders',
-    gPower: 1_040,
     condition: 'like-new',
     startPrice: 1_500_000,
     bidStep: 50_000,
@@ -120,7 +116,6 @@ const SEEDS: AuctionSeed[] = [
     name: 'Lupitheon Ánh Nguyệt Bản Sưu Tầm',
     attribute: 'haos',
     series: 'geogan-rising',
-    gPower: 950,
     condition: 'new-sealed',
     startPrice: 1_200_000,
     bidStep: 50_000,
@@ -137,7 +132,6 @@ const SEEDS: AuctionSeed[] = [
     name: 'Combo 5 Bakugan Hệ Ventus Đủ Series',
     attribute: 'ventus',
     series: 'new-vestroia',
-    gPower: 880,
     condition: 'like-new',
     startPrice: 2_000_000,
     bidStep: 100_000,
@@ -153,7 +147,6 @@ const SEEDS: AuctionSeed[] = [
     name: 'Infinity Helios Hoả Ngục Bản Hiếm',
     attribute: 'pyrus',
     series: 'mechtanium-surge',
-    gPower: 1_130,
     condition: 'like-new',
     startPrice: 1_600_000,
     bidStep: 50_000,
@@ -169,7 +162,6 @@ const SEEDS: AuctionSeed[] = [
     name: 'Preyas Song Sinh Đổi Màu Bản Nhật',
     attribute: 'aquos',
     series: 'battle-brawlers',
-    gPower: 610,
     condition: 'like-new',
     startPrice: 900_000,
     bidStep: 30_000,
@@ -229,7 +221,7 @@ export const MOCK_AUCTIONS: AuctionRecord[] = SEEDS.map((seed, index) => {
     title: seed.name,
     description: [
       seed.blurb,
-      `Hệ ${attributeMeta.label} (${attributeMeta.element}) · Dòng ${seriesMeta.label} (${seriesMeta.years}) · G-Power ${seed.gPower}G · ${CONDITION_LABELS[seed.condition]}.`,
+      `Hệ ${attributeMeta.label} (${attributeMeta.element}) · Dòng ${seriesMeta.label} (${seriesMeta.years}) · ${CONDITION_LABELS[seed.condition]}.`,
       'Người thắng phiên sẽ được TD Bakugan liên hệ trong vòng 24 giờ để xác nhận địa chỉ giao hàng. Sản phẩm được quay video khi đóng gói và gửi kèm ảnh thực tế trước khi chuyển đi.',
     ].join('\n\n'),
     // Chưa có ảnh thật — để trống, khi có backend ảnh lấy từ database.
@@ -249,10 +241,9 @@ export const MOCK_AUCTIONS: AuctionRecord[] = SEEDS.map((seed, index) => {
     extensionCount: seed.extensionCount ?? 0,
     bidCount: bids.length,
     watcherCount: seed.watcherCount,
-    attribute: seed.attribute,
+    attribute: attributeMeta.label,
     series: seed.series,
-    gPower: seed.gPower,
-    condition: seed.condition,
+    condition: CONDITION_LABELS[seed.condition],
     accessories: seed.extras.map((name) => ({ name, included: true })),
     bids,
   } satisfies AuctionRecord;

@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { Gavel, Eye, Zap } from 'lucide-react';
+import { Gavel, Eye } from 'lucide-react';
 import type { Auction } from '@/types';
 import { ROUTES } from '@/constants/routes';
-import { AUCTION_STATUS_LABELS, CONDITION_LABELS } from '@/constants/catalog';
+import { AUCTION_STATUS_LABELS } from '@/constants/catalog';
 import { formatCurrency, formatDateTime, formatNumber } from '@/utils/format';
 import { cn } from '@/utils/cn';
 import { AttributeBadge, Countdown, RefImage } from '@/components/ui';
@@ -65,12 +65,8 @@ export function AuctionCard({ auction }: { auction: Auction }) {
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="mb-2 flex items-center gap-2">
           <AttributeBadge attribute={auction.attribute} size="sm" />
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-gold">
-            <Zap size={12} aria-hidden="true" />
-            {formatNumber(auction.gPower)}G
-          </span>
         </div>
 
         <Link to={ROUTES.auctionDetail(auction.id)}>
@@ -79,7 +75,9 @@ export function AuctionCard({ auction }: { auction: Auction }) {
           </h3>
         </Link>
 
-        <p className="mt-1.5 text-xs text-text-muted">{CONDITION_LABELS[auction.condition]}</p>
+        {auction.condition && (
+          <p className="mt-1.5 line-clamp-1 text-xs text-text-muted">{auction.condition}</p>
+        )}
 
         <div className="mt-3.5 rounded-xl border border-white/8 bg-surface-2/70 p-3">
           <div className="flex items-baseline justify-between gap-2">

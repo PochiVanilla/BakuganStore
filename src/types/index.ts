@@ -26,6 +26,10 @@ export const BAKUGAN_SERIES = [
 export type BakuganSeries = (typeof BAKUGAN_SERIES)[number];
 
 /* ---------- Tình trạng ---------- */
+/**
+ * Ba nhóm tình trạng để trợ lý tư vấn so với mong muốn của khách. Tình trạng của từng
+ * con là chữ shop tự gõ; `conditionGradeOf` (constants/catalog) xếp chữ đó vào một nhóm.
+ */
 export const PRODUCT_CONDITIONS = ['new-sealed', 'like-new', 'used'] as const;
 export type ProductCondition = (typeof PRODUCT_CONDITIONS)[number];
 
@@ -56,13 +60,15 @@ export interface BakuganItem {
   /** Tên do chủ shop đặt */
   name: string;
   price: number;
-  attribute: BakuganAttribute;
+  /**
+   * Hệ do shop tự gõ (VD "Pyrus", "Haos – Ánh sáng"). Hệ quen thuộc được nhận ra bằng
+   * `attributeKeyOf` để có icon, màu và bộ lọc.
+   */
+  attribute: string;
   /** Dòng / đời (có thể không rõ với hàng lô) */
   series?: BakuganSeries;
-  condition: ProductCondition;
-  /** Tình trạng riêng của con này: trầy nhẹ, lỏng khớp, thiếu thẻ… */
-  conditionNote?: string;
-  gPower?: number;
+  /** Tình trạng do shop tự gõ (VD "Like new, trầy nhẹ ở chân"); trống nếu shop chưa ghi */
+  condition?: string;
   /** Ảnh riêng của con này (tối đa 3), ảnh đầu là ảnh chính; rỗng khi chưa có ảnh */
   images: string[];
   /** Ảnh chính (= images[0]); chưa có ảnh thì rỗng (giao diện để khung trống) */
@@ -131,7 +137,6 @@ export interface FeedQuery {
 export interface ItemQuery {
   keyword?: string;
   attributes?: BakuganAttribute[];
-  conditions?: ProductCondition[];
   minPrice?: number;
   maxPrice?: number;
   /** Mặc định chỉ con còn bán */
@@ -205,10 +210,11 @@ export interface Auction {
   /** Số người khác nhau đã đặt giá */
   bidderCount: number;
   watcherCount: number;
-  attribute: BakuganAttribute;
+  /** Hệ do shop tự gõ, như ở từng con Bakugan */
+  attribute: string;
   series: BakuganSeries;
-  gPower: number;
-  condition: ProductCondition;
+  /** Tình trạng do shop tự gõ */
+  condition?: string;
   accessories: ProductAccessory[];
   /** Lượt đặt của chính người đang xem (mới nhất trước) */
   myBids: MyBid[];
@@ -332,8 +338,10 @@ export interface CartItem {
   name: string;
   image: string;
   price: number;
-  attribute: BakuganAttribute;
-  condition: ProductCondition;
+  /** Hệ do shop tự gõ */
+  attribute: string;
+  /** Tình trạng do shop tự gõ */
+  condition?: string;
   feedNumber?: number;
 }
 

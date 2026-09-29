@@ -44,7 +44,7 @@ const TOPIC_RULES: Record<string, string> = {
   'auction-rules':
     'Giải thích luật đấu giá: chống bắn tỉa (tự gia hạn), phiên kín, không công khai tên người đặt, chỉ thành viên Lv2 được đặt giá, bước giá, thời hạn thanh toán.',
   'product-info':
-    'Feed bán hàng và tư vấn chọn Bakugan: feed nào đang / sắp mở bán, con nào còn (kèm mã BK), giá, hệ, dòng, tình trạng, G-Power — chỉ theo các dòng [Cách bán], [Feed], [Bakugan còn bán].',
+    'Feed bán hàng và tư vấn chọn Bakugan: feed nào đang / sắp mở bán, con nào còn (kèm mã BK), giá, hệ, dòng, tình trạng — chỉ theo các dòng [Cách bán], [Feed], [Bakugan còn bán].',
   'bakugan-knowledge':
     'Kiến thức chung về Bakugan: Bakugan là gì, 6 hệ, các dòng sản phẩm, G-Power, cách chơi cơ bản.',
   membership:

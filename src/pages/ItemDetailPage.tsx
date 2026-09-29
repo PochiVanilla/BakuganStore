@@ -13,22 +13,16 @@ import {
   ShoppingBag,
   ShoppingCart,
   Truck,
-  Zap,
 } from 'lucide-react';
 import { FREE_SHIPPING_THRESHOLD, ROUTES } from '@/constants/routes';
-import {
-  ATTRIBUTE_META,
-  CONDITION_DESCRIPTIONS,
-  CONDITION_LABELS,
-  SERIES_META,
-} from '@/constants/catalog';
+import { SERIES_META } from '@/constants/catalog';
 import { fetchItemDetail } from '@/services/api/feedService';
 import { useAsync } from '@/hooks/useAsync';
 import { useLiveRevision } from '@/hooks/useLiveRevision';
 import { useCartStore } from '@/store/cartStore';
 import { useWishlistStore } from '@/store/wishlistStore';
 import { toast, useUIStore } from '@/store/uiStore';
-import { formatCurrency, formatDateTime, formatNumber } from '@/utils/format';
+import { formatCurrency, formatDateTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
 import {
   AttributeBadge,
@@ -132,7 +126,6 @@ export default function ItemDetailPage() {
 
   const isSold = item.status === 'sold';
   const isUpcoming = !isSold && !item.onSale;
-  const attributeMeta = ATTRIBUTE_META[item.attribute];
   const series = item.series ? SERIES_META[item.series] : undefined;
   const others = feed.items
     .filter((entry) => entry.id !== item.id)
@@ -164,7 +157,14 @@ export default function ItemDetailPage() {
     <>
       <Seo
         title={`${item.name} ${item.code}`}
-        description={`${CONDITION_LABELS[item.condition]}${item.conditionNote ? ` — ${item.conditionNote}` : ''}. Hệ ${attributeMeta.label}, ${isSold ? 'đã bán' : `giá ${formatCurrency(item.price)}`}. Nằm trong feed #${feed.number} của TD Bakugan.`}
+        description={[
+          item.condition,
+          item.attribute && `Hệ ${item.attribute}`,
+          isSold ? 'đã bán' : `giá ${formatCurrency(item.price)}`,
+          `nằm trong feed #${feed.number} của TD Bakugan.`,
+        ]
+          .filter(Boolean)
+          .join('. ')}
         image={shareImage || undefined}
         path={ROUTES.itemDetail(item.code)}
         type="product"
@@ -279,20 +279,7 @@ export default function ItemDetailPage() {
               <div className="rounded-xl border border-white/8 bg-surface/70 p-3.5">
                 <dt className="text-xs text-text-muted">Hệ</dt>
                 <dd className="mt-1 text-sm font-semibold text-text">
-                  {attributeMeta.label} — {attributeMeta.element}
-                </dd>
-              </div>
-              <div className="rounded-xl border border-white/8 bg-surface/70 p-3.5">
-                <dt className="text-xs text-text-muted">G-Power</dt>
-                <dd className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-gold">
-                  {item.gPower ? (
-                    <>
-                      <Zap size={14} aria-hidden="true" />
-                      {formatNumber(item.gPower)} G
-                    </>
-                  ) : (
-                    <span className="text-text-muted">Chưa rõ</span>
-                  )}
+                  {item.attribute ? <AttributeBadge attribute={item.attribute} /> : 'Chưa rõ'}
                 </dd>
               </div>
               <div className="rounded-xl border border-white/8 bg-surface/70 p-3.5">
@@ -301,23 +288,15 @@ export default function ItemDetailPage() {
                   {series?.label ?? 'Chưa rõ'}
                 </dd>
               </div>
-              <div className="rounded-xl border border-white/8 bg-surface/70 p-3.5">
+              <div className="col-span-2 rounded-xl border border-white/8 bg-surface/70 p-3.5">
                 <dt className="text-xs text-text-muted">Tình trạng</dt>
-                <dd className="mt-1 text-sm font-semibold text-text">
-                  {CONDITION_LABELS[item.condition]}
+                <dd className="mt-1 text-sm leading-relaxed font-semibold whitespace-pre-line text-text">
+                  {item.condition || (
+                    <span className="font-normal text-text-muted">Shop chưa ghi tình trạng.</span>
+                  )}
                 </dd>
               </div>
             </dl>
-
-            <div className="mt-3 rounded-xl border border-white/8 bg-surface/50 p-4 text-sm">
-              <p className="font-semibold text-text">Tình trạng riêng của con này</p>
-              <p className="mt-1 leading-relaxed text-text-muted">
-                {item.conditionNote || 'Shop chưa ghi chú thêm.'}
-              </p>
-              <p className="mt-2 text-xs text-text-muted/80">
-                {CONDITION_DESCRIPTIONS[item.condition]}
-              </p>
-            </div>
 
             {/* Mua */}
             <div className="mt-6 flex gap-2.5 sm:gap-3">

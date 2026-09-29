@@ -2,19 +2,11 @@ import type {
   AdminFeed,
   AdminItem,
   ApiResponse,
-  BakuganAttribute,
   BakuganSeries,
   FeedLimitCheck,
   FeedStatusFilter,
-  ProductCondition,
 } from '@/types';
-import {
-  BAKUGAN_ATTRIBUTES,
-  BAKUGAN_SERIES,
-  FEED_LIMIT,
-  ITEM_PHOTO_LIMIT,
-  PRODUCT_CONDITIONS,
-} from '@/types';
+import { BAKUGAN_SERIES, FEED_LIMIT, ITEM_PHOTO_LIMIT } from '@/types';
 import {
   createId,
   itemMediaRefs,
@@ -209,11 +201,11 @@ export interface FeedItemInput {
   /** Bỏ trống để hệ thống tự cấp mã kế tiếp */
   code?: string;
   price: number;
-  attribute: BakuganAttribute;
+  /** Hệ shop tự gõ (VD "Pyrus") */
+  attribute: string;
   series?: BakuganSeries;
-  condition: ProductCondition;
-  conditionNote?: string;
-  gPower?: number;
+  /** Tình trạng shop tự gõ (VD "Like new, trầy nhẹ"); bỏ trống nếu chưa ghi */
+  condition?: string;
   /** Tối đa 3 ảnh riêng (mã tham chiếu từ uploadImage), ảnh đầu là ảnh chính */
   photos?: string[];
   /** Video giới thiệu (mã tham chiếu từ uploadVideo) */
@@ -239,6 +231,10 @@ export interface CreateFeedOptions {
   carryLeftovers?: boolean;
 }
 
+/** Giới hạn độ dài chữ shop tự gõ */
+export const ATTRIBUTE_MAX = 40;
+export const CONDITION_MAX = 160;
+
 function fail(message: string, field?: string): never {
   throw new MockApiError(message, 422, field ? { [field]: message } : undefined);
 }
@@ -260,9 +256,13 @@ function validateFeedInput(input: FeedInput, allowEmptyItems: boolean): void {
     const label = `Con thứ ${index + 1}`;
     if (item.name.trim().length < 2) fail(`${label}: chưa có tên.`);
     if (!Number.isInteger(item.price) || item.price <= 0) fail(`${label}: giá không hợp lệ.`);
-    if (!BAKUGAN_ATTRIBUTES.includes(item.attribute)) fail(`${label}: chưa chọn hệ.`);
+    if (!item.attribute?.trim()) fail(`${label}: chưa ghi hệ.`);
+    if (item.attribute.trim().length > ATTRIBUTE_MAX)
+      fail(`${label}: hệ tối đa ${ATTRIBUTE_MAX} ký tự.`);
     if (item.series && !BAKUGAN_SERIES.includes(item.series)) fail(`${label}: dòng không hợp lệ.`);
-    if (!PRODUCT_CONDITIONS.includes(item.condition)) fail(`${label}: chưa chọn tình trạng.`);
+    if ((item.condition?.trim().length ?? 0) > CONDITION_MAX) {
+      fail(`${label}: tình trạng tối đa ${CONDITION_MAX} ký tự.`);
+    }
     if (item.code?.trim() && !normalizeItemCode(item.code)) {
       fail(`${label}: mã "${item.code}" không đúng dạng BK-0123.`);
     }
@@ -304,11 +304,9 @@ export function applyItemFields(
   const before = itemMediaRefs(item);
   item.name = input.name.trim();
   if (allowPriceChange) item.price = input.price;
-  item.attribute = input.attribute;
+  item.attribute = input.attribute.trim();
   item.series = input.series || undefined;
-  item.condition = input.condition;
-  item.conditionNote = input.conditionNote?.trim() || undefined;
-  item.gPower = input.gPower && input.gPower > 0 ? Math.round(input.gPower) : undefined;
+  item.condition = input.condition?.trim() || undefined;
   const photos = (input.photos ?? []).filter(Boolean).slice(0, ITEM_PHOTO_LIMIT);
   item.photos = photos.length > 0 ? photos : undefined;
   item.video = input.video || undefined;
@@ -472,8 +470,6 @@ export async function createFeed(
           attribute: item.attribute,
           series: item.series,
           condition: item.condition,
-          conditionNote: item.conditionNote,
-          gPower: item.gPower,
           photos: item.photos,
           video: item.video,
         };

@@ -1,5 +1,6 @@
 import type { ApiResponse, BakuganItem, FeedPost, FeedQuery, ItemDetail, ItemQuery } from '@/types';
 import { listFeedPosts } from '@/mocks/db';
+import { attributeKeyOf } from '@/constants/catalog';
 import { normalizeSearch } from '@/utils/slugify';
 import { normalizeItemCode } from '@/utils/itemCode';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from './client';
@@ -18,8 +19,10 @@ function itemHaystack(item: BakuganItem): string {
 
 function matchesItem(item: BakuganItem, query: ItemQuery): boolean {
   if (!query.includeSold && item.status !== 'available') return false;
-  if (query.attributes?.length && !query.attributes.includes(item.attribute)) return false;
-  if (query.conditions?.length && !query.conditions.includes(item.condition)) return false;
+  if (query.attributes?.length) {
+    const key = attributeKeyOf(item.attribute);
+    if (!key || !query.attributes.includes(key)) return false;
+  }
   if (query.minPrice !== undefined && item.price < query.minPrice) return false;
   if (query.maxPrice !== undefined && item.price > query.maxPrice) return false;
   if (query.keyword) {
@@ -37,7 +40,10 @@ export async function fetchFeeds(query: FeedQuery = {}): Promise<FeedPost[]> {
   const needle = query.keyword ? normalizeSearch(query.keyword) : '';
   const feeds = listFeedPosts().filter((feed) => {
     if (query.status && query.status !== 'all' && feed.status !== query.status) return false;
-    if (query.attribute && !feed.items.some((item) => item.attribute === query.attribute)) {
+    if (
+      query.attribute &&
+      !feed.items.some((item) => attributeKeyOf(item.attribute) === query.attribute)
+    ) {
       return false;
     }
     if (!needle) return true;
