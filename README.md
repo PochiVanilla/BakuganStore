@@ -46,6 +46,9 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
+Cài đủ web + backend + MySQL để lập trình, chạy test và debug trên máy (Windows / macOS):
+xem [`backend/docs/05-cai-dat-may-lap-trinh.md`](backend/docs/05-cai-dat-may-lap-trinh.md).
+
 | Lệnh | Việc |
 | --- | --- |
 | `npm run dev` | Chạy dev server |

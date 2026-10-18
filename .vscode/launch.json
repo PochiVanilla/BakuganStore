@@ -1,0 +1,55 @@
+{
+  // Chạy + debug trong VS Code: mở tab "Run and Debug" (Ctrl+Shift+D), chọn cấu hình, bấm F5.
+  // Đặt điểm dừng (breakpoint) bằng cách bấm vào lề trái của dòng code.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: chạy + debug (cổng 4000)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend",
+      "runtimeArgs": ["--env-file-if-exists=.env", "--import", "tsx"],
+      "program": "${workspaceFolder}/backend/src/server.ts",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Backend: debug file test đang mở",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend",
+      "program": "${workspaceFolder}/backend/node_modules/vitest/vitest.mjs",
+      "args": ["run", "${file}"],
+      "autoAttachChildProcesses": true,
+      "smartStep": true,
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Backend: debug toàn bộ test",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend",
+      "program": "${workspaceFolder}/backend/node_modules/vitest/vitest.mjs",
+      "args": ["run"],
+      "autoAttachChildProcesses": true,
+      "smartStep": true,
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Web: debug trong Chrome (cần chạy npm run dev trước)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "name": "Web: debug trong Edge (cần chạy npm run dev trước)",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}"
+    }
+  ]
+}

@@ -113,29 +113,25 @@ describe('ràng buộc trong CSDL', () => {
       phone: '0901234567',
       addressLine: '1 Hồng Bàng',
     };
-    await database.db
-      .insert(orders)
-      .values({
+    await database.db.insert(orders).values({
+      id: newId(),
+      code: `TD${Date.now()}`,
+      ...base,
+      subtotal: 100_000,
+      shippingFee: 30_000,
+      discount: 0,
+      total: 130_000,
+    });
+    await expect(
+      database.db.insert(orders).values({
         id: newId(),
-        code: `TD${Date.now()}`,
+        code: `TX${Date.now()}`,
         ...base,
         subtotal: 100_000,
         shippingFee: 30_000,
         discount: 0,
-        total: 130_000,
-      });
-    await expect(
-      database.db
-        .insert(orders)
-        .values({
-          id: newId(),
-          code: `TX${Date.now()}`,
-          ...base,
-          subtotal: 100_000,
-          shippingFee: 30_000,
-          discount: 0,
-          total: 1,
-        }),
+        total: 1,
+      }),
     ).rejects.toThrow();
   });
 

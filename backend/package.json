@@ -17,9 +17,12 @@
     "db:seed": "tsx --env-file-if-exists=.env src/cli.ts seed",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"*.ts\"",
     "check:shared": "tsx scripts/check-shared-imports.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run check:shared"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.3",

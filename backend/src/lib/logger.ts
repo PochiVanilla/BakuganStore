@@ -58,13 +58,28 @@ export function serializeError(error: unknown, depth = 0): SerializedError {
   return serialized;
 }
 
-export function createLogger(env: Pick<Env, 'LOG_LEVEL' | 'NODE_ENV'>): Logger {
-  return pino({
+export function createLogger(
+  env: Pick<Env, 'LOG_LEVEL' | 'NODE_ENV'> & { LOG_FORMAT?: 'json' | 'pretty' },
+): Logger {
+  const options = {
     level: env.NODE_ENV === 'test' ? 'silent' : env.LOG_LEVEL,
+    redact: { paths: REDACT_PATHS, censor: '[đã che]' },
+    serializers: { err: serializeError, error: serializeError },
+  };
+  if (env.LOG_FORMAT === 'pretty') {
+    // Chỉ dùng khi lập trình: pino-pretty là thư viện dev, không có trong bản chạy thật.
+    return pino({
+      ...options,
+      transport: {
+        target: 'pino-pretty',
+        options: { colorize: true, translateTime: 'SYS:HH:MM:ss', ignore: 'pid,hostname' },
+      },
+    });
+  }
+  return pino({
+    ...options,
     base: { service: 'td-bakugan-api' },
     timestamp: pino.stdTimeFunctions.isoTime,
     formatters: { level: (label) => ({ level: label }) },
-    redact: { paths: REDACT_PATHS, censor: '[đã che]' },
-    serializers: { err: serializeError, error: serializeError },
   });
 }

@@ -27,6 +27,13 @@ describe('loadEnv', () => {
     ).toBe(0);
   });
 
+  it('log dễ đọc khi lập trình, JSON khi chạy thật (đổi được bằng LOG_FORMAT)', () => {
+    expect(loadEnv({ ...BASE }).LOG_FORMAT).toBe('pretty');
+    expect(loadEnv({ ...BASE, NODE_ENV: 'production' }).LOG_FORMAT).toBe('json');
+    expect(loadEnv({ ...BASE, NODE_ENV: 'test' }).LOG_FORMAT).toBe('json');
+    expect(loadEnv({ ...BASE, LOG_FORMAT: 'json' }).LOG_FORMAT).toBe('json');
+  });
+
   it('đọc danh sách origin thêm và bỏ dấu / cuối', () => {
     const env = loadEnv({
       ...BASE,

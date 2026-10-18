@@ -1,0 +1,7 @@
+{
+  // Web (thư mục gốc) và backend có cấu hình ESLint riêng.
+  "eslint.workingDirectories": [".", "backend"],
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "files.eol": "\n"
+}

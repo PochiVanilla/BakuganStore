@@ -29,6 +29,8 @@ const EnvSchema = z
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
+    /** `pretty`: log dễ đọc khi lập trình; `json`: một dòng JSON mỗi sự kiện (mặc định ngoài máy dev) */
+    LOG_FORMAT: z.enum(['json', 'pretty']).optional(),
 
     /** Địa chỉ web của shop, VD https://tdbakugan.vn — dùng để chặn trang lạ gọi API */
     PUBLIC_ORIGIN: z.url(),
@@ -56,6 +58,7 @@ const EnvSchema = z
   .transform((env) => ({
     ...env,
     TRUST_PROXY_HOPS: env.TRUST_PROXY_HOPS ?? (env.NODE_ENV === 'production' ? 1 : 0),
+    LOG_FORMAT: env.LOG_FORMAT ?? (env.NODE_ENV === 'development' ? 'pretty' : 'json'),
     isProduction: env.NODE_ENV === 'production',
     /** Mọi origin được gọi API: web của shop + các origin thêm khi phát triển */
     allowedOrigins: [

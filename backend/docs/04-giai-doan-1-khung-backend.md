@@ -164,20 +164,7 @@ cài bằng `npm ci --omit=dev` nên không chứa các gói này. Sẽ cập nh
 
 ## 5. Chạy ở máy (cho người phát triển)
 
-```bash
-# MySQL để phát triển / test (một lần)
-docker run -d --name tdb-mysql -e MYSQL_ROOT_PASSWORD=<mật khẩu> -e MYSQL_DATABASE=tdbakugan \
-  -e MYSQL_USER=tdb -e MYSQL_PASSWORD=<mật khẩu> -p 127.0.0.1:3307:3306 mysql:8.4
-
-cd backend
-npm install
-# tạo backend/.env (không commit): NODE_ENV, PUBLIC_ORIGIN=http://localhost:3000,
-# EXTRA_ORIGINS=http://localhost:4173, DB_HOST=127.0.0.1, DB_PORT=3307, DB_USER, DB_PASSWORD, DB_NAME
-npm run dev                                   # tự chạy migration + dữ liệu ban đầu
-TEST_MYSQL_URL=mysql://root:<mật khẩu>@127.0.0.1:3307 npm test
-npm run typecheck && npm run lint && npm run check:shared
-npm run db:generate                           # sau khi sửa src/db/schema → sinh migration mới
-```
+Xem hướng dẫn đầy đủ (Windows / macOS) ở [05 · Cài môi trường lập trình](05-cai-dat-may-lap-trinh.md).
 
 ## 6. Việc tiếp theo
 

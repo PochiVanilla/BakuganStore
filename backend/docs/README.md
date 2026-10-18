@@ -14,6 +14,7 @@ Frontend (React + Vite) vẫn ở thư mục gốc. Vercel chỉ là bản chạ
 | Cách nối | Frontend build với `VITE_USE_MOCK=false` + `VITE_API_BASE_URL=/api` là gọi backend thật, không phải viết lại giao diện |
 | Trạng thái | Kế hoạch bản 3 **đã duyệt**. **Xong giai đoạn 1** (khung backend, MySQL, Gemini, bộ cài mini PC). Tiếp theo: giai đoạn 2, tài khoản |
 | Cài mini PC | [`deploy/HUONG-DAN.md`](../../deploy/HUONG-DAN.md) |
+| Lập trình trên máy | [05 · Cài môi trường lập trình](05-cai-dat-may-lap-trinh.md): chạy, test, debug trên Windows / macOS |
 | Luật tiền | Hệ thống **không bao giờ tự hoàn tiền**. Có vấn đề về tiền thì khách liên hệ shop, admin giải quyết |
 
 ## Quy ước
@@ -32,3 +33,4 @@ Frontend (React + Vite) vẫn ở thư mục gốc. Vercel chỉ là bản chạ
 | [02-dieu-chinh-mysql-mini-pc.md](02-dieu-chinh-mysql-mini-pc.md) | Đổi sang MySQL, lưu ảnh trên máy, tự chạy trên mini PC; bot Gemini khi rời Vercel | Xong |
 | [03-khong-tu-hoan-tien-va-o-tu-dien.md](03-khong-tu-hoan-tien-va-o-tu-dien.md) | Không tự hoàn tiền; tên, hệ, tình trạng do shop tự gõ; bỏ G-Power (web đã sửa) | Xong |
 | [04-giai-doan-1-khung-backend.md](04-giai-doan-1-khung-backend.md) | Giai đoạn 1: backend Express + TS, CSDL MySQL 31 bảng, bot Gemini trong backend, bộ cài mini PC (Docker, sao lưu, hướng dẫn); 43 test trên MySQL thật | Xong |
+| [05-cai-dat-may-lap-trinh.md](05-cai-dat-may-lap-trinh.md) | Cài môi trường lập trình trên máy cá nhân: MySQL bằng Docker Desktop, chạy web + backend, test, debug VS Code | Xong |

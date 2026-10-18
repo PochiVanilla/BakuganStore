@@ -62,9 +62,23 @@ export default defineConfig(({ mode }) => {
   for (const key of ['GEMINI_API_KEY', 'GEMINI_MODEL']) {
     if (env[key] && !process.env[key]) process.env[key] = env[key];
   }
+  /*
+   * DEV_API_PROXY=http://localhost:4000 → mọi /api và /ws chuyển sang backend chạy trên máy
+   * (giống Caddy trên mini PC), thay cho việc tự chạy api/chat-bot.ts ngay trong Vite.
+   */
+  const backendUrl = env.DEV_API_PROXY?.trim();
+  if (backendUrl && !/^https?:\/\/[^/]+\/?$/.test(backendUrl)) {
+    throw new Error(`DEV_API_PROXY phải có dạng http://localhost:4000 (đang là "${backendUrl}")`);
+  }
+  const proxy = backendUrl
+    ? {
+        '/api': { target: backendUrl, changeOrigin: false },
+        '/ws': { target: backendUrl.replace(/^http/, 'ws'), ws: true },
+      }
+    : undefined;
 
   return {
-    plugins: [react(), tailwindcss(), devApiRoutes()],
+    plugins: [react(), tailwindcss(), ...(backendUrl ? [] : [devApiRoutes()])],
     resolve: {
       alias: {
         '@': path.resolve(rootDir, './src'),
@@ -73,6 +87,10 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
+      proxy,
+    },
+    preview: {
+      proxy,
     },
     build: {
       target: 'es2020',

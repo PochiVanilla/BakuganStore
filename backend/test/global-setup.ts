@@ -1,14 +1,33 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { parseEnv } from 'node:util';
 import mysql from 'mysql2/promise';
 import type { TestProject } from 'vitest/node';
 
 /*
  * Test chạy trên MySQL thật (không dùng CSDL giả). Mỗi lần chạy tạo một CSDL trống
- * tên `tdbakugan_test`, chạy xong thì xoá. Cần một tài khoản có quyền tạo CSDL:
+ * tên `tdbakugan_test`, chạy xong thì xoá. Cần tài khoản root (có quyền tạo CSDL).
  *
- *   docker run -d --name tdb-mysql-test -e MYSQL_ROOT_PASSWORD=<mật khẩu> \
- *     -p 127.0.0.1:3307:3306 mysql:8.4
- *   TEST_MYSQL_URL=mysql://root:<mật khẩu>@127.0.0.1:3307 npm test
+ * Máy lập trình: bật MySQL bằng `docker compose up -d` trong backend/, điền
+ * DB_ROOT_PASSWORD trong backend/.env rồi chỉ cần `npm test`.
+ * Nơi khác (VD máy chủ CI): đặt biến TEST_MYSQL_URL=mysql://root:<mật khẩu>@<host>:<cổng>.
  */
+
+/** Đọc riêng vài biến cần cho test từ backend/.env (không nạp cả file vào process.env). */
+function fromDotEnv(): Record<string, string | undefined> {
+  const file = fileURLToPath(new URL('../.env', import.meta.url));
+  return existsSync(file) ? parseEnv(readFileSync(file, 'utf8')) : {};
+}
+
+function testMysqlUrl(): string | undefined {
+  if (process.env.TEST_MYSQL_URL) return process.env.TEST_MYSQL_URL;
+  const env = fromDotEnv();
+  if (env.TEST_MYSQL_URL) return env.TEST_MYSQL_URL;
+  if (!env.DB_ROOT_PASSWORD) return undefined;
+  const host = env.DB_HOST || '127.0.0.1';
+  const port = env.DB_PORT || '3307';
+  return `mysql://root:${encodeURIComponent(env.DB_ROOT_PASSWORD)}@${host}:${port}`;
+}
 export const TEST_DB_NAME = 'tdbakugan_test';
 
 export interface TestMysql {
@@ -26,15 +45,32 @@ declare module 'vitest' {
 }
 
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
-  const url = process.env.TEST_MYSQL_URL;
+  const url = testMysqlUrl();
   if (!url) {
     throw new Error(
-      'Chưa đặt TEST_MYSQL_URL. Ví dụ: TEST_MYSQL_URL=mysql://root:<mật khẩu>@127.0.0.1:3307 npm test ' +
-        '(hướng dẫn bật MySQL để test ở đầu file test/global-setup.ts).',
+      'Chưa biết MySQL để chạy test: điền DB_ROOT_PASSWORD trong backend/.env (và bật MySQL bằng ' +
+        '`docker compose up -d` trong backend/), hoặc đặt biến TEST_MYSQL_URL.',
     );
   }
   const parsed = new URL(url);
-  const admin = await mysql.createConnection({ uri: url });
+  let admin: mysql.Connection;
+  try {
+    admin = await mysql.createConnection({ uri: url });
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    const where = `${parsed.hostname}:${parsed.port || 3306}`;
+    if (code === 'ECONNREFUSED' || code === 'ETIMEDOUT') {
+      throw new Error(
+        `Không kết nối được MySQL ở ${where}. Bật MySQL chưa? (trong backend/: docker compose up -d)`,
+      );
+    }
+    if (code === 'ER_ACCESS_DENIED_ERROR') {
+      throw new Error(
+        `MySQL ở ${where} từ chối tài khoản root: kiểm tra DB_ROOT_PASSWORD trong backend/.env.`,
+      );
+    }
+    throw error;
+  }
   await admin.query(`DROP DATABASE IF EXISTS \`${TEST_DB_NAME}\``);
   await admin.query(
     `CREATE DATABASE \`${TEST_DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`,

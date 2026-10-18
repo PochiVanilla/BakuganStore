@@ -29,7 +29,7 @@ async function main(): Promise<number> {
   }
 
   const env = loadEnv();
-  const logger = createLogger({ ...env, LOG_LEVEL: env.LOG_LEVEL });
+  const logger = createLogger(env);
   const database = createDatabase(env);
   try {
     await waitForDatabase(database, logger, { attempts: 10 });

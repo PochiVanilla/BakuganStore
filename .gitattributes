@@ -1,0 +1,11 @@
+# Mọi file chữ dùng xuống dòng kiểu LF trên cả Windows lẫn macOS / Linux:
+# script .sh chạy được trên mini PC, Prettier không báo lỗi khắp nơi khi lập trình trên Windows.
+* text=auto eol=lf
+*.webp binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.mp4 binary
+*.webm binary
+*.woff2 binary
