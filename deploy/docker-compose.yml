@@ -56,6 +56,8 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       MAIL_FROM: ${MAIL_FROM:-TD Bakugan <no-reply@localhost>}
+      # Ảnh / video tải lên: thư mục của mini PC gắn vào đây (Caddy đọc cùng thư mục để trả cho khách).
+      UPLOAD_DIR: /data/uploads
     volumes:
       - ${DATA_DIR:-/srv/tdbakugan}/uploads:/data/uploads
     healthcheck:

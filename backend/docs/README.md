@@ -12,7 +12,7 @@ Frontend (React + Vite) vẫn ở thư mục gốc. Vercel chỉ là bản chạ
 | Backend | Express 5 + TypeScript (Node.js 22 LTS trở lên), MySQL 8.4 |
 | Nơi chạy | Mini PC của shop (Docker Compose: Caddy + backend + MySQL); ảnh và video lưu trên ổ cứng máy. Vercel chỉ là bản chạy tạm |
 | Cách nối | Frontend build với `VITE_USE_MOCK=false` + `VITE_API_BASE_URL=/api` là gọi backend thật, không phải viết lại giao diện |
-| Trạng thái | Kế hoạch bản 3 **đã duyệt**. Đang **bỏ dữ liệu giả lập, chuyển sang lưu thật trên MySQL**. Xong giai đoạn 1 (khung, MySQL, Gemini, mini PC) và 2 (tài khoản). Tiếp theo: giai đoạn 3, feed |
+| Trạng thái | Kế hoạch bản 3 **đã duyệt**. Đang **bỏ dữ liệu giả lập, chuyển sang lưu thật trên MySQL**. Xong giai đoạn 1 (khung, MySQL, Gemini, mini PC), 2 (tài khoản) và 3 (feed, từng con, ảnh / video). Tiếp theo: giai đoạn 4–5, đơn hàng và thanh toán |
 | Cài mini PC | [`deploy/HUONG-DAN.md`](../../deploy/HUONG-DAN.md) |
 | Lập trình trên máy | [05 · Cài môi trường lập trình](05-cai-dat-may-lap-trinh.md): chạy, test, debug trên Windows / macOS |
 | Luật tiền | Hệ thống **không bao giờ tự hoàn tiền**. Có vấn đề về tiền thì khách liên hệ shop, admin giải quyết |
@@ -36,3 +36,4 @@ Frontend (React + Vite) vẫn ở thư mục gốc. Vercel chỉ là bản chạ
 | [05-cai-dat-may-lap-trinh.md](05-cai-dat-may-lap-trinh.md) | Cài môi trường lập trình trên máy cá nhân: MySQL bằng Docker Desktop, chạy web + backend, test, debug VS Code | Xong |
 | [06-giao-viec-ai-tren-may.md](06-giao-viec-ai-tren-may.md) | Bản giao việc gửi cho AI chạy trên PC của shop: cài, kéo code, chạy, test, mẫu báo cáo | Dùng được |
 | [07-giai-doan-2-tai-khoan.md](07-giai-doan-2-tai-khoan.md) | Giai đoạn 2: tài khoản thật (đăng ký, đăng nhập, phiên cookie, hồ sơ, mật khẩu, địa chỉ, ngân hàng mã hoá, lệnh tạo admin) | Xong |
+| [08-giai-doan-3-feed-va-anh.md](08-giai-doan-3-feed-va-anh.md) | Giai đoạn 3: feed và từng con thật trên MySQL (đăng / sửa / xoá, 30 feed, hàng tồn, mã BK, trang Kho, bán ngoài web), tải ảnh / video lên ổ của máy và tự dọn file | Xong |

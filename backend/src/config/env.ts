@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import path from 'node:path';
 import { z } from 'zod';
 
 /*
@@ -64,6 +65,12 @@ const EnvSchema = z
       .refine((value) => Buffer.from(value, 'base64').length === 32, 'Phải là 32 byte dạng base64')
       .optional(),
 
+    /**
+     * Thư mục lưu ảnh / video tải lên. Trên mini PC là /data/uploads (gắn ổ của máy vào);
+     * khi lập trình mặc định là backend/uploads.
+     */
+    UPLOAD_DIR: z.string().min(1).optional(),
+
     /** Gửi email: `console` (in ra log, khi lập trình) hoặc `smtp` (Gmail, Resend SMTP…) */
     MAIL_DRIVER: z.enum(['console', 'smtp']).default('console'),
     SMTP_HOST: z.string().optional(),
@@ -101,6 +108,9 @@ const EnvSchema = z
       ...(env.JWT_SECRET ? [] : ['JWT_SECRET']),
       ...(env.BANK_DATA_KEY ? [] : ['BANK_DATA_KEY']),
     ],
+    uploadDir: path.resolve(
+      env.UPLOAD_DIR ?? (env.NODE_ENV === 'production' ? '/data/uploads' : 'uploads'),
+    ),
     /** Cookie phiên chỉ gửi qua HTTPS khi web chạy HTTPS */
     secureCookies: env.PUBLIC_ORIGIN.startsWith('https://'),
     TRUST_PROXY_HOPS: env.TRUST_PROXY_HOPS ?? (env.NODE_ENV === 'production' ? 1 : 0),

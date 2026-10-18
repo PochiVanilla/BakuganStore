@@ -1,4 +1,4 @@
-import express, { type Express } from 'express';
+import express, { Router, type Express } from 'express';
 import helmet from 'helmet';
 import type { Env } from './config/env';
 import type { Database } from './db/client';
@@ -11,7 +11,11 @@ import { apiRateLimit, requireAllowedOrigin } from './middleware/security';
 import { addressesRouter } from './modules/addresses/routes';
 import { authRouter } from './modules/auth/routes';
 import { chatBotRouter, type ChatBotHandlers } from './modules/bot/routes';
+import { adminFeedsRouter, adminItemsRouter } from './modules/catalog/adminRoutes';
+import { feedsRouter } from './modules/catalog/publicRoutes';
+import { FeedCatalog } from './modules/catalog/store';
 import { healthRouter } from './modules/health/routes';
+import { uploadsRouter } from './modules/uploads/routes';
 
 export interface AppContext {
   env: Env;
@@ -38,6 +42,8 @@ export function createApp({
   mailer = createMailer(env, logger),
 }: AppContext): Express {
   const { db } = database;
+  const catalog = new FeedCatalog(db);
+  const catalogDeps = { db, catalog, uploadDir: env.uploadDir, logger };
   const app = express();
   app.disable('x-powered-by');
   // Chỉ tin IP do đúng số lớp proxy phía trước chuyển vào (Caddy trên mini PC = 1).
@@ -59,8 +65,36 @@ export function createApp({
   app.use('/api/health', healthRouter(database));
   app.use('/api/auth', authRouter({ db, env, mailer, logger }));
   app.use('/api/addresses', addressesRouter(db));
+  app.use('/api/feeds', feedsRouter(catalog));
+  app.use('/api/admin/feeds', adminFeedsRouter(catalogDeps));
+  app.use('/api/admin/items', adminItemsRouter(catalogDeps));
+  app.use('/api/admin/uploads', uploadsRouter({ db, uploadDir: env.uploadDir, logger }));
+
+  // Ảnh / video đã tải lên. Trên mini PC do Caddy trả thẳng từ ổ; khi lập trình backend tự trả.
+  if (!env.isProduction) app.use('/uploads', serveUploads(env.uploadDir));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;
+}
+
+/** Trả file tải lên giống Caddy: cache lâu (tên file không bao giờ đổi), không chạy được mã. */
+function serveUploads(uploadDir: string): Router {
+  const router = Router();
+  router.use((_req, res, next) => {
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'none'; img-src 'self'; media-src 'self'; sandbox",
+    );
+    next();
+  });
+  router.use(
+    express.static(uploadDir, {
+      dotfiles: 'deny',
+      index: false,
+      immutable: true,
+      maxAge: '365d',
+    }),
+  );
+  return router;
 }

@@ -191,6 +191,21 @@ Invoke-RestMethod http://localhost:3000/api/health | ConvertTo-Json
 - Khi tài liệu mới nhất có lệnh tạo admin (`admin:create`), chủ shop tự chạy lệnh đó và tự gõ email + mật khẩu.
 - AI trên máy chỉ mở sẵn cửa sổ ở thư mục `backend`, **không tự đặt mật khẩu admin**.
 
+**f) Thử phần đã chạy dữ liệu thật** (chỉ làm khi chủ shop yêu cầu; cần tài khoản admin ở bước e):
+
+Hiện đã chạy thật: tài khoản (giai đoạn 2), feed + từng con + tải ảnh / video (giai đoạn 3).
+Các trang khác (đơn hàng, đấu giá, chat, blog) sẽ báo lỗi cho tới khi làm xong, đó là bình thường.
+
+```powershell
+cd C:\code\BakuganStore
+$env:VITE_USE_MOCK = 'false'
+npm run dev
+```
+
+- Mở http://localhost:3000, đăng nhập bằng tài khoản admin → Quản trị → Feed bán → Đăng feed mới (có ảnh).
+- Ảnh tải lên nằm trong `backend\uploads\img\…` (thư mục này không đưa lên git).
+- Xong thì tắt cửa sổ đó; mở cửa sổ mới chạy `npm run dev` bình thường là quay lại bản giả lập.
+
 ## 7. Cập nhật mỗi khi phiên cloud báo có bản mới
 
 ```powershell
@@ -218,6 +233,7 @@ Backend tự cập nhật bảng MySQL khi khởi động.
 | Backend báo "Biến môi trường chưa đúng" | Đọc tên biến trong dòng báo lỗi, sửa `backend/.env` (thường thiếu biến mới, xem mục 5) |
 | Test báo "MySQL … từ chối tài khoản root" | `backend/.env` bị tạo lại sau khi MySQL đã chạy. Hỏi chủ shop rồi mới chạy `docker compose down -v` + `docker compose up -d --wait` (xoá dữ liệu lập trình) |
 | Cổng 3000 / 4000 / 3307 bị chiếm | Báo lại chương trình nào đang dùng: `Get-NetTCPConnection -LocalPort 4000 -State Listen` |
+| `Could not load the "sharp" module` | Chạy lại `npm install` trong `backend` (cần mạng để tải bản cho Windows). Vẫn lỗi thì dán nguyên văn |
 | Prettier báo lỗi định dạng ở rất nhiều file | Kiểm tra `git config core.autocrlf`; repo đã ép xuống dòng LF bằng `.gitattributes`. Báo lại kết quả |
 
 Hướng dẫn chi tiết hơn cho người: `backend/docs/05-cai-dat-may-lap-trinh.md`.
@@ -240,5 +256,6 @@ BÁO CÁO CÀI ĐẶT TD BAKUGAN
 - /api/health qua cổng 4000: OK / lỗi
 - /api/health qua cổng 3000 (Vite): OK / lỗi
 - Web mở được http://localhost:3000: có / không
+- (Nếu chủ shop yêu cầu) thử dữ liệu thật ở mục 6f: đăng feed có ảnh được / lỗi
 - Ghi chú khác:
 ```

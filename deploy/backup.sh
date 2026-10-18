@@ -53,9 +53,9 @@ if [ -d "$DATA_DIR/uploads" ]; then
   latest_uploads="$BACKUP_DIR/uploads/$stamp"
   log "Sao lưu ảnh / video → $latest_uploads"
   if [ -n "$previous" ]; then
-    rsync -a --link-dest="$previous" "$DATA_DIR/uploads/" "$latest_uploads/"
+    rsync -a --exclude=.tmp --link-dest="$previous" "$DATA_DIR/uploads/" "$latest_uploads/"
   else
-    rsync -a "$DATA_DIR/uploads/" "$latest_uploads/"
+    rsync -a --exclude=.tmp "$DATA_DIR/uploads/" "$latest_uploads/"
   fi
 fi
 

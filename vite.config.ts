@@ -63,8 +63,8 @@ export default defineConfig(({ mode }) => {
     if (env[key] && !process.env[key]) process.env[key] = env[key];
   }
   /*
-   * DEV_API_PROXY=http://localhost:4000 → mọi /api và /ws chuyển sang backend chạy trên máy
-   * (giống Caddy trên mini PC), thay cho việc tự chạy api/chat-bot.ts ngay trong Vite.
+   * DEV_API_PROXY=http://localhost:4000 → mọi /api, /ws và ảnh tải lên (/uploads) chuyển sang
+   * backend chạy trên máy (giống Caddy trên mini PC), thay cho việc tự chạy api/chat-bot.ts ngay trong Vite.
    */
   const backendUrl = env.DEV_API_PROXY?.trim();
   if (backendUrl && !/^https?:\/\/[^/]+\/?$/.test(backendUrl)) {
@@ -74,6 +74,7 @@ export default defineConfig(({ mode }) => {
     ? {
         '/api': { target: backendUrl, changeOrigin: false },
         '/ws': { target: backendUrl.replace(/^http/, 'ws'), ws: true },
+        '/uploads': { target: backendUrl, changeOrigin: false },
       }
     : undefined;
 

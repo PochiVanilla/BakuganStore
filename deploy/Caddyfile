@@ -28,13 +28,16 @@
 
 	# Ảnh / video khách tải về: tên file ngẫu nhiên, không bao giờ đổi nội dung → cache 1 năm.
 	# CSP "sandbox" để lỡ có file lạ cũng không chạy được mã trên tên miền của shop.
+	# .tmp là chỗ backend nhận file dở dang: không bao giờ trả ra ngoài.
 	handle /uploads/* {
 		root * /srv
 		header {
 			Cache-Control "public, max-age=31536000, immutable"
 			Content-Security-Policy "default-src 'none'; img-src 'self'; media-src 'self'; sandbox"
 		}
-		file_server
+		file_server {
+			hide .tmp
+		}
 	}
 
 	# Web React (trang một tệp): đường dẫn nào không có file thì trả index.html.

@@ -8,6 +8,8 @@ node_modules/
 /build
 /coverage
 backend/dist/
+# ảnh / video tải lên khi lập trình (bản thật nằm ở /srv/tdbakugan/uploads)
+backend/uploads/
 
 # dữ liệu thử của bộ Docker (bản thật nằm ở /srv/tdbakugan trên mini PC)
 deploy/data/
