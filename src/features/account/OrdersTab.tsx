@@ -17,6 +17,7 @@ import { useAuthStore } from '@/store/authStore';
 import { formatCurrency, formatDateTime } from '@/utils/format';
 import { cn } from '@/utils/cn';
 import { ButtonLink, EmptyState, RefImage, Skeleton } from '@/components/ui';
+import { ShopContactNotice } from '@/features/checkout/ShopContactNotice';
 
 /** Đơn trả thẻ chưa trả xong (quá hạn giữ hàng thì hệ thống tự huỷ, trang kết quả báo rõ) */
 function awaitingCard(order: Order): boolean {
@@ -136,6 +137,7 @@ export function OrdersTab() {
                       {PAYMENT_STATUS_LABELS[order.paymentStatus]}
                     </span>
                   </p>
+                  {order.needsShopContact && <ShopContactNotice className="mt-2" />}
                   {awaitingCard(order) && (
                     <Link
                       to={ROUTES.checkoutResult(order.id)}

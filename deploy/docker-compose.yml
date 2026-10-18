@@ -56,6 +56,9 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       MAIL_FROM: ${MAIL_FROM:-TD Bakugan <no-reply@localhost>}
+      # Cổng thanh toán thẻ: `none` (mặc định, chưa nhận thẻ) cho tới khi có hợp đồng cổng thật.
+      # `mock` chỉ để chạy thử: cổng giả lập nhận thẻ thử, KHÔNG dùng khi bán thật.
+      CARD_GATEWAY: ${CARD_GATEWAY:-none}
       # Ảnh / video tải lên: thư mục của mini PC gắn vào đây (Caddy đọc cùng thư mục để trả cho khách).
       UPLOAD_DIR: /data/uploads
     volumes:

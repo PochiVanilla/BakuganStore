@@ -71,6 +71,13 @@ const EnvSchema = z
      */
     UPLOAD_DIR: z.string().min(1).optional(),
 
+    /**
+     * Cổng thanh toán thẻ. `mock`: cổng giả lập chỉ nhận thẻ thử (lập trình, chạy thử).
+     * `none`: chưa có cổng — web không cho chọn trả thẻ. Bản thật mặc định `none` để không ai
+     * "trả tiền" bằng thẻ thử; khi có hợp đồng OnePay / VNPAY sẽ thêm lựa chọn mới.
+     */
+    CARD_GATEWAY: z.enum(['none', 'mock']).optional(),
+
     /** Gửi email: `console` (in ra log, khi lập trình) hoặc `smtp` (Gmail, Resend SMTP…) */
     MAIL_DRIVER: z.enum(['console', 'smtp']).default('console'),
     SMTP_HOST: z.string().optional(),
@@ -111,6 +118,7 @@ const EnvSchema = z
     uploadDir: path.resolve(
       env.UPLOAD_DIR ?? (env.NODE_ENV === 'production' ? '/data/uploads' : 'uploads'),
     ),
+    cardGateway: env.CARD_GATEWAY ?? (env.NODE_ENV === 'production' ? 'none' : 'mock'),
     /** Cookie phiên chỉ gửi qua HTTPS khi web chạy HTTPS */
     secureCookies: env.PUBLIC_ORIGIN.startsWith('https://'),
     TRUST_PROXY_HOPS: env.TRUST_PROXY_HOPS ?? (env.NODE_ENV === 'production' ? 1 : 0),

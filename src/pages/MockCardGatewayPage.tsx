@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Clock,
   CreditCard,
@@ -43,7 +43,10 @@ const FAR_FUTURE = '2999-01-01T00:00:00.000Z';
 export default function MockCardGatewayPage() {
   const { orderId = '' } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
-  const session = useAsync(() => mockGatewaySession(orderId), [orderId]);
+  // Mã lượt trả do server cấp (chỉ có khi chạy với backend); bản chạy thử không cần.
+  const [searchParams] = useSearchParams();
+  const attempt = searchParams.get('phien') ?? undefined;
+  const session = useAsync(() => mockGatewaySession(orderId, attempt), [orderId, attempt]);
   const { minutes, seconds, isFinished } = useCountdown(session.data?.expiresAt ?? FAR_FUTURE);
   const [card, setCard] = useState<MockCardInput>(EMPTY_CARD);
   const [otpFor, setOtpFor] = useState<{ brand: string; last4: string } | null>(null);
@@ -81,18 +84,18 @@ export default function MockCardGatewayPage() {
 
   const payCard = (event: FormEvent): void => {
     event.preventDefault();
-    void run(() => mockGatewayPay(orderId, card));
+    void run(() => mockGatewayPay(orderId, card, attempt));
   };
 
   const confirmOtp = (event: FormEvent): void => {
     event.preventDefault();
-    void run(() => mockGatewayConfirmOtp(orderId, otp));
+    void run(() => mockGatewayConfirmOtp(orderId, otp, attempt));
   };
 
   const backToShop = async (): Promise<void> => {
     setBusy(true);
     try {
-      await mockGatewayAbort(orderId);
+      await mockGatewayAbort(orderId, attempt);
     } finally {
       navigate(result, { replace: true });
     }

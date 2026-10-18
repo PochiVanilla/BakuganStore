@@ -37,6 +37,7 @@ const REPORTER_LABELS: Record<OrderIssue['reportedBy'], string> = {
   customer: 'Khách báo',
   carrier: 'Vận chuyển báo',
   admin: 'Nhân viên ghi nhận',
+  system: 'Hệ thống tự mở',
 };
 
 type IssueFilter = 'open' | 'resolved' | 'all';

@@ -457,3 +457,12 @@ export function hydrateOrder(order: StoredOrder, db: Readonly<MockDatabase> = re
     items: order.items.map((item) => ({ ...item, image: imageFor(item.itemId, db) })),
   };
 }
+
+/** Đơn như khách thấy: bỏ ghi chú nội bộ của shop. */
+export function hydrateCustomerOrder(
+  order: StoredOrder,
+  db: Readonly<MockDatabase> = readDb(),
+): Order {
+  const { internalNote: _internalNote, ...visible } = hydrateOrder(order, db);
+  return visible;
+}

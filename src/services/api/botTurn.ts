@@ -8,7 +8,13 @@ import type {
 } from '@/types';
 import { BOT_TOPIC_IDS } from '@/types';
 import { MOCK_COUPONS } from '@/mocks';
-import { hydrateOrder, listFeedPosts, readDb, updateDb, type MockDatabase } from '@/mocks/db';
+import {
+  hydrateCustomerOrder,
+  listFeedPosts,
+  readDb,
+  updateDb,
+  type MockDatabase,
+} from '@/mocks/db';
 import { DEFAULT_BOT_SETTINGS } from '@/mocks/seed';
 import {
   buildKnowledge,
@@ -69,7 +75,7 @@ export function knowledgeFor(
     customerName: conversation.customerName,
     isSignedIn: Boolean(conversation.customerId),
     feeds: listFeedPosts(db),
-    orders: orders.map((order) => hydrateOrder(order, db)),
+    orders: orders.map((order) => hydrateCustomerOrder(order, db)),
     coupons: MOCK_COUPONS,
     membership: membershipFactOf(db, conversation.customerId),
     checkout: {

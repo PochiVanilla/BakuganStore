@@ -338,9 +338,9 @@ function PaymentPanel({ order }: { order: Order }) {
 }
 
 function NotePanel({ order }: { order: Order }) {
-  const [note, setNote] = useState(order.note ?? '');
+  const [note, setNote] = useState(order.internalNote ?? '');
   const [isSaving, setIsSaving] = useState(false);
-  const dirty = note.trim() !== (order.note ?? '');
+  const dirty = note.trim() !== (order.internalNote ?? '');
 
   const save = async (): Promise<void> => {
     setIsSaving(true);
@@ -665,6 +665,7 @@ export default function OrderDetailPage() {
               </InfoRow>
               {order.customerEmail && <InfoRow label="Email">{order.customerEmail}</InfoRow>}
               <InfoRow label="Địa chỉ">{order.addressLine}</InfoRow>
+              {order.note && <InfoRow label="Khách ghi chú">{order.note}</InfoRow>}
               {order.shippingRegion === 'international' && order.intlAddress && (
                 <InfoRow label="Gửi quốc tế">
                   <span className="inline-flex items-center gap-1.5 font-semibold text-accent-cyan">
@@ -698,7 +699,7 @@ export default function OrderDetailPage() {
 
           <PaymentPanel order={order} />
           <IssuesPanel order={order} issues={issues ?? []} />
-          <NotePanel key={order.note ?? ''} order={order} />
+          <NotePanel key={order.internalNote ?? ''} order={order} />
         </div>
       </div>
     </>

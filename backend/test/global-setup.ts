@@ -30,6 +30,21 @@ function testMysqlUrl(): string | undefined {
 }
 export const TEST_DB_NAME = 'tdbakugan_test';
 
+/**
+ * Xoá CSDL test chung và các CSDL riêng của từng file test (tdbakugan_test_<mã>),
+ * kể cả bản sót lại khi lần chạy trước bị ngắt giữa chừng.
+ */
+async function dropTestDatabases(connection: mysql.Connection): Promise<void> {
+  const [rows] = await connection.query<mysql.RowDataPacket[]>(
+    `SELECT SCHEMA_NAME AS name FROM information_schema.SCHEMATA
+     WHERE SCHEMA_NAME = ? OR SCHEMA_NAME LIKE ?`,
+    [TEST_DB_NAME, `${TEST_DB_NAME}\\_%`],
+  );
+  for (const row of rows) {
+    await connection.query(`DROP DATABASE IF EXISTS \`${String(row.name)}\``);
+  }
+}
+
 export interface TestMysql {
   host: string;
   port: number;
@@ -71,7 +86,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
     }
     throw error;
   }
-  await admin.query(`DROP DATABASE IF EXISTS \`${TEST_DB_NAME}\``);
+  await dropTestDatabases(admin);
   await admin.query(
     `CREATE DATABASE \`${TEST_DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`,
   );
@@ -87,7 +102,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
 
   return async () => {
     const cleanup = await mysql.createConnection({ uri: url });
-    await cleanup.query(`DROP DATABASE IF EXISTS \`${TEST_DB_NAME}\``);
+    await dropTestDatabases(cleanup);
     await cleanup.end();
   };
 }

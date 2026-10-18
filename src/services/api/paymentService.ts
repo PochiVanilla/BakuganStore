@@ -1,8 +1,14 @@
 import type { ApiResponse, CardBrand, Order, PaymentMethod } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import { describeCard, PAYMENT_METHOD_LABELS } from '@/constants/orders';
-import { hydrateOrder, readDb, updateDb, type StoredOrder } from '@/mocks/db';
+import { hydrateCustomerOrder, readDb, updateDb, type StoredOrder } from '@/mocks/db';
 import { cardDigits, expiryValid, luhnValid } from '@/utils/card';
+import {
+  MOCK_FAILURE_MESSAGES,
+  MOCK_OTP,
+  MOCK_OTP_FAILED,
+  MOCK_TEST_CARDS,
+} from '@/constants/testCards';
 import { formatCurrency } from '@/utils/format';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from './client';
 import { requireUser } from './mockSession';
@@ -62,7 +68,7 @@ export async function fetchMyOrder(orderId: string): Promise<Order> {
     return data.data;
   }
   sweepExpiredCardHolds();
-  return mockDelay(hydrateOrder(findOwnOrder(orderId)), 120);
+  return mockDelay(hydrateCustomerOrder(findOwnOrder(orderId)), 120);
 }
 
 /**
@@ -114,7 +120,7 @@ export async function switchPaymentMethod(
     );
     return order;
   });
-  return mockDelay(hydrateOrder(updated), 250);
+  return mockDelay(hydrateCustomerOrder(updated), 250);
 }
 
 /** Khách tự huỷ đơn chưa thanh toán (VD đổi ý khi đang trả thẻ) — hàng được mở bán lại ngay. */
@@ -135,34 +141,15 @@ export async function cancelMyUnpaidOrder(orderId: string): Promise<Order> {
     recordStatus(order, 'cancelled', 'Khách hàng', at, 'Khách huỷ khi chưa thanh toán.');
     return order;
   });
-  return mockDelay(hydrateOrder(updated), 250);
+  return mockDelay(hydrateCustomerOrder(updated), 250);
 }
 
-/* ---------------- Cổng thanh toán giả lập (chỉ chế độ mock) ---------------- */
+/* ---------------- Cổng thanh toán giả lập ----------------
+   Bản chạy thử trong trình duyệt: cổng chạy ngay trên web (dữ liệu giả lập).
+   Có backend (CARD_GATEWAY=mock): cổng chạy trên server, mỗi lượt trả có mã `phien`
+   trên đường dẫn; kết quả báo về server bằng chữ ký như cổng thật. */
 
-export type MockCardOutcome = 'success' | 'otp' | 'declined' | 'insufficient';
-
-/** Thẻ thử — số khác đều bị từ chối, để không ai lỡ nhập thẻ thật vào cổng giả lập. */
-export const MOCK_TEST_CARDS: ReadonlyArray<{
-  number: string;
-  brand: CardBrand;
-  outcome: MockCardOutcome;
-  note: string;
-}> = [
-  { number: '4242 4242 4242 4242', brand: 'visa', outcome: 'success', note: 'Thành công' },
-  {
-    number: '4000 0000 0000 3220',
-    brand: 'visa',
-    outcome: 'otp',
-    note: 'Cần xác thực 3-D Secure (OTP 123456)',
-  },
-  { number: '5555 5555 5555 4444', brand: 'mastercard', outcome: 'success', note: 'Thành công' },
-  { number: '3530 1113 3330 0000', brand: 'jcb', outcome: 'success', note: 'Thành công' },
-  { number: '4000 0000 0000 0002', brand: 'visa', outcome: 'declined', note: 'Bị từ chối' },
-  { number: '4000 0000 0000 9995', brand: 'visa', outcome: 'insufficient', note: 'Không đủ số dư' },
-];
-
-export const MOCK_OTP = '123456';
+export { MOCK_OTP, MOCK_TEST_CARDS, type MockCardOutcome } from '@/constants/testCards';
 
 export interface MockCardInput {
   number: string;
@@ -191,8 +178,15 @@ export interface MockGatewaySession {
 /** Thẻ đang chờ nhập OTP — chỉ giữ trong bộ nhớ (hãng + 4 số cuối), không lưu số thẻ. */
 const pendingOtp = new Map<string, { brand: CardBrand; last4: string }>();
 
-function requireMock(): void {
-  if (!USE_MOCK) throw new MockApiError('Cổng giả lập chỉ có ở bản chạy thử.', 404);
+/** Đường dẫn API của cổng giả lập trên server cho một lượt trả. */
+function gatewayPath(session: string | undefined, action = ''): string {
+  if (!session) {
+    throw new MockApiError(
+      'Phiên thanh toán không tồn tại — quay lại trang đơn hàng để mở lại.',
+      404,
+    );
+  }
+  return `/payments/mock-gateway/${encodeURIComponent(session)}${action}`;
 }
 
 function gatewayOrder(orderId: string): StoredOrder {
@@ -240,8 +234,14 @@ function recordFailure(orderId: string, message: string, countAttempt = true): v
   });
 }
 
-export async function mockGatewaySession(orderId: string): Promise<MockGatewaySession> {
-  requireMock();
+export async function mockGatewaySession(
+  orderId: string,
+  session?: string,
+): Promise<MockGatewaySession> {
+  if (!USE_MOCK) {
+    const { data } = await apiClient.get<ApiResponse<MockGatewaySession>>(gatewayPath(session));
+    return data.data;
+  }
   sweepExpiredCardHolds();
   const order = gatewayOrder(orderId);
   let closed = false;
@@ -263,17 +263,19 @@ export async function mockGatewaySession(orderId: string): Promise<MockGatewaySe
   );
 }
 
-const FAILURE_MESSAGES: Record<Exclude<MockCardOutcome, 'success' | 'otp'>, string> = {
-  declined: 'Ngân hàng phát hành thẻ đã từ chối giao dịch. Thử thẻ khác hoặc liên hệ ngân hàng.',
-  insufficient: 'Thẻ không đủ số dư / hạn mức cho giao dịch này.',
-};
-
 /** Khách bấm "Thanh toán" trên cổng giả lập. Chỉ nhận thẻ thử. */
 export async function mockGatewayPay(
   orderId: string,
   card: MockCardInput,
+  session?: string,
 ): Promise<MockGatewayResult> {
-  requireMock();
+  if (!USE_MOCK) {
+    const { data } = await apiClient.post<ApiResponse<MockGatewayResult>>(
+      gatewayPath(session, '/pay'),
+      card,
+    );
+    return data.data;
+  }
   sweepExpiredCardHolds();
   assertPayable(gatewayOrder(orderId));
   if (card.holder.trim().length < 2) throw new MockApiError('Nhập tên in trên thẻ.', 422);
@@ -299,7 +301,7 @@ export async function mockGatewayPay(
     pendingOtp.set(orderId, { brand: test.brand, last4 });
     return mockDelay({ status: 'requires_otp', brand: test.brand, last4 }, 700);
   }
-  const message = FAILURE_MESSAGES[test.outcome];
+  const message = MOCK_FAILURE_MESSAGES[test.outcome];
   recordFailure(orderId, message);
   return mockDelay({ status: 'failed', message }, 900);
 }
@@ -308,8 +310,15 @@ export async function mockGatewayPay(
 export async function mockGatewayConfirmOtp(
   orderId: string,
   otp: string,
+  session?: string,
 ): Promise<MockGatewayResult> {
-  requireMock();
+  if (!USE_MOCK) {
+    const { data } = await apiClient.post<ApiResponse<MockGatewayResult>>(
+      gatewayPath(session, '/otp'),
+      { otp },
+    );
+    return data.data;
+  }
   const pending = pendingOtp.get(orderId);
   if (!pending) {
     throw new MockApiError('Phiên xác thực đã hết — bạn nhập lại thẻ nhé.', 409);
@@ -318,7 +327,7 @@ export async function mockGatewayConfirmOtp(
   sweepExpiredCardHolds();
   assertPayable(gatewayOrder(orderId));
   if (otp.trim() !== MOCK_OTP) {
-    const message = 'Xác thực 3-D Secure không thành công (sai mã OTP).';
+    const message = MOCK_OTP_FAILED;
     recordFailure(orderId, message);
     return mockDelay({ status: 'failed', message }, 700);
   }
@@ -327,8 +336,11 @@ export async function mockGatewayConfirmOtp(
 }
 
 /** Khách bấm "Huỷ, quay lại cửa hàng" trên cổng. */
-export async function mockGatewayAbort(orderId: string): Promise<void> {
-  requireMock();
+export async function mockGatewayAbort(orderId: string, session?: string): Promise<void> {
+  if (!USE_MOCK) {
+    await apiClient.post(gatewayPath(session, '/abort'));
+    return;
+  }
   pendingOtp.delete(orderId);
   const order = gatewayOrder(orderId);
   if (order.paymentMethod === 'card' && order.paymentStatus === 'unpaid' && order.cardPayment) {

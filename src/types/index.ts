@@ -496,6 +496,13 @@ export interface Order {
   intlAddress?: InternationalAddress;
   /** Chỉ có ở đơn trả bằng thẻ */
   cardPayment?: CardPayment;
+  /** Ghi chú nội bộ của shop — chỉ trang quản trị nhận được, khách không bao giờ thấy */
+  internalNote?: string;
+  /**
+   * Shop đã nhận tiền nhưng đơn cần kiểm tra lại (VD trả trễ khi hàng đã bán cho người khác).
+   * Khách nhắn shop để được hỗ trợ; hệ thống không tự hoàn tiền.
+   */
+  needsShopContact?: boolean;
 }
 
 export interface Coupon {

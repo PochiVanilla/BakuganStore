@@ -9,12 +9,16 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 import { apiRateLimit, requireAllowedOrigin } from './middleware/security';
 import { addressesRouter } from './modules/addresses/routes';
+import { adminIssuesRouter, adminOrdersRouter } from './modules/adminOrders/routes';
 import { authRouter } from './modules/auth/routes';
 import { chatBotRouter, type ChatBotHandlers } from './modules/bot/routes';
 import { adminFeedsRouter, adminItemsRouter } from './modules/catalog/adminRoutes';
 import { feedsRouter } from './modules/catalog/publicRoutes';
 import { FeedCatalog } from './modules/catalog/store';
 import { healthRouter } from './modules/health/routes';
+import { checkoutRouter, ordersRouter } from './modules/orders/routes';
+import { createCardGateway } from './modules/payments/gateway';
+import { paymentsRouter } from './modules/payments/routes';
 import { uploadsRouter } from './modules/uploads/routes';
 
 export interface AppContext {
@@ -27,6 +31,8 @@ export interface AppContext {
   rateLimitPerMinute?: number;
   /** Gửi email; mặc định tạo theo MAIL_DRIVER (test thay bằng bản ghi lại thư) */
   mailer?: Mailer;
+  /** Danh sách feed đệm trong bộ nhớ; server tạo một bản dùng chung với việc chạy nền */
+  catalog?: FeedCatalog;
 }
 
 /**
@@ -40,10 +46,13 @@ export function createApp({
   chatBot,
   rateLimitPerMinute,
   mailer = createMailer(env, logger),
+  catalog = new FeedCatalog(database.db),
 }: AppContext): Express {
   const { db } = database;
-  const catalog = new FeedCatalog(db);
   const catalogDeps = { db, catalog, uploadDir: env.uploadDir, logger };
+  const gateway = createCardGateway(env);
+  const orderDeps = { db, catalog, logger, cardGatewayReady: gateway !== null };
+  const paymentDeps = { db, catalog, logger, gateway, allowedOrigins: env.allowedOrigins };
   const app = express();
   app.disable('x-powered-by');
   // Chỉ tin IP do đúng số lớp proxy phía trước chuyển vào (Caddy trên mini PC = 1).
@@ -69,6 +78,11 @@ export function createApp({
   app.use('/api/admin/feeds', adminFeedsRouter(catalogDeps));
   app.use('/api/admin/items', adminItemsRouter(catalogDeps));
   app.use('/api/admin/uploads', uploadsRouter({ db, uploadDir: env.uploadDir, logger }));
+  app.use('/api', checkoutRouter(orderDeps));
+  app.use('/api/orders', ordersRouter(orderDeps));
+  app.use('/api/payments', paymentsRouter(paymentDeps));
+  app.use('/api/admin/orders', adminOrdersRouter({ db, catalog, payments: paymentDeps }));
+  app.use('/api/admin/issues', adminIssuesRouter({ db }));
 
   // Ảnh / video đã tải lên. Trên mini PC do Caddy trả thẳng từ ổ; khi lập trình backend tự trả.
   if (!env.isProduction) app.use('/uploads', serveUploads(env.uploadDir));

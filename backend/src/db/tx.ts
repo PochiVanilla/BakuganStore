@@ -16,6 +16,20 @@ export function mysqlErrno(error: unknown): number | undefined {
   return undefined;
 }
 
+/** Tên khoá UNIQUE bị trùng (lỗi 1062), VD "idempotency_keys_user_key_uq"; lỗi khác → undefined. */
+export function duplicateKeyName(error: unknown): string | undefined {
+  let current: unknown = error;
+  for (let depth = 0; depth < 4 && current; depth += 1) {
+    const { errno, sqlMessage } = current as { errno?: unknown; sqlMessage?: unknown };
+    if (errno === 1062) {
+      const key = /for key '(?:[^'.]+\.)?([^']+)'/.exec(String(sqlMessage ?? ''))?.[1];
+      return key ?? '';
+    }
+    current = (current as { cause?: unknown }).cause;
+  }
+  return undefined;
+}
+
 export function isRetryableTxError(error: unknown): boolean {
   const errno = mysqlErrno(error);
   return errno !== undefined && RETRYABLE_ERRNO.has(errno);

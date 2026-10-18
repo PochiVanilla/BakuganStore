@@ -230,10 +230,11 @@ export async function updatePaymentStatus(
   return mockDelay(hydrateOrder(updated), 300);
 }
 
-export async function updateOrderNote(orderId: string, note: string): Promise<Order> {
+/** Ghi chú nội bộ của shop — để riêng, không đè ghi chú khách viết lúc đặt hàng. */
+export async function updateOrderNote(orderId: string, internalNote: string): Promise<Order> {
   if (!USE_MOCK) {
     const { data } = await apiClient.patch<ApiResponse<Order>>(`/admin/orders/${orderId}`, {
-      note,
+      internalNote,
     });
     return data.data;
   }
@@ -241,7 +242,7 @@ export async function updateOrderNote(orderId: string, note: string): Promise<Or
   const updated = updateDb((db) => {
     const order = db.orders.find((item) => item.id === orderId);
     if (!order) throw new MockApiError('Không tìm thấy đơn hàng này.', 404);
-    order.note = note.trim() || undefined;
+    order.internalNote = internalNote.trim() || undefined;
     return order;
   });
   return mockDelay(hydrateOrder(updated), 250);

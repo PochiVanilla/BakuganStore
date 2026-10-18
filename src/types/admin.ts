@@ -141,7 +141,8 @@ export interface OrderIssue {
   type: IssueType;
   status: IssueStatus;
   description: string;
-  reportedBy: 'admin' | 'customer' | 'carrier';
+  /** `system`: hệ thống tự mở (sự cố tiền: trả trễ, trả trùng…) — chờ admin xử lý */
+  reportedBy: 'admin' | 'customer' | 'carrier' | 'system';
   createdAt: string;
   updatedAt: string;
   resolution?: string;

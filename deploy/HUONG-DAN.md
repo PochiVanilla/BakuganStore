@@ -98,6 +98,7 @@ nano .env
 | `JWT_SECRET`, `BANK_DATA_KEY` | Mỗi khoá chạy `openssl rand -base64 32` một lần. **Cất thêm một bản `BANK_DATA_KEY`** ngoài máy: mất khoá này là không đọc lại được số tài khoản ngân hàng khách đã lưu |
 | `MAIL_DRIVER`, `SMTP_…`, `MAIL_FROM` | Gửi email quên mật khẩu. Gmail: `MAIL_DRIVER=smtp`, `SMTP_HOST=smtp.gmail.com`, `SMTP_USER` là địa chỉ Gmail, `SMTP_PASS` là "mật khẩu ứng dụng" tạo trong tài khoản Google. Chưa cài thì để `console` (thư chỉ in ra log) |
 | `GEMINI_API_KEY` | Khoá lấy tại https://aistudio.google.com/apikey (để trống thì bot dùng bộ từ khoá) |
+| `CARD_GATEWAY` | Để `none` (chưa nhận thẻ) cho tới khi ký hợp đồng cổng thanh toán. `mock` chỉ để chạy thử trong nhà: cổng giả lập nhận thẻ thử, **không bao giờ để `mock` khi bán thật** |
 | `BACKUP_EXTERNAL_DIR` | Đường dẫn ổ ngoài đã gắn, VD `/mnt/usb-backup` (xem mục 9) |
 
 > **Giữ bí mật file `.env`**: không gửi qua chat, không chép lên git. Nên cất thêm một bản

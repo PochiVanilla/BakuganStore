@@ -175,17 +175,19 @@ export default function App() {
     <>
       <ScrollToTop />
       <Routes>
-        {/* Cổng thanh toán thẻ giả lập — trang riêng, không có đầu trang của shop (bản chạy thử) */}
-        {USE_MOCK && (
-          <Route
-            path={ROUTES.cardGateway(':orderId')}
-            element={
-              <Suspense fallback={<RouteFallback />}>
-                <MockCardGatewayPage />
-              </Suspense>
-            }
-          />
-        )}
+        {/*
+          Cổng thanh toán thẻ giả lập — trang riêng, không có đầu trang của shop. Bản chạy thử
+          trong trình duyệt và backend dùng CARD_GATEWAY=mock đều đưa khách tới đây; cổng thật
+          thì khách nhập thẻ trên trang của cổng, không bao giờ vào trang này.
+        */}
+        <Route
+          path={ROUTES.cardGateway(':orderId')}
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <MockCardGatewayPage />
+            </Suspense>
+          }
+        />
 
         {/* Quản trị: kiểm tra đăng nhập + quyền admin trước khi tải bất cứ trang nào */}
         <Route element={<AdminRoute />}>

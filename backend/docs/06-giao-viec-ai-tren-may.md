@@ -193,8 +193,10 @@ Invoke-RestMethod http://localhost:3000/api/health | ConvertTo-Json
 
 **f) Thử phần đã chạy dữ liệu thật** (chỉ làm khi chủ shop yêu cầu; cần tài khoản admin ở bước e):
 
-Hiện đã chạy thật: tài khoản (giai đoạn 2), feed + từng con + tải ảnh / video (giai đoạn 3).
-Các trang khác (đơn hàng, đấu giá, chat, blog) sẽ báo lỗi cho tới khi làm xong, đó là bình thường.
+Hiện đã chạy thật: tài khoản (giai đoạn 2), feed + từng con + tải ảnh / video (giai đoạn 3),
+giỏ hàng + đặt hàng + mã giảm giá + trả thẻ bằng cổng giả lập + admin xử lý đơn (giai đoạn 4–5).
+Các trang khác (đấu giá, chat, blog, cài đặt, báo cáo) sẽ báo lỗi cho tới khi làm xong, đó là bình thường.
+Trả thẻ chỉ hiện khi cài đặt shop bật thẻ — màn hình Cài đặt nối API ở giai đoạn sau.
 
 ```powershell
 cd C:\code\BakuganStore
@@ -256,6 +258,6 @@ BÁO CÁO CÀI ĐẶT TD BAKUGAN
 - /api/health qua cổng 4000: OK / lỗi
 - /api/health qua cổng 3000 (Vite): OK / lỗi
 - Web mở được http://localhost:3000: có / không
-- (Nếu chủ shop yêu cầu) thử dữ liệu thật ở mục 6f: đăng feed có ảnh được / lỗi
+- (Nếu chủ shop yêu cầu) thử dữ liệu thật ở mục 6f: đăng feed có ảnh được / lỗi; đặt hàng COD được / lỗi
 - Ghi chú khác:
 ```

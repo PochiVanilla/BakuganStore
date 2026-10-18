@@ -10,7 +10,14 @@ import type {
   ShopBankInfo,
 } from '@/types';
 import { MOCK_COUPONS } from '@/mocks';
-import { createId, hydrateOrder, isFeedOpen, readDb, updateDb, type StoredOrder } from '@/mocks/db';
+import {
+  createId,
+  hydrateCustomerOrder,
+  isFeedOpen,
+  readDb,
+  updateDb,
+  type StoredOrder,
+} from '@/mocks/db';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from './client';
 import { requireUser } from './mockSession';
 import { sellOrderItems, sweepExpiredCardHolds } from './orderMutations';
@@ -122,9 +129,18 @@ function invalid(message: string): never {
  * mở bán và chưa ai mua. Con nào vừa bị người khác chốt trước thì báo lại.
  * Đơn trả bằng thẻ được giữ hàng {@link CARD_HOLD_MINUTES} phút chờ khách thanh toán.
  */
+/** Mã ngẫu nhiên cho một lần bấm đặt hàng: gửi lại (mạng chập chờn) cũng không ra hai đơn. */
+function newIdempotencyKey(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 export async function placeOrder(input: CheckoutInput): Promise<Order> {
   if (!USE_MOCK) {
-    const { data } = await apiClient.post<ApiResponse<Order>>('/orders', input);
+    const { data } = await apiClient.post<ApiResponse<Order>>('/orders', input, {
+      headers: { 'Idempotency-Key': newIdempotencyKey() },
+    });
     return data.data;
   }
   const user = requireUser();
@@ -266,5 +282,5 @@ export async function placeOrder(input: CheckoutInput): Promise<Order> {
     return order;
   });
 
-  return mockDelay(hydrateOrder(created), 600);
+  return mockDelay(hydrateCustomerOrder(created), 600);
 }

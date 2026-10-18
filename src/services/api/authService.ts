@@ -9,7 +9,7 @@ import type {
   ResetPasswordFormValues,
 } from '@/features/auth/schemas';
 import { ADMIN_ACCOUNT } from '@/mocks';
-import { createId, hydrateOrder, readDb, updateDb, type UserRecord } from '@/mocks/db';
+import { createId, hydrateCustomerOrder, readDb, updateDb, type UserRecord } from '@/mocks/db';
 import { apiClient, mockDelay, MockApiError, USE_MOCK } from './client';
 import { issueMockToken, toSessionUser } from './mockSession';
 
@@ -222,7 +222,7 @@ export async function fetchMyOrders(userId: string): Promise<Order[]> {
   }
   const orders = readDb()
     .orders.filter((order) => order.userId === userId)
-    .map((order) => hydrateOrder(order));
+    .map((order) => hydrateCustomerOrder(order));
   return mockDelay(orders, 320);
 }
 

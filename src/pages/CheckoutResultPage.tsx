@@ -37,6 +37,7 @@ import {
 import { CheckoutSteps } from '@/features/checkout/CheckoutSteps';
 import { OrderReceipt } from '@/features/checkout/OrderReceipt';
 import { goToGateway } from '@/features/checkout/gateway';
+import { ShopContactNotice } from '@/features/checkout/ShopContactNotice';
 
 type OfflineMethod = Exclude<PaymentMethod, 'card'>;
 const OFFLINE_METHODS: readonly OfflineMethod[] = ['cod', 'bank-transfer', 'momo'];
@@ -287,8 +288,8 @@ function CancelledOrder({ order }: { order: Order }) {
         Đơn <span className="font-mono font-bold text-gold">#{order.code}</span>
         {order.cancelReason && <> — {CANCEL_REASON_LABELS[order.cancelReason].toLowerCase()}</>}.
         {order.cancelReason === 'payment-timeout' &&
-          ' Chưa thanh toán trong thời gian giữ hàng nên các con Bakugan đã được mở bán lại.'}{' '}
-        Bạn không bị trừ tiền.
+          ' Chưa thanh toán trong thời gian giữ hàng nên các con Bakugan đã được mở bán lại.'}
+        {order.paymentStatus === 'unpaid' && ' Bạn không bị trừ tiền.'}
       </p>
       <OrderLines order={order} />
       <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -350,12 +351,17 @@ export default function CheckoutResultPage() {
               <ButtonLink to={`${ROUTES.account}?tab=orders`}>Xem đơn hàng của tôi</ButtonLink>
             }
           />
-        ) : order.status === 'cancelled' ? (
-          <CancelledOrder order={order} />
-        ) : order.paymentMethod === 'card' && order.paymentStatus === 'unpaid' ? (
-          <AwaitingCardPayment order={order} usdRate={usdRate} onExpired={reload} />
         ) : (
-          <OrderReceipt order={order} bank={bank.data ?? null} usdRate={usdRate} />
+          <>
+            {order.needsShopContact && <ShopContactNotice className="mx-auto mb-5 max-w-2xl" />}
+            {order.status === 'cancelled' ? (
+              <CancelledOrder order={order} />
+            ) : order.paymentMethod === 'card' && order.paymentStatus === 'unpaid' ? (
+              <AwaitingCardPayment order={order} usdRate={usdRate} onExpired={reload} />
+            ) : (
+              <OrderReceipt order={order} bank={bank.data ?? null} usdRate={usdRate} />
+            )}
+          </>
         )}
       </Container>
     </>
