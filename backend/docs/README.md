@@ -34,3 +34,4 @@ Frontend (React + Vite) vẫn ở thư mục gốc. Vercel chỉ là bản chạ
 | [03-khong-tu-hoan-tien-va-o-tu-dien.md](03-khong-tu-hoan-tien-va-o-tu-dien.md) | Không tự hoàn tiền; tên, hệ, tình trạng do shop tự gõ; bỏ G-Power (web đã sửa) | Xong |
 | [04-giai-doan-1-khung-backend.md](04-giai-doan-1-khung-backend.md) | Giai đoạn 1: backend Express + TS, CSDL MySQL 31 bảng, bot Gemini trong backend, bộ cài mini PC (Docker, sao lưu, hướng dẫn); 43 test trên MySQL thật | Xong |
 | [05-cai-dat-may-lap-trinh.md](05-cai-dat-may-lap-trinh.md) | Cài môi trường lập trình trên máy cá nhân: MySQL bằng Docker Desktop, chạy web + backend, test, debug VS Code | Xong |
+| [06-giao-viec-ai-tren-may.md](06-giao-viec-ai-tren-may.md) | Bản giao việc gửi cho AI chạy trên PC của shop: cài, kéo code, chạy, test, mẫu báo cáo | Dùng được |
