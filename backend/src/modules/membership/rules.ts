@@ -1,5 +1,6 @@
 import { and, count, eq } from 'drizzle-orm';
 import { membershipRequests, orderItems, orders, users } from '../../db/schema';
+import type { Db } from '../../db/client';
 import type { Tx } from '../../db/tx';
 import { PURCHASES_FOR_LV2 } from '../../shared/orders';
 
@@ -9,8 +10,8 @@ import { PURCHASES_FOR_LV2 } from '../../shared/orders';
  */
 
 /** Số Bakugan khách đã nhận (chỉ tính đơn hoàn tất). */
-export async function purchasedItemCount(tx: Tx, userId: string): Promise<number> {
-  const [row] = await tx
+export async function purchasedItemCount(executor: Db | Tx, userId: string): Promise<number> {
+  const [row] = await executor
     .select({ total: count() })
     .from(orderItems)
     .innerJoin(orders, eq(orders.id, orderItems.orderId))

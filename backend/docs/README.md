@@ -12,7 +12,7 @@ Frontend (React + Vite) vẫn ở thư mục gốc. Vercel chỉ là bản chạ
 | Backend | Express 5 + TypeScript (Node.js 22 LTS trở lên), MySQL 8.4 |
 | Nơi chạy | Mini PC của shop (Docker Compose: Caddy + backend + MySQL); ảnh và video lưu trên ổ cứng máy. Vercel chỉ là bản chạy tạm |
 | Cách nối | Frontend build với `VITE_USE_MOCK=false` + `VITE_API_BASE_URL=/api` là gọi backend thật, không phải viết lại giao diện |
-| Trạng thái | Kế hoạch bản 3 **đã duyệt**. Đang **bỏ dữ liệu giả lập, chuyển sang lưu thật trên MySQL**. Xong giai đoạn 1 (khung, MySQL, Gemini, mini PC), 2 (tài khoản), 3 (feed, từng con, ảnh / video) và 4–5 (đơn hàng, mã giảm giá, thanh toán thẻ). Tiếp theo: giai đoạn 6–8 |
+| Trạng thái | Kế hoạch bản 3 **đã duyệt**. Đang **bỏ dữ liệu giả lập, chuyển sang lưu thật trên MySQL**. Xong giai đoạn 1 (khung, MySQL, Gemini, mini PC), 2 (tài khoản), 3 (feed, từng con, ảnh / video) 4–5 (đơn hàng, mã giảm giá, thanh toán thẻ) và 6 (cài đặt, hạng thành viên, khách hàng, báo cáo). Tiếp theo: giai đoạn 7, đấu giá |
 | Cài mini PC | [`deploy/HUONG-DAN.md`](../../deploy/HUONG-DAN.md) |
 | Lập trình trên máy | [05 · Cài môi trường lập trình](05-cai-dat-may-lap-trinh.md): chạy, test, debug trên Windows / macOS |
 | Luật tiền | Hệ thống **không bao giờ tự hoàn tiền**. Có vấn đề về tiền thì khách liên hệ shop, admin giải quyết |
@@ -38,3 +38,4 @@ Frontend (React + Vite) vẫn ở thư mục gốc. Vercel chỉ là bản chạ
 | [07-giai-doan-2-tai-khoan.md](07-giai-doan-2-tai-khoan.md) | Giai đoạn 2: tài khoản thật (đăng ký, đăng nhập, phiên cookie, hồ sơ, mật khẩu, địa chỉ, ngân hàng mã hoá, lệnh tạo admin) | Xong |
 | [08-giai-doan-3-feed-va-anh.md](08-giai-doan-3-feed-va-anh.md) | Giai đoạn 3: feed và từng con thật trên MySQL (đăng / sửa / xoá, 30 feed, hàng tồn, mã BK, trang Kho, bán ngoài web), tải ảnh / video lên ổ của máy và tự dọn file | Xong |
 | [09-giai-doan-4-5-don-hang-thanh-toan.md](09-giai-doan-4-5-don-hang-thanh-toan.md) | Giai đoạn 4–5: đặt hàng chống bán trùng, mã giảm giá, thẻ qua cổng giả lập trên server, sự cố tiền (không tự hoàn), admin xử lý đơn, việc chạy nền | Xong |
+| [10-giai-doan-6-cai-dat-hang-khach-bao-cao.md](10-giai-doan-6-cai-dat-hang-khach-bao-cao.md) | Giai đoạn 6: cài đặt shop / bot, hạng thành viên, quản lý khách hàng, tổng quan, báo cáo huỷ đơn & sự cố, số đếm menu admin | Xong |

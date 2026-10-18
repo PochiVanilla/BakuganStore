@@ -10,6 +10,10 @@ import { requestLogger } from './middleware/requestLogger';
 import { apiRateLimit, requireAllowedOrigin } from './middleware/security';
 import { addressesRouter } from './modules/addresses/routes';
 import { adminIssuesRouter, adminOrdersRouter } from './modules/adminOrders/routes';
+import { adminCustomersRouter, adminMembershipRouter } from './modules/customers/routes';
+import { membershipRouter } from './modules/membership/routes';
+import { adminReportsRouter } from './modules/reports/routes';
+import { adminSettingsRouter } from './modules/settings/routes';
 import { authRouter } from './modules/auth/routes';
 import { chatBotRouter, type ChatBotHandlers } from './modules/bot/routes';
 import { adminFeedsRouter, adminItemsRouter } from './modules/catalog/adminRoutes';
@@ -83,6 +87,11 @@ export function createApp({
   app.use('/api/payments', paymentsRouter(paymentDeps));
   app.use('/api/admin/orders', adminOrdersRouter({ db, catalog, payments: paymentDeps }));
   app.use('/api/admin/issues', adminIssuesRouter({ db }));
+  app.use('/api/me/membership', membershipRouter(db));
+  app.use('/api/admin/settings', adminSettingsRouter(db));
+  app.use('/api/admin/customers', adminCustomersRouter({ db, env, mailer, logger }));
+  app.use('/api/admin/membership-requests', adminMembershipRouter(db));
+  app.use('/api/admin', adminReportsRouter(db, catalog));
 
   // Ảnh / video đã tải lên. Trên mini PC do Caddy trả thẳng từ ổ; khi lập trình backend tự trả.
   if (!env.isProduction) app.use('/uploads', serveUploads(env.uploadDir));
