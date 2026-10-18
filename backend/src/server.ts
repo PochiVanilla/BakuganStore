@@ -18,6 +18,14 @@ async function main(): Promise<void> {
     await prepareDatabase(database, logger);
   }
 
+  if (env.generatedSecrets.length > 0) {
+    logger.warn(
+      { missing: env.generatedSecrets },
+      'Chưa đặt khoá trong .env — đang dùng khoá tạm: khởi động lại là phải đăng nhập lại, ' +
+        'số tài khoản ngân hàng đã lưu không đọc lại được',
+    );
+  }
+
   const app = createApp({ env, logger, database });
   const server = createServer(app);
   // Lâu hơn thời gian Caddy giữ kết nối rảnh (2 phút) để không đóng giữa lúc Caddy đang gửi.

@@ -48,6 +48,14 @@ services:
       DB_PASSWORD: ${MYSQL_PASSWORD}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-}
+      JWT_SECRET: ${JWT_SECRET:?Thiếu JWT_SECRET trong deploy/.env}
+      BANK_DATA_KEY: ${BANK_DATA_KEY:?Thiếu BANK_DATA_KEY trong deploy/.env}
+      MAIL_DRIVER: ${MAIL_DRIVER:-console}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-TD Bakugan <no-reply@localhost>}
     volumes:
       - ${DATA_DIR:-/srv/tdbakugan}/uploads:/data/uploads
     healthcheck:

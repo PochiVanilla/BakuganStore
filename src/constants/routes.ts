@@ -24,6 +24,8 @@ export const ROUTES = {
   login: '/dang-nhap',
   register: '/dang-ky',
   forgotPassword: '/quen-mat-khau',
+  /** Link trong email quên mật khẩu: /dat-lai-mat-khau?token=… */
+  resetPassword: '/dat-lai-mat-khau',
   terms: '/dieu-khoan',
   privacy: '/chinh-sach-bao-mat',
   shipping: '/chinh-sach-van-chuyen',

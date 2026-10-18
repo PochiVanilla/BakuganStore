@@ -327,7 +327,8 @@ export interface User {
 export interface AuthSession {
   user: User;
   accessToken: string;
-  refreshToken: string;
+  /** Chỉ bản giả lập có; backend thật giữ refresh token trong cookie httpOnly */
+  refreshToken?: string;
 }
 
 /* ---------- Giỏ hàng & Đơn hàng ---------- */

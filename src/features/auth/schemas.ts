@@ -81,6 +81,19 @@ export const forgotPasswordSchema = z.object({
 
 export type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 
+/* ---------------- Đặt lại mật khẩu (từ link trong email) ---------------- */
+export const resetPasswordSchema = z
+  .object({
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, 'Vui lòng nhập lại mật khẩu.'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Mật khẩu nhập lại không khớp.',
+    path: ['confirmPassword'],
+  });
+
+export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
+
 /* ---------------- Đổi mật khẩu ---------------- */
 export const changePasswordSchema = z
   .object({

@@ -7,6 +7,7 @@ import { ProtectedRoute } from '@/features/auth/ProtectedRoute';
 import { AdminRoute } from '@/features/admin/AdminRoute';
 import { ADMIN_ROUTES, LEGACY_REDIRECTS, ROUTES } from '@/constants/routes';
 import { USE_MOCK } from '@/services/api/client';
+import { useAuthStore } from '@/store/authStore';
 // Trang chủ là trang khách vào nhiều nhất: đóng gói chung với phần khung để khỏi
 // chờ thêm một lượt tải file nữa rồi mới thấy nội dung.
 import HomePage from '@/pages/HomePage';
@@ -37,6 +38,7 @@ const AccountPage = lazy(() => import('@/pages/AccountPage'));
 const LoginPage = lazy(loadLoginPage);
 const RegisterPage = lazy(() => import('@/pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
 const LegalPage = lazy(() => import('@/pages/LegalPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
@@ -85,6 +87,22 @@ function useCardHoldSweep(): void {
       window.clearTimeout(first);
       window.clearInterval(timer);
     };
+  }, []);
+}
+
+/**
+ * Bản thật: mở web là lấy lại hồ sơ mới nhất từ server (hạng thành viên, địa chỉ… có thể đã
+ * đổi ở máy khác). Token hết hạn thì httpClient tự gia hạn bằng cookie; hết phiên thì đăng xuất.
+ */
+function useSessionSync(): void {
+  useEffect(() => {
+    if (USE_MOCK || !useAuthStore.getState().isAuthenticated) return;
+    void import('@/services/api/authService')
+      .then(({ fetchMe }) => fetchMe())
+      .then((user) => {
+        if (user) useAuthStore.getState().updateUser(user);
+      })
+      .catch(() => undefined);
   }, []);
 }
 
@@ -152,6 +170,7 @@ function usePrefetchLikelyPages(): void {
 export default function App() {
   usePrefetchLikelyPages();
   useCardHoldSweep();
+  useSessionSync();
   return (
     <>
       <ScrollToTop />
@@ -220,6 +239,7 @@ export default function App() {
           <Route path={ROUTES.login} element={<LoginPage />} />
           <Route path={ROUTES.register} element={<RegisterPage />} />
           <Route path={ROUTES.forgotPassword} element={<ForgotPasswordPage />} />
+          <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
           <Route path={ROUTES.terms} element={<LegalPage variant="terms" />} />
           <Route path={ROUTES.privacy} element={<LegalPage variant="privacy" />} />
           <Route path={ROUTES.shipping} element={<LegalPage variant="shipping" />} />

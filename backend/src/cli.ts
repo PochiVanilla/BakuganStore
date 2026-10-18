@@ -3,6 +3,7 @@ import { createDatabase } from './db/client';
 import { prepareDatabase, waitForDatabase } from './db/migrate';
 import { ensureBaseData } from './db/seed';
 import { createLogger } from './lib/logger';
+import { adminCreate } from './cli/adminCreate';
 
 /*
  * Lệnh quản trị chạy trên mini PC:
@@ -14,6 +15,8 @@ const HELP = `Cách dùng: node dist/cli.js <lệnh>
   migrate   Cập nhật CSDL theo migration mới nhất và tạo dữ liệu ban đầu còn thiếu
             (server cũng tự làm việc này mỗi lần khởi động)
   seed      Chỉ tạo dữ liệu ban đầu còn thiếu (cài đặt, mã giảm giá, bài blog)
+  admin:create
+            Tạo tài khoản quản trị (hỏi email, họ tên, mật khẩu ngay trong terminal)
   help      Hiện hướng dẫn này
 `;
 
@@ -23,7 +26,7 @@ async function main(): Promise<number> {
     process.stdout.write(HELP);
     return 0;
   }
-  if (command !== 'migrate' && command !== 'seed') {
+  if (command !== 'migrate' && command !== 'seed' && command !== 'admin:create') {
     process.stderr.write(`Không có lệnh "${command}".\n\n${HELP}`);
     return 1;
   }
@@ -35,6 +38,9 @@ async function main(): Promise<number> {
     await waitForDatabase(database, logger, { attempts: 10 });
     if (command === 'migrate') {
       await prepareDatabase(database, logger);
+    } else if (command === 'admin:create') {
+      await prepareDatabase(database, logger);
+      return await adminCreate(database.db);
     } else {
       const { created } = await ensureBaseData(database.db);
       process.stdout.write(

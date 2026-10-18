@@ -3,9 +3,13 @@ import helmet from 'helmet';
 import type { Env } from './config/env';
 import type { Database } from './db/client';
 import type { Logger } from './lib/logger';
+import { createMailer, type Mailer } from './mail';
+import { authenticate } from './middleware/auth';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 import { apiRateLimit, requireAllowedOrigin } from './middleware/security';
+import { addressesRouter } from './modules/addresses/routes';
+import { authRouter } from './modules/auth/routes';
 import { chatBotRouter, type ChatBotHandlers } from './modules/bot/routes';
 import { healthRouter } from './modules/health/routes';
 
@@ -17,6 +21,8 @@ export interface AppContext {
   chatBot?: ChatBotHandlers;
   /** Số request tối đa mỗi phút cho mỗi IP (mặc định 300) */
   rateLimitPerMinute?: number;
+  /** Gửi email; mặc định tạo theo MAIL_DRIVER (test thay bằng bản ghi lại thư) */
+  mailer?: Mailer;
 }
 
 /**
@@ -29,7 +35,9 @@ export function createApp({
   database,
   chatBot,
   rateLimitPerMinute,
+  mailer = createMailer(env, logger),
 }: AppContext): Express {
+  const { db } = database;
   const app = express();
   app.disable('x-powered-by');
   // Chỉ tin IP do đúng số lớp proxy phía trước chuyển vào (Caddy trên mini PC = 1).
@@ -46,7 +54,11 @@ export function createApp({
   // Bot nhận body thô (tới 512 KB) và tự đọc JSON như trên Vercel → đặt trước bộ đọc JSON chung.
   app.use('/api/chat-bot', chatBotRouter(chatBot));
   app.use('/api', express.json({ limit: '100kb' }));
+  // Đọc access token (nếu có) cho mọi API phía sau.
+  app.use('/api', authenticate(env, db));
   app.use('/api/health', healthRouter(database));
+  app.use('/api/auth', authRouter({ db, env, mailer, logger }));
+  app.use('/api/addresses', addressesRouter(db));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -95,6 +95,8 @@ nano .env
 | `SITE_ADDRESS` | Tên miền, VD `tdbakugan.vn`. Thử trong mạng nhà khi chưa có tên miền: `:80` |
 | `PUBLIC_ORIGIN` | Địa chỉ khách gõ, VD `https://tdbakugan.vn` (thử trong nhà: `http://192.168.1.50`) |
 | `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD` | Hai mật khẩu khác nhau, tạo bằng `openssl rand -base64 32` |
+| `JWT_SECRET`, `BANK_DATA_KEY` | Mỗi khoá chạy `openssl rand -base64 32` một lần. **Cất thêm một bản `BANK_DATA_KEY`** ngoài máy: mất khoá này là không đọc lại được số tài khoản ngân hàng khách đã lưu |
+| `MAIL_DRIVER`, `SMTP_…`, `MAIL_FROM` | Gửi email quên mật khẩu. Gmail: `MAIL_DRIVER=smtp`, `SMTP_HOST=smtp.gmail.com`, `SMTP_USER` là địa chỉ Gmail, `SMTP_PASS` là "mật khẩu ứng dụng" tạo trong tài khoản Google. Chưa cài thì để `console` (thư chỉ in ra log) |
 | `GEMINI_API_KEY` | Khoá lấy tại https://aistudio.google.com/apikey (để trống thì bot dùng bộ từ khoá) |
 | `BACKUP_EXTERNAL_DIR` | Đường dẫn ổ ngoài đã gắn, VD `/mnt/usb-backup` (xem mục 9) |
 
@@ -113,8 +115,13 @@ Kiểm tra:
 
 1. Mở `https://tdbakugan.vn/api/health`. Phải thấy `{"data":{"status":"ok","database":"ok",…}}`.
 2. Mở `https://tdbakugan.vn`: web hiện như bản Vercel. Ổ khoá HTTPS do Caddy tự xin, lần đầu có thể mất 1 phút.
-3. Đăng nhập tài khoản admin **demo** của bản giả lập → Cài đặt → Trợ lý AI → **Kiểm tra kết nối**:
-   phải báo Gemini trả lời được.
+3. Tạo tài khoản quản trị (chỉ làm một lần; tự gõ email, họ tên, mật khẩu, mật khẩu không hiện khi gõ):
+
+   ```bash
+   docker compose exec api node dist/cli.js admin:create
+   ```
+
+4. Đăng nhập tài khoản vừa tạo → Cài đặt → Trợ lý AI → **Kiểm tra kết nối**: phải báo Gemini trả lời được.
 
 Xem log khi có lỗi:
 

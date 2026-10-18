@@ -6,6 +6,7 @@ import type {
   LoginFormValues,
   ProfileFormValues,
   RegisterFormValues,
+  ResetPasswordFormValues,
 } from '@/features/auth/schemas';
 import { ADMIN_ACCOUNT } from '@/mocks';
 import { createId, hydrateOrder, readDb, updateDb, type UserRecord } from '@/mocks/db';
@@ -116,6 +117,30 @@ export async function requestPasswordReset(email: string): Promise<{ email: stri
     return data.data;
   }
   return mockDelay({ email }, 700);
+}
+
+/** Đặt mật khẩu mới bằng mã trong link email (link dùng một lần, sống 30 phút). */
+export async function resetPassword(
+  token: string,
+  values: ResetPasswordFormValues,
+): Promise<{ email: string }> {
+  if (!USE_MOCK) {
+    const { data } = await apiClient.post<ApiResponse<{ email: string }>>('/auth/reset-password', {
+      token,
+      ...values,
+    });
+    return data.data;
+  }
+  return mockDelay({ email: '' }, 500);
+}
+
+/** Hồ sơ mới nhất của người đang đăng nhập (hạng thành viên, địa chỉ… có thể đã đổi). */
+export async function fetchMe(): Promise<User | null> {
+  if (!USE_MOCK) {
+    const { data } = await apiClient.get<ApiResponse<User>>('/auth/me');
+    return data.data;
+  }
+  return null;
 }
 
 /**

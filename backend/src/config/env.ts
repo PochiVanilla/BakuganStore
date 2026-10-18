@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 
 /*
@@ -54,9 +55,54 @@ const EnvSchema = z
     /** Khoá Gemini: chỉ nằm ở server, không bao giờ gửi xuống trình duyệt */
     GEMINI_API_KEY: z.string().optional(),
     GEMINI_MODEL: z.string().optional(),
+
+    /** Khoá ký token đăng nhập (ít nhất 32 ký tự ngẫu nhiên) */
+    JWT_SECRET: z.string().min(32, 'Cần ít nhất 32 ký tự ngẫu nhiên').optional(),
+    /** Khoá mã hoá số tài khoản ngân hàng: 32 byte, ghi dạng base64 */
+    BANK_DATA_KEY: z
+      .string()
+      .refine((value) => Buffer.from(value, 'base64').length === 32, 'Phải là 32 byte dạng base64')
+      .optional(),
+
+    /** Gửi email: `console` (in ra log, khi lập trình) hoặc `smtp` (Gmail, Resend SMTP…) */
+    MAIL_DRIVER: z.enum(['console', 'smtp']).default('console'),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().min(1).max(65_535).default(587),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
+    /** Người gửi, VD "TD Bakugan <shop@tdbakugan.vn>" */
+    MAIL_FROM: z.string().default('TD Bakugan <no-reply@localhost>'),
+  })
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production') {
+      for (const key of ['JWT_SECRET', 'BANK_DATA_KEY'] as const) {
+        if (!env[key]) {
+          ctx.addIssue({ code: 'custom', path: [key], message: 'Bắt buộc khi chạy thật' });
+        }
+      }
+    }
+    if (env.MAIL_DRIVER === 'smtp') {
+      for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'] as const) {
+        if (!env[key]) {
+          ctx.addIssue({ code: 'custom', path: [key], message: 'Bắt buộc khi MAIL_DRIVER=smtp' });
+        }
+      }
+    }
   })
   .transform((env) => ({
     ...env,
+    /*
+     * Khi lập trình / test mà chưa đặt khoá thì tạo tạm khoá ngẫu nhiên (server báo cảnh báo):
+     * khởi động lại là phiên đăng nhập cũ hết hiệu lực. Bản thật bắt buộc đặt (kiểm tra ở trên).
+     */
+    jwtSecret: new TextEncoder().encode(env.JWT_SECRET ?? randomBytes(48).toString('base64')),
+    bankDataKey: env.BANK_DATA_KEY ? Buffer.from(env.BANK_DATA_KEY, 'base64') : randomBytes(32),
+    generatedSecrets: [
+      ...(env.JWT_SECRET ? [] : ['JWT_SECRET']),
+      ...(env.BANK_DATA_KEY ? [] : ['BANK_DATA_KEY']),
+    ],
+    /** Cookie phiên chỉ gửi qua HTTPS khi web chạy HTTPS */
+    secureCookies: env.PUBLIC_ORIGIN.startsWith('https://'),
     TRUST_PROXY_HOPS: env.TRUST_PROXY_HOPS ?? (env.NODE_ENV === 'production' ? 1 : 0),
     LOG_FORMAT: env.LOG_FORMAT ?? (env.NODE_ENV === 'development' ? 'pretty' : 'json'),
     isProduction: env.NODE_ENV === 'production',

@@ -12,7 +12,7 @@ Frontend (React + Vite) vẫn ở thư mục gốc. Vercel chỉ là bản chạ
 | Backend | Express 5 + TypeScript (Node.js 22 LTS trở lên), MySQL 8.4 |
 | Nơi chạy | Mini PC của shop (Docker Compose: Caddy + backend + MySQL); ảnh và video lưu trên ổ cứng máy. Vercel chỉ là bản chạy tạm |
 | Cách nối | Frontend build với `VITE_USE_MOCK=false` + `VITE_API_BASE_URL=/api` là gọi backend thật, không phải viết lại giao diện |
-| Trạng thái | Kế hoạch bản 3 **đã duyệt**. **Xong giai đoạn 1** (khung backend, MySQL, Gemini, bộ cài mini PC). Tiếp theo: giai đoạn 2, tài khoản |
+| Trạng thái | Kế hoạch bản 3 **đã duyệt**. Đang **bỏ dữ liệu giả lập, chuyển sang lưu thật trên MySQL**. Xong giai đoạn 1 (khung, MySQL, Gemini, mini PC) và 2 (tài khoản). Tiếp theo: giai đoạn 3, feed |
 | Cài mini PC | [`deploy/HUONG-DAN.md`](../../deploy/HUONG-DAN.md) |
 | Lập trình trên máy | [05 · Cài môi trường lập trình](05-cai-dat-may-lap-trinh.md): chạy, test, debug trên Windows / macOS |
 | Luật tiền | Hệ thống **không bao giờ tự hoàn tiền**. Có vấn đề về tiền thì khách liên hệ shop, admin giải quyết |
@@ -35,3 +35,4 @@ Frontend (React + Vite) vẫn ở thư mục gốc. Vercel chỉ là bản chạ
 | [04-giai-doan-1-khung-backend.md](04-giai-doan-1-khung-backend.md) | Giai đoạn 1: backend Express + TS, CSDL MySQL 31 bảng, bot Gemini trong backend, bộ cài mini PC (Docker, sao lưu, hướng dẫn); 43 test trên MySQL thật | Xong |
 | [05-cai-dat-may-lap-trinh.md](05-cai-dat-may-lap-trinh.md) | Cài môi trường lập trình trên máy cá nhân: MySQL bằng Docker Desktop, chạy web + backend, test, debug VS Code | Xong |
 | [06-giao-viec-ai-tren-may.md](06-giao-viec-ai-tren-may.md) | Bản giao việc gửi cho AI chạy trên PC của shop: cài, kéo code, chạy, test, mẫu báo cáo | Dùng được |
+| [07-giai-doan-2-tai-khoan.md](07-giai-doan-2-tai-khoan.md) | Giai đoạn 2: tài khoản thật (đăng ký, đăng nhập, phiên cookie, hồ sơ, mật khẩu, địa chỉ, ngân hàng mã hoá, lệnh tạo admin) | Xong |

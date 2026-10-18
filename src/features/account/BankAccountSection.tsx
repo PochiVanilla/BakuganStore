@@ -89,8 +89,8 @@ export function BankAccountSection() {
       </p>
       <p className="mt-3 flex max-w-xl items-start gap-2 rounded-xl border border-accent-cyan/20 bg-accent-cyan/5 p-3 text-xs leading-relaxed text-text-muted">
         <LockKeyhole size={14} className="mt-0.5 shrink-0 text-accent-cyan" aria-hidden="true" />
-        Số tài khoản chỉ hiển thị với bạn. Nhân viên shop chỉ thấy tên ngân hàng, việc hoàn tiền do
-        hệ thống thanh toán xử lý.
+        Số tài khoản được mã hoá; sau khi lưu chỉ còn hiện 4 số cuối, kể cả với bạn. Nhân viên shop
+        chỉ thấy tên ngân hàng và tên chủ tài khoản. Khi cần hoàn tiền, shop liên hệ bạn trước.
       </p>
 
       {account && !isEditing ? (
